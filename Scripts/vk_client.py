@@ -11,24 +11,34 @@ class VkClient:
         self.token = token
         self.session = requests.Session()
 
-    def _call(self, method: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    def _call(
+        self, method: str, params: Optional[dict[str, Any]] = None, retries: int = 3
+    ) -> dict[str, Any]:
         if params is None:
             params = {}
         params["access_token"] = self.token
         params["v"] = API_VERSION
 
-        url = f"{API_BASE_URL}/{method}"
-        resp = self.session.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
+        for attempt in range(retries):
+            url = f"{API_BASE_URL}/{method}"
+            resp = self.session.get(url, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
 
-        if "error" in data:
-            err = data["error"]
-            raise RuntimeError(
-                f"VK API error [{err.get('error_code')}]: {err.get('error_msg')}"
-            )
+            if "error" in data:
+                err = data["error"]
+                code = err.get("error_code")
+                if code == 6 and attempt < retries - 1:
+                    delay = 2 ** attempt
+                    time.sleep(delay)
+                    continue
+                raise RuntimeError(
+                    f"VK API error [{code}]: {err.get('error_msg')}"
+                )
 
-        return data.get("response", data)
+            return data.get("response", data)
+
+        raise RuntimeError("VK API error [6]: превышено число попыток")
 
     def get_conversations(
         self, count: int = 20, offset: int = 0
@@ -59,6 +69,7 @@ class VkClient:
                 break
             items.extend(batch)
             offset += count
+            time.sleep(0.35)
 
         return items
 
@@ -74,6 +85,7 @@ class VkClient:
                 break
             items.extend(batch)
             offset += count
+            time.sleep(0.35)
 
         items.reverse()
         return items
