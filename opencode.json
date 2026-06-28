@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "external_directory": "deny"
+  },
+  "plugin": [
+    ".opencode/plugins/AutoCommit/auto-commit.js",
+    ".opencode/plugins/AutoCommit/prompt-logger.js"
+  ]
+}
