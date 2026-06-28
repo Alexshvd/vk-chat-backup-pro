@@ -1,5 +1,5 @@
 import time
-from typing import Any
+from typing import Any, Optional
 
 import requests
 
@@ -11,7 +11,7 @@ class VkClient:
         self.token = token
         self.session = requests.Session()
 
-    def _call(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _call(self, method: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         if params is None:
             params = {}
         params["access_token"] = self.token
