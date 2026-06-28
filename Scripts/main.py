@@ -1,5 +1,6 @@
 import json
 import sys
+from pathlib import Path
 
 from config import GROUP_ID
 from vk_client import VkClient
@@ -60,7 +61,8 @@ def main():
         "messages": all_messages,
     }
 
-    output_path = "messages.json"
+    output_path = "Temp/ExportMessages/messages.json"
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
