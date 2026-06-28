@@ -20,4 +20,4 @@ env/
 # Project-specific
 .env
 messages.json
-Scripts/__pycache__/
+__pycache__/
