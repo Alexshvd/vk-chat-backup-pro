@@ -19,5 +19,5 @@ env/
 
 # Project-specific
 .env
-messages.json
 __pycache__/
+Temp/
