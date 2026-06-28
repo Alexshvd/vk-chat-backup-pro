@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+*.log
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Project-specific
+.env
+messages.json
+Scripts/__pycache__/
