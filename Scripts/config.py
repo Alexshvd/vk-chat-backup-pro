@@ -20,5 +20,13 @@ try:
 except ValueError:
     raise ValueError("GROUP_ID должен быть числом")
 
+PEER_ID = os.getenv("PEER_ID")
+if not PEER_ID:
+    raise ValueError("PEER_ID не задан. Создайте .env на основе .env.example")
+try:
+    PEER_ID = int(PEER_ID)
+except ValueError:
+    raise ValueError("PEER_ID должен быть числом")
+
 API_VERSION = "5.199"
 API_BASE_URL = "https://api.vk.com/method"

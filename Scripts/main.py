@@ -2,63 +2,27 @@ import json
 import sys
 from pathlib import Path
 
-from config import GROUP_ID
+from config import GROUP_ID, PEER_ID
 from vk_client import VkClient
 
 
 def main():
     client = VkClient()
 
-    print("Получение списка диалогов...")
+    print(f"Загрузка истории для peer_id={PEER_ID}...")
     try:
-        conversations = client.get_all_conversations()
+        messages = client.get_all_history(PEER_ID)
     except RuntimeError as e:
-        print(f"Ошибка при получении диалогов: {e}", file=sys.stderr)
+        print(f"Ошибка: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Найдено диалогов: {len(conversations)}")
-
-    all_messages: dict[str, list[dict]] = {}
-
-    for conv in conversations:
-        conv_data = conv.get("conversation", {})
-        peer = conv_data.get("peer", {})
-        peer_id = peer.get("id")
-        chat_type = peer.get("type", "unknown")
-
-        if peer_id is None:
-            continue
-
-        print(f"  Загрузка истории для peer_id={peer_id} (тип: {chat_type})...")
-        try:
-            messages = client.get_all_history(peer_id)
-        except RuntimeError as e:
-            print(f"    Ошибка: {e}", file=sys.stderr)
-            continue
-
-        print(f"    Загружено сообщений: {len(messages)}")
-        all_messages[str(peer_id)] = messages
+    print(f"Загружено сообщений: {len(messages)}")
 
     result = {
         "group_id": GROUP_ID,
-        "total_peer_ids": len(all_messages),
-        "conversations": [
-            {
-                "peer_id": c.get("conversation", {}).get("peer", {}).get("id"),
-                "type": c.get("conversation", {}).get("peer", {}).get("type"),
-                "title": (
-                    c.get("conversation", {})
-                    .get("chat_settings", {})
-                    .get("title")
-                    or c.get("conversation", {})
-                    .get("peer", {})
-                    .get("local_id")
-                ),
-                "last_message_preview": c.get("last_message", {}).get("text", "")[:100],
-            }
-            for c in conversations
-        ],
-        "messages": all_messages,
+        "peer_id": PEER_ID,
+        "total": len(messages),
+        "messages": messages,
     }
 
     output_path = "Temp/ExportMessages/messages.json"
