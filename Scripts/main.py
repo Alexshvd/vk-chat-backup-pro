@@ -4,6 +4,7 @@ from pathlib import Path
 
 from config import GROUP_ID, PEER_ID
 from vk_client import VkClient
+from export_fwd import extract_forwarded
 
 
 def main():
@@ -25,12 +26,18 @@ def main():
         "messages": messages,
     }
 
-    output_path = "Temp/ExportMessages/messages.json"
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    dialog_dir = Path("Temp/ExportMessages") / f"dialog_{PEER_ID}"
+    dialog_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = dialog_dir / "messages.json"
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     print(f"\nСохранено в {output_path}")
+
+    extracted_dir = dialog_dir / "ExtractedOriginalMessages"
+    n = extract_forwarded(str(output_path), str(extracted_dir))
+    print(f"Извлечено пересланных сообщений: {n}")
 
 
 if __name__ == "__main__":
