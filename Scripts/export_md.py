@@ -181,9 +181,17 @@ def _render_wall(att: dict) -> list[str]:
     lines.append(f"**Ссылка на запись:** [{post_url}]({post_url})")
     lines.append("")
     text = (data.get("text") or "").strip()
-    if text:
+    children = data.get("attachments", [])
+
+    if text and len(children) == 1:
+        lines.extend(_render_attachment(children[0]))
+        lines.append("")
         lines.append(text.replace("\n", "<br>\n"))
         lines.append("")
-    for child in data.get("attachments", []):
-        lines.extend(_render_attachment(child))
+    else:
+        if text:
+            lines.append(text.replace("\n", "<br>\n"))
+            lines.append("")
+        for child in children:
+            lines.extend(_render_attachment(child))
     return lines
