@@ -64,8 +64,8 @@ def _first_sentence(text: str) -> str:
     for sep in ("\n", ".", "!", "?"):
         idx = text.find(sep)
         if idx != -1:
-            return text[: idx + 1]
-    return text
+            return text[: idx + 1].strip()
+    return text.strip()
 
 
 def _clean_filename(name: str) -> str:
