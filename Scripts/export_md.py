@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -84,9 +83,7 @@ def _render_message(fwd: dict, json_filename: str, level: int) -> str:
         lines.append("")
 
         for att in attachments:
-            line = _render_attachment(att)
-            if line:
-                lines.append(f"- {line}")
+            lines.extend(_render_attachment(att))
 
         ref = f"**Исходный файл:** [{json_filename}](../ExtractedOriginalMessages/{json_filename})"
         lines.append("")
@@ -113,30 +110,30 @@ def _make_heading(fwd: dict, text: str) -> str:
     return f"Сообщение (id {fwd.get('conversation_message_id', '?')})"
 
 
-def _render_attachment(att: dict) -> str:
+def _render_attachment(att: dict) -> list[str]:
     t = att.get("type")
     if t == "photo":
-        return _render_photo(att)
+        return [_render_photo(att)]
     if t in ("video", "short_video"):
-        return _render_video(att)
+        return [_render_video(att)]
     if t == "link":
-        return _render_link(att)
+        return [_render_link(att)]
     if t in ("wall", "post"):
-        return f"**Запись на стене:** [id {att.get(t, {}).get('id', '?')}](https://vk.com/wall{att.get(t, {}).get('owner_id', '')}_{att.get(t, {}).get('id', '')})"
+        return _render_wall(att)
     if t == "doc":
         doc = att.get("doc", {})
         url = doc.get("url", "")
         title = doc.get("title", "документ")
-        return f"**Документ:** [{title}]({url})"
+        return [f"**Документ:** [{title}]({url})"]
     if t == "audio":
         audio = att.get("audio", {})
-        return f"**Аудио:** {audio.get('artist', '')} — {audio.get('title', '')}"
+        return [f"**Аудио:** {audio.get('artist', '')} — {audio.get('title', '')}"]
     if t == "sticker":
         sticker = att.get("sticker", {})
         imgs = sticker.get("images", [])
         url = imgs[-1].get("url", "") if imgs else ""
-        return f"**Стикер:** ![]({url})"
-    return f"**{t}**"
+        return [f"**Стикер:** ![]({url})"]
+    return [f"**{t}**"]
 
 
 def _render_photo(att: dict) -> str:
@@ -155,8 +152,7 @@ def _render_video(att: dict) -> str:
     player = video.get("player", "")
     imgs = video.get("image", [])
     preview = imgs[-1].get("url", "") if imgs else ""
-    parts = []
-    parts.append(f"**Видео:** [{title}]({player})" if player else f"**Видео:** {title}")
+    parts = [f"**Видео:** [{title}]({player})" if player else f"**Видео:** {title}"]
     if preview:
         parts.append(f"![]({preview})")
     return " ".join(parts)
@@ -167,3 +163,18 @@ def _render_link(att: dict) -> str:
     url = link.get("url", "")
     title = link.get("title", "ссылка")
     return f"**Ссылка:** [{title}]({url})"
+
+
+def _render_wall(att: dict) -> list[str]:
+    data = att.get(att.get("type"), {})
+    post_url = f"https://vk.com/wall{data.get('owner_id', '')}_{data.get('id', '')}"
+    lines = ["", "### Запись на стене", ""]
+    lines.append(f"**Ссылка на запись:** [{post_url}]({post_url})")
+    lines.append("")
+    text = (data.get("text") or "").strip()
+    if text:
+        lines.append(text)
+        lines.append("")
+    for child in data.get("attachments", []):
+        lines.extend(_render_attachment(child))
+    return lines
