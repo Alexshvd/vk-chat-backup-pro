@@ -69,11 +69,19 @@ def _first_sentence(text: str) -> str:
 
 
 def _clean_filename(name: str) -> str:
-    name = name.replace(" ", "_")
     name = name.replace("\n", " ")
     name = name.replace("\r", " ")
     name = re.sub(r'\s+', " ", name).strip()
     name = re.sub(r'[\\/*?:"<>|]', "_", name)
+    name = re.sub(
+        r'[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF'
+        r'\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF'
+        r'\U0001F900-\U0001F9FF\U0001FA00-\U0001FA6F\U0001FA70-\U0001FAFF'
+        r'\u200D\u20E3\u231A-\u23FE\uFE00-\uFE0F]',
+        "", name
+    )
+    name = name.replace("\u2014", "-")
+    name = name.replace("\u2013", "-")
     name = name.strip(". ")
     if not name:
         name = "message.md"
