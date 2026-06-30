@@ -71,31 +71,40 @@ def _render_message(fwd: dict, json_filename: str, level: int) -> str:
         dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
         lines.append(f"**Дата:** {dt}")
     lines.append("")
-    if text:
-        lines.append(text.replace("\n", "<br>\n"))
-        lines.append("")
 
     attachments = fwd.get("attachments", [])
     fwd_messages = fwd.get("fwd_messages", [])
 
-    if attachments or fwd_messages:
-        lines.append("## Вложения")
+    if text and len(attachments) == 1 and not fwd_messages:
+        lines.extend(_render_attachment(attachments[0]))
         lines.append("")
-
-        for att in attachments:
-            lines.extend(_render_attachment(att))
-
+        lines.append(text.replace("\n", "<br>\n"))
+        lines.append("")
         ref = f"**Исходный файл:** [{json_filename}](../ExtractedOriginalMessages/{json_filename})"
-        lines.append("")
         lines.append(ref)
+    else:
+        if text:
+            lines.append(text.replace("\n", "<br>\n"))
+            lines.append("")
 
-        if fwd_messages:
+        if attachments or fwd_messages:
+            lines.append("## Вложения")
             lines.append("")
-            lines.append(f"{tag} Пересланные сообщения")
+
+            for att in attachments:
+                lines.extend(_render_attachment(att))
+
+            ref = f"**Исходный файл:** [{json_filename}](../ExtractedOriginalMessages/{json_filename})"
             lines.append("")
-            for child in fwd_messages:
-                child_text = _render_message(child, json_filename, level + 2)
-                lines.append(child_text)
+            lines.append(ref)
+
+            if fwd_messages:
+                lines.append("")
+                lines.append(f"{tag} Пересланные сообщения")
+                lines.append("")
+                for child in fwd_messages:
+                    child_text = _render_message(child, json_filename, level + 2)
+                    lines.append(child_text)
 
     return "\n".join(lines) + "\n"
 
