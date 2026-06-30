@@ -61,7 +61,7 @@ def _make_filename(fwd: dict, json_stem: str, cid: int, text_override: str = "")
 
 
 def _first_sentence(text: str) -> str:
-    for sep in (".", "!", "?"):
+    for sep in ("\n", ".", "!", "?"):
         idx = text.find(sep)
         if idx != -1:
             return text[: idx + 1]
