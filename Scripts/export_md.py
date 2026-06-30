@@ -72,7 +72,7 @@ def _render_message(fwd: dict, json_filename: str, level: int) -> str:
         lines.append(f"**Дата:** {dt}")
     lines.append("")
     if text:
-        lines.append(text)
+        lines.append(text.replace("\n", "<br>\n"))
         lines.append("")
 
     attachments = fwd.get("attachments", [])
@@ -173,7 +173,7 @@ def _render_wall(att: dict) -> list[str]:
     lines.append("")
     text = (data.get("text") or "").strip()
     if text:
-        lines.append(text)
+        lines.append(text.replace("\n", "<br>\n"))
         lines.append("")
     for child in data.get("attachments", []):
         lines.extend(_render_attachment(child))
