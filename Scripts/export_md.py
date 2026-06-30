@@ -18,13 +18,26 @@ def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
         if cid is None:
             continue
 
-        filename = _make_filename(fwd, f.stem, cid)
-        content = _render_message(fwd, f.name, 1)
+        attachments = fwd.get("attachments", [])
+        wall_posts = [a for a in attachments if a.get("type") in ("wall", "post")]
 
-        file_path = md_path / filename
-        with open(file_path, "w", encoding="utf-8") as fp:
-            fp.write(content)
-        count += 1
+        if len(wall_posts) < 2:
+            filename = _make_filename(fwd, f.stem, cid)
+            content = _render_message(fwd, f.name, 1)
+            file_path = md_path / filename
+            with open(file_path, "w", encoding="utf-8") as fp:
+                fp.write(content)
+            count += 1
+        else:
+            for i, wp in enumerate(wall_posts, 1):
+                filename = _make_filename(fwd, f.stem, cid)
+                base = filename[:-3]
+                filename = f"{base}_part_{i}.md"
+                content = _render_message_with_wall(fwd, wp, f.name)
+                file_path = md_path / filename
+                with open(file_path, "w", encoding="utf-8") as fp:
+                    fp.write(content)
+                count += 1
 
     return count
 
@@ -56,6 +69,41 @@ def _clean_filename(name: str) -> str:
     if not name:
         name = "message.md"
     return name
+
+
+def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str) -> str:
+    tag = "#"
+    text = (fwd.get("text") or "").strip()
+    ts = fwd.get("date")
+
+    lines = []
+    lines.append(f"{tag} {_make_heading(fwd, text)}")
+    lines.append("")
+    lines.append(f"**От:** {fwd.get('from_id', '?')}")
+    if ts:
+        dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        lines.append(f"**Дата:** {dt}")
+    lines.append("")
+
+    attachments = fwd.get("attachments", [])
+    other_attachments = [a for a in attachments if a.get("type") not in ("wall", "post")]
+
+    if text:
+        lines.append(text.replace("\n", "<br>\n"))
+        lines.append("")
+
+    lines.append("## Вложения")
+    lines.append("")
+
+    for att in other_attachments:
+        lines.extend(_render_attachment(att))
+    lines.extend(_render_wall(wall_att))
+
+    ref = f"**Исходный файл:** [{json_filename}](../ExtractedOriginalMessages/{json_filename})"
+    lines.append("")
+    lines.append(ref)
+
+    return "\n".join(lines) + "\n"
 
 
 def _render_message(fwd: dict, json_filename: str, level: int) -> str:
