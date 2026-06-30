@@ -5,6 +5,7 @@ from pathlib import Path
 from config import GROUP_ID, PEER_ID
 from vk_client import VkClient
 from export_fwd import extract_forwarded
+from export_md import convert_forwarded_to_md
 
 
 def main():
@@ -38,6 +39,10 @@ def main():
     extracted_dir = dialog_dir / "ExtractedOriginalMessages"
     n = extract_forwarded(str(output_path), str(extracted_dir))
     print(f"Извлечено пересланных сообщений: {n}")
+
+    md_dir = dialog_dir / "MdConvertResults"
+    m = convert_forwarded_to_md(str(extracted_dir), str(md_dir))
+    print(f"Создано MD-файлов: {m}")
 
 
 if __name__ == "__main__":
