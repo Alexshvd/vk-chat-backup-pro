@@ -2,9 +2,39 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+from download_media import DownloadItem
 
 
-def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
+_download_queue = None
+_url_to_relpath = {}
+
+
+def _get_ext(url: str) -> str:
+    for ext in ("jpg", "jpeg", "png", "gif", "webp"):
+        if ext in url.lower():
+            return ext
+    return "jpg"
+
+
+def _register_image(url: str, cid: int) -> str:
+    if url in _url_to_relpath:
+        return _url_to_relpath[url]
+    items = _download_queue.setdefault(cid, [])
+    n = len(items) + 1
+    ext = _get_ext(url)
+    relpath = f"RawData/{cid}/{n}.{ext}"
+    _url_to_relpath[url] = relpath
+    items.append(DownloadItem(url=url, relpath=relpath))
+    return relpath
+
+
+def convert_forwarded_to_md(json_dir: str, md_dir: str, download_queue: Optional[dict[int, list[DownloadItem]]] = None) -> int:
+    global _download_queue, _url_to_relpath
+    _download_queue = download_queue if download_queue is not None else {}
+    _url_to_relpath = {}
+
     json_path = Path(json_dir)
     md_path = Path(md_dir)
     md_path.mkdir(parents=True, exist_ok=True)
@@ -29,7 +59,7 @@ def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
             filename = _make_filename(fwd, f.stem, cid, wall_text)
             if wall_text:
                 filename = "Статья." + filename
-            content = _render_message(fwd, f.name, 1)
+            content = _render_message(fwd, f.name, 1, cid)
             file_path = md_path / filename
             with open(file_path, "w", encoding="utf-8") as fp:
                 fp.write(content)
@@ -43,7 +73,7 @@ def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
                 filename = f"{base}_part_{i}.md"
                 if wall_text:
                     filename = "Статья." + filename
-                content = _render_message_with_wall(fwd, wp, f.name)
+                content = _render_message_with_wall(fwd, wp, f.name, cid)
                 file_path = md_path / filename
                 with open(file_path, "w", encoding="utf-8") as fp:
                     fp.write(content)
@@ -120,7 +150,7 @@ def _clean_filename(name: str) -> str:
     return name
 
 
-def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str) -> str:
+def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str, cid: int) -> str:
     tag = "#"
     text = (fwd.get("text") or "").strip()
     ts = fwd.get("date")
@@ -145,21 +175,21 @@ def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str) -> 
     lines.append("")
 
     for att in other_attachments:
-        lines.extend(_render_attachment(att))
-    lines.extend(_render_wall(wall_att))
+        lines.extend(_render_attachment(att, cid))
+    lines.extend(_render_wall(wall_att, cid))
 
     lines.append("")
     lines.append("## Источники")
     lines.append("")
-    lines.append("| Тип | Ссылка |")
-    lines.append("|-----|--------|")
-    for label, url in _collect_urls(fwd, json_filename):
-        lines.append(f"| {label} | [{url}]({url}) |")
+    lines.append("| Тип | Относительная ссылка | Ссылка |")
+    lines.append("|-----|---------------------|--------|")
+    for label, relpath, url in _collect_urls(fwd, json_filename, cid):
+        lines.append(f"| {label} | {relpath} | [{url}]({url}) |")
 
     return "\n".join(lines) + "\n"
 
 
-def _render_message(fwd: dict, json_filename: str, level: int) -> str:
+def _render_message(fwd: dict, json_filename: str, level: int, cid: int) -> str:
     tag = "#" * min(level, 6)
     text = (fwd.get("text") or "").strip()
     ts = fwd.get("date")
@@ -177,7 +207,7 @@ def _render_message(fwd: dict, json_filename: str, level: int) -> str:
     fwd_messages = fwd.get("fwd_messages", [])
 
     if text and len(attachments) == 1 and not fwd_messages:
-        lines.extend(_render_attachment(attachments[0]))
+        lines.extend(_render_attachment(attachments[0], cid))
         lines.append("")
         lines.append(text.replace("\n", "<br>\n"))
         lines.append("")
@@ -191,24 +221,25 @@ def _render_message(fwd: dict, json_filename: str, level: int) -> str:
             lines.append("")
 
             for att in attachments:
-                lines.extend(_render_attachment(att))
+                lines.extend(_render_attachment(att, cid))
 
             if fwd_messages:
                 lines.append("")
                 lines.append(f"{tag} Пересланные сообщения")
                 lines.append("")
                 for child in fwd_messages:
-                    child_text = _render_message(child, json_filename, level + 2)
+                    child_cid = child.get("conversation_message_id") or cid
+                    child_text = _render_message(child, json_filename, level + 2, child_cid)
                     lines.append(child_text)
 
     if attachments or fwd_messages or text:
         lines.append("")
         lines.append("## Источники")
         lines.append("")
-        lines.append("| Тип | Ссылка |")
-        lines.append("|-----|--------|")
-        for label, url in _collect_urls(fwd, json_filename):
-            lines.append(f"| {label} | [{url}]({url}) |")
+        lines.append("| Тип | Относительная ссылка | Ссылка |")
+        lines.append("|-----|---------------------|--------|")
+        for label, relpath, url in _collect_urls(fwd, json_filename, cid):
+            lines.append(f"| {label} | {relpath} | [{url}]({url}) |")
 
     return "\n".join(lines) + "\n"
 
@@ -223,16 +254,16 @@ def _make_heading(fwd: dict, text: str) -> str:
     return f"Сообщение (id {fwd.get('conversation_message_id', '?')})"
 
 
-def _render_attachment(att: dict) -> list[str]:
+def _render_attachment(att: dict, cid: int) -> list[str]:
     t = att.get("type")
     if t == "photo":
-        return [_render_photo(att)]
+        return [_render_photo(att, cid)]
     if t in ("video", "short_video"):
-        return [_render_video(att)]
+        return [_render_video(att, cid)]
     if t == "link":
         return [_render_link(att)]
     if t in ("wall", "post"):
-        return _render_wall(att)
+        return _render_wall(att, cid)
     if t == "doc":
         doc = att.get("doc", {})
         url = doc.get("url", "")
@@ -245,21 +276,23 @@ def _render_attachment(att: dict) -> list[str]:
         sticker = att.get("sticker", {})
         imgs = sticker.get("images", [])
         url = imgs[-1].get("url", "") if imgs else ""
-        return [f"**Стикер:** ![]({url})"]
+        relpath = _register_image(url, cid) if url else ""
+        return [f"**Стикер:** ![]({relpath})"]
     return [f"**{t}**"]
 
 
-def _render_photo(att: dict) -> str:
+def _render_photo(att: dict, cid: int) -> str:
     photo = att.get("photo", {})
     sizes = photo.get("sizes", [])
     if not sizes:
         return "**Фото:** нет данных"
     biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
     url = biggest.get("url", "")
-    return f"**Фото:** ![]({url})"
+    relpath = _register_image(url, cid) if url else ""
+    return f"**Фото:** ![]({relpath})"
 
 
-def _render_video(att: dict) -> str:
+def _render_video(att: dict, cid: int) -> str:
     video = att.get("video", {})
     title = video.get("title", "видео")
     player = video.get("player", "")
@@ -267,7 +300,8 @@ def _render_video(att: dict) -> str:
     preview = imgs[-1].get("url", "") if imgs else ""
     parts = [f"**Видео:** [{title}]({player})" if player else f"**Видео:** {title}"]
     if preview:
-        parts.append(f"![]({preview})")
+        relpath = _register_image(preview, cid)
+        parts.append(f"![]({relpath})")
     return " ".join(parts)
 
 
@@ -278,49 +312,55 @@ def _render_link(att: dict) -> str:
     return f"**Ссылка:** [{title}]({url})"
 
 
-def _collect_urls(fwd: dict, json_filename: str) -> list[tuple[str, str]]:
-    result = [("Исходный файл", f"../ExtractedOriginalMessages/{json_filename}")]
+def _collect_urls(fwd: dict, json_filename: str, cid: int) -> list[tuple[str, str, str]]:
+    result = [("Исходный файл", "", f"../ExtractedOriginalMessages/{json_filename}")]
     for att in fwd.get("attachments", []):
-        result.extend(_collect_attachment_urls(att))
+        result.extend(_collect_attachment_urls(att, cid))
     for child in fwd.get("fwd_messages", []):
-        result.extend(_collect_urls(child, json_filename))
+        result.extend(_collect_urls(child, json_filename, cid))
     return result
 
 
-def _collect_attachment_urls(att: dict) -> list[tuple[str, str]]:
+def _collect_attachment_urls(att: dict, cid: int) -> list[tuple[str, str, str]]:
     t = att.get("type")
     if t == "photo":
         photo = att.get("photo", {})
         sizes = photo.get("sizes", [])
         if sizes:
             biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
-            return [("Фото", biggest["url"])]
+            url = biggest["url"]
+            return [("Фото", _url_to_relpath.get(url, ""), url)]
     if t in ("video", "short_video"):
         video = att.get("video", {})
         urls = []
         if video.get("player"):
-            urls.append(("Видео", video["player"]))
+            urls.append(("Видео", "", video["player"]))
         imgs = video.get("image", [])
         if imgs:
-            urls.append(("Превью", imgs[-1]["url"]))
+            preview = imgs[-1]["url"]
+            urls.append(("Превью", _url_to_relpath.get(preview, ""), preview))
         return urls
     if t == "link":
         link = att.get("link", {})
-        return [("Ссылка", link["url"])] if link.get("url") else []
+        if link.get("url"):
+            return [("Ссылка", "", link["url"])]
+        return []
     if t in ("wall", "post"):
         data = att.get(t, {})
         post_url = f"https://vk.com/wall{data.get('owner_id','')}_{data.get('id','')}"
-        result = [("Ссылка на пост", post_url)]
+        result = [("Ссылка на пост", "", post_url)]
         for child in data.get("attachments", []):
-            result.extend(_collect_attachment_urls(child))
+            result.extend(_collect_attachment_urls(child, cid))
         return result
     if t == "doc":
         doc = att.get("doc", {})
-        return [("Документ", doc["url"])] if doc.get("url") else []
+        if doc.get("url"):
+            return [("Документ", "", doc["url"])]
+        return []
     return []
 
 
-def _render_wall(att: dict) -> list[str]:
+def _render_wall(att: dict, cid: int) -> list[str]:
     data = att.get(att.get("type"), {})
     post_url = f"https://vk.com/wall{data.get('owner_id', '')}_{data.get('id', '')}"
     lines = ["", "### Запись на стене", ""]
@@ -328,7 +368,7 @@ def _render_wall(att: dict) -> list[str]:
     children = data.get("attachments", [])
 
     if text and len(children) == 1:
-        lines.extend(_render_attachment(children[0]))
+        lines.extend(_render_attachment(children[0], cid))
         lines.append("")
         lines.append(text.replace("\n", "<br>\n"))
         lines.append("")
@@ -337,5 +377,5 @@ def _render_wall(att: dict) -> list[str]:
             lines.append(text.replace("\n", "<br>\n"))
             lines.append("")
         for child in children:
-            lines.extend(_render_attachment(child))
+            lines.extend(_render_attachment(child, cid))
     return lines

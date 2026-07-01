@@ -6,6 +6,7 @@ from config import GROUP_ID, PEER_ID
 from vk_client import VkClient
 from export_fwd import extract_forwarded
 from export_md import convert_forwarded_to_md
+from download_media import DownloadItem, download_all
 
 
 def main():
@@ -41,8 +42,14 @@ def main():
     print(f"Извлечено пересланных сообщений: {n}")
 
     md_dir = dialog_dir / "MdConvertResults"
-    m = convert_forwarded_to_md(str(extracted_dir), str(md_dir))
+    download_queue: dict[int, list[DownloadItem]] = {}
+    m = convert_forwarded_to_md(str(extracted_dir), str(md_dir), download_queue)
     print(f"Создано MD-файлов: {m}")
+
+    total_images = sum(len(v) for v in download_queue.values())
+    if total_images:
+        print(f"\nСкачивание изображений ({total_images} шт.)...")
+        download_all(download_queue, str(md_dir))
 
 
 if __name__ == "__main__":

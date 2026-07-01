@@ -33,9 +33,10 @@ Temp/ExportMessages/dialog_{peer_id}/
 
 1. **main.py** → `VkClient.get_all_history(peer_id)` → `messages.json`
 2. **main.py** → `extract_forwarded(messages.json, ExtractedOriginalMessages/)` → per-message JSON files
-3. **main.py** → `convert_forwarded_to_md(ExtractedOriginalMessages/, MdConvertResults/)` → .md files
+3. **main.py** → `convert_forwarded_to_md(ExtractedOriginalMessages/, MdConvertResults/)` → .md files with relative paths to `RawData/{cid}/{n}.{ext}`, fills download queue
+4. **main.py** → `download_all(queue, MdConvertResults/)` → downloads images to `RawData/{cid}/{n}.{ext}`
 
-All three steps run in sequence unconditionally.
+All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` queue; images are registered during MD generation. Step 4 downloads without delay.
 
 ## Module Details
 
@@ -55,6 +56,10 @@ All three steps run in sequence unconditionally.
 - `extract_forwarded(messages_json_path, output_dir)` — reads `messages.json`, iterates `messages[].fwd_messages[]`, saves each as `{date}_{conversation_message_id}.json`
 - Skips entries without `date` or `conversation_message_id`
 - Returns count of extracted files
+
+### download_media.py
+- `DownloadItem` — dataclass: `url` (оригинальный URL), `relpath` (относительный путь для сохранения)
+- `download_all(queue, md_dir)` — принимает `dict[int, list[DownloadItem]]`, скачивает файлы в `{md_dir}/RawData/{cid}/{n}.{ext}` без задержки
 
 ### export_md.py
 - `convert_forwarded_to_md(json_dir, md_dir)` — main conversion function, returns file count
@@ -81,15 +86,15 @@ All three steps run in sequence unconditionally.
 
 - **Источники table** (both render functions):
   ```
-  | Тип | Ссылка |
-  |-----|--------|
-  | Исходный файл | [relative/path.json](relative/path.json) |
-  | Фото | [url](url) |
-  | Видео | [url](url) |
-  | Превью | [url](url) |
-  | Ссылка | [url](url) |
-  | Ссылка на пост | [url](url) |
-  | Документ | [url](url) |
+  | Тип | Относительная ссылка | Ссылка |
+  |-----|---------------------|--------|
+  | Исходный файл | | [relative/path.json](relative/path.json) |
+  | Фото | RawData/{cid}/{n}.jpg | [url](url) |
+  | Видео | | [url](url) |
+  | Превью | RawData/{cid}/{n}.jpg | [url](url) |
+  | Ссылка | | [url](url) |
+  | Ссылка на пост | | [url](url) |
+  | Документ | | [url](url) |
   ```
   Collected recursively (including nested fwd_messages and wall post attachments)
 
