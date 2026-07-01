@@ -185,7 +185,8 @@ def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str, cid
     lines.append("|-----|---------------------|--------|")
     for label, relpath, url in _collect_urls(fwd, json_filename, cid):
         rel_cell = f"[{relpath}]({relpath})" if relpath else ""
-        lines.append(f"| {label} | {rel_cell} | [{url}]({url}) |")
+        url_cell = f"[{url}]({url})" if url else ""
+        lines.append(f"| {label} | {rel_cell} | {url_cell} |")
 
     return "\n".join(lines) + "\n"
 
@@ -241,7 +242,8 @@ def _render_message(fwd: dict, json_filename: str, level: int, cid: int) -> str:
         lines.append("|-----|---------------------|--------|")
         for label, relpath, url in _collect_urls(fwd, json_filename, cid):
             rel_cell = f"[{relpath}]({relpath})" if relpath else ""
-            lines.append(f"| {label} | {rel_cell} | [{url}]({url}) |")
+            url_cell = f"[{url}]({url})" if url else ""
+            lines.append(f"| {label} | {rel_cell} | {url_cell} |")
 
     return "\n".join(lines) + "\n"
 
@@ -315,7 +317,7 @@ def _render_link(att: dict) -> str:
 
 
 def _collect_urls(fwd: dict, json_filename: str, cid: int) -> list[tuple[str, str, str]]:
-    result = [("Исходный файл", "", f"../ExtractedOriginalMessages/{json_filename}")]
+    result = [("Исходный файл", f"../ExtractedOriginalMessages/{json_filename}", "")]
     for att in fwd.get("attachments", []):
         result.extend(_collect_attachment_urls(att, cid))
     for child in fwd.get("fwd_messages", []):
