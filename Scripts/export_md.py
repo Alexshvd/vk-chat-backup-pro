@@ -27,6 +27,8 @@ def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
                 wp_type = wall_posts[0].get("type")
                 wall_text = wall_posts[0].get(wp_type, {}).get("text", "") or ""
             filename = _make_filename(fwd, f.stem, cid, wall_text)
+            if wall_text:
+                filename = "Статья." + filename
             content = _render_message(fwd, f.name, 1)
             file_path = md_path / filename
             with open(file_path, "w", encoding="utf-8") as fp:
@@ -39,6 +41,8 @@ def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
                 filename = _make_filename(fwd, f.stem, cid, wall_text)
                 base = filename[:-3]
                 filename = f"{base}_part_{i}.md"
+                if wall_text:
+                    filename = "Статья." + filename
                 content = _render_message_with_wall(fwd, wp, f.name)
                 file_path = md_path / filename
                 with open(file_path, "w", encoding="utf-8") as fp:
@@ -54,9 +58,9 @@ def _make_filename(fwd: dict, json_stem: str, cid: int, text_override: str = "")
         first = _first_sentence(source_text)
         if len(first) > 60:
             first = first[:60] + "..."
-        name = f"{first}_{cid}.md"
+        name = f"{first}.Id{cid}.md"
     else:
-        name = f"{json_stem}_photo_{cid}.md"
+        name = f"{json_stem}_photo.Id{cid}.md"
     return _clean_filename(name)
 
 
