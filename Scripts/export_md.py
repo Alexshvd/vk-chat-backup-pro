@@ -185,7 +185,11 @@ def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str, cid
     lines.append("|-----|---------------------|--------|")
     for label, relpath, url in _collect_urls(fwd, json_filename, cid):
         rel_cell = f"[{relpath}]({relpath})" if relpath else ""
-        url_cell = f"[{url}]({url})" if url else ""
+        if url:
+            display = url if len(url) <= 80 else "url ссылка"
+            url_cell = f"[{display}]({url})"
+        else:
+            url_cell = ""
         lines.append(f"| {label} | {rel_cell} | {url_cell} |")
 
     return "\n".join(lines) + "\n"
@@ -242,7 +246,11 @@ def _render_message(fwd: dict, json_filename: str, level: int, cid: int) -> str:
         lines.append("|-----|---------------------|--------|")
         for label, relpath, url in _collect_urls(fwd, json_filename, cid):
             rel_cell = f"[{relpath}]({relpath})" if relpath else ""
-            url_cell = f"[{url}]({url})" if url else ""
+            if url:
+                display = url if len(url) <= 80 else "url ссылка"
+                url_cell = f"[{display}]({url})"
+            else:
+                url_cell = ""
             lines.append(f"| {label} | {rel_cell} | {url_cell} |")
 
     return "\n".join(lines) + "\n"
