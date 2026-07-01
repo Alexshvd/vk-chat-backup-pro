@@ -30,3 +30,7 @@ except ValueError:
 
 API_VERSION = "5.199"
 API_BASE_URL = "https://api.vk.com/method"
+
+DOWNLOAD_VIDEO_SHORT = True
+DOWNLOAD_VIDEO_LONG = False
+VIDEO_LONG_THRESHOLD = 180

@@ -44,6 +44,7 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 - Loads `.env` from the same directory as the script
 - Exports: `VK_TOKEN` (str), `GROUP_ID` (int), `PEER_ID` (int)
 - Hardcoded: `API_VERSION = "5.199"`, `API_BASE_URL = "https://api.vk.com/method"`
+- Video download flags: `DOWNLOAD_VIDEO_SHORT` (bool), `DOWNLOAD_VIDEO_LONG` (bool), `VIDEO_LONG_THRESHOLD` (int, секунды)
 
 ### vk_client.py
 - `VkClient(token)` — raw `requests.Session`-based VK API client
@@ -113,6 +114,8 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 - **Raw HTTP** — use `requests`, not `vk_api` library
 - **No type annotations** in `export_md.py` (legacy code)
 - **Output format**: Markdown with `<br>` for newlines (not native markdown line breaks)
+- **Video rendering**: `<video src="..." controls>` for downloaded mp4, `<details>` + `<iframe>` for VK Player fallback
+- **Video download**: controlled by `DOWNLOAD_VIDEO_SHORT`, `DOWNLOAD_VIDEO_LONG`, `VIDEO_LONG_THRESHOLD` in `config.py`
 - **`.gitignore`**: `Temp/` (all export outputs), `.env`, Python/PyCharm artifacts
 
 ## Constraints

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from download_media import DownloadItem
+from config import DOWNLOAD_VIDEO_SHORT, DOWNLOAD_VIDEO_LONG, VIDEO_LONG_THRESHOLD
 
 
 _download_queue = None
@@ -12,13 +13,13 @@ _url_to_relpath = {}
 
 
 def _get_ext(url: str) -> str:
-    for ext in ("jpg", "jpeg", "png", "gif", "webp"):
+    for ext in ("jpg", "jpeg", "png", "gif", "webp", "mp4"):
         if ext in url.lower():
             return ext
     return "jpg"
 
 
-def _register_image(url: str, cid: int) -> str:
+def _register_download(url: str, cid: int) -> str:
     if url in _url_to_relpath:
         return _url_to_relpath[url]
     items = _download_queue.setdefault(cid, [])
@@ -28,6 +29,19 @@ def _register_image(url: str, cid: int) -> str:
     _url_to_relpath[url] = relpath
     items.append(DownloadItem(url=url, relpath=relpath))
     return relpath
+
+
+def _should_download_video(duration: int) -> bool:
+    if duration < VIDEO_LONG_THRESHOLD:
+        return DOWNLOAD_VIDEO_SHORT
+    return DOWNLOAD_VIDEO_LONG
+
+
+def _get_best_video_url(files: dict):
+    for key in ("mp4_1080", "mp4_720", "mp4_480", "mp4_360", "mp4_240"):
+        if files.get(key):
+            return files[key]
+    return None
 
 
 def convert_forwarded_to_md(json_dir: str, md_dir: str, download_queue: Optional[dict[int, list[DownloadItem]]] = None) -> int:
@@ -271,7 +285,7 @@ def _render_attachment(att: dict, cid: int) -> list[str]:
     if t == "photo":
         return [_render_photo(att, cid)]
     if t in ("video", "short_video"):
-        return [_render_video(att, cid)]
+        return _render_video(att, cid)
     if t == "link":
         return [_render_link(att)]
     if t in ("wall", "post"):
@@ -288,7 +302,7 @@ def _render_attachment(att: dict, cid: int) -> list[str]:
         sticker = att.get("sticker", {})
         imgs = sticker.get("images", [])
         url = imgs[-1].get("url", "") if imgs else ""
-        relpath = _register_image(url, cid) if url else ""
+        relpath = _register_download(url, cid) if url else ""
         return [f"**Стикер:** ![]({relpath})"]
     return [f"**{t}**"]
 
@@ -300,21 +314,43 @@ def _render_photo(att: dict, cid: int) -> str:
         return "**Фото:** нет данных"
     biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
     url = biggest.get("url", "")
-    relpath = _register_image(url, cid) if url else ""
+    relpath = _register_download(url, cid) if url else ""
     return f"**Фото:** ![]({relpath})"
 
 
-def _render_video(att: dict, cid: int) -> str:
+def _render_video(att: dict, cid: int) -> list[str]:
     video = att.get("video", {})
     title = video.get("title", "видео")
     player = video.get("player", "")
+    duration = video.get("duration", 0)
     imgs = video.get("image", [])
     preview = imgs[-1].get("url", "") if imgs else ""
-    parts = [f"**Видео:** [{title}]({player})" if player else f"**Видео:** {title}"]
+    files = video.get("files", {})
+
+    lines = []
+    if player:
+        lines.append(f"**Видео:** [{title}]({player})")
+    else:
+        lines.append(f"**Видео:** {title}")
+
     if preview:
-        relpath = _register_image(preview, cid)
-        parts.append(f"![]({relpath})")
-    return " ".join(parts)
+        relpath = _register_download(preview, cid)
+        lines.append(f"![]({relpath})")
+
+    if _should_download_video(duration):
+        mp4_url = _get_best_video_url(files)
+        if mp4_url:
+            mp4_relpath = _register_download(mp4_url, cid)
+            lines.append(f"\n<video src=\"{mp4_relpath}\" controls></video>")
+
+    if player:
+        lines.append("")
+        lines.append("<details>")
+        lines.append("<summary>Смотреть через VK Player</summary>")
+        lines.append(f"<iframe src=\"{player}\" width=\"640\" height=\"360\" allowfullscreen></iframe>")
+        lines.append("</details>")
+
+    return lines
 
 
 def _render_link(att: dict) -> str:
@@ -351,6 +387,9 @@ def _collect_attachment_urls(att: dict, cid: int) -> list[tuple[str, str, str]]:
         if imgs:
             preview = imgs[-1]["url"]
             urls.append(("Превью", _url_to_relpath.get(preview, ""), preview))
+        mp4_url = _get_best_video_url(video.get("files", {}))
+        if mp4_url and mp4_url in _url_to_relpath:
+            urls.append(("Видео файл", _url_to_relpath[mp4_url], mp4_url))
         return urls
     if t == "link":
         link = att.get("link", {})
