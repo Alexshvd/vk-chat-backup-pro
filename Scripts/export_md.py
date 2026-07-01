@@ -184,7 +184,8 @@ def _render_message_with_wall(fwd: dict, wall_att: dict, json_filename: str, cid
     lines.append("| Тип | Относительная ссылка | Ссылка |")
     lines.append("|-----|---------------------|--------|")
     for label, relpath, url in _collect_urls(fwd, json_filename, cid):
-        lines.append(f"| {label} | {relpath} | [{url}]({url}) |")
+        rel_cell = f"[{relpath}]({relpath})" if relpath else ""
+        lines.append(f"| {label} | {rel_cell} | [{url}]({url}) |")
 
     return "\n".join(lines) + "\n"
 
@@ -239,7 +240,8 @@ def _render_message(fwd: dict, json_filename: str, level: int, cid: int) -> str:
         lines.append("| Тип | Относительная ссылка | Ссылка |")
         lines.append("|-----|---------------------|--------|")
         for label, relpath, url in _collect_urls(fwd, json_filename, cid):
-            lines.append(f"| {label} | {relpath} | [{url}]({url}) |")
+            rel_cell = f"[{relpath}]({relpath})" if relpath else ""
+            lines.append(f"| {label} | {rel_cell} | [{url}]({url}) |")
 
     return "\n".join(lines) + "\n"
 
