@@ -324,8 +324,6 @@ def _render_wall(att: dict) -> list[str]:
     data = att.get(att.get("type"), {})
     post_url = f"https://vk.com/wall{data.get('owner_id', '')}_{data.get('id', '')}"
     lines = ["", "### Запись на стене", ""]
-    lines.append(f"**Ссылка на запись:** [{post_url}]({post_url})")
-    lines.append("")
     text = (data.get("text") or "").strip()
     children = data.get("attachments", [])
 
