@@ -1,3 +1,5 @@
+import re
+import json
 import time
 from typing import Any, Optional
 
@@ -72,6 +74,27 @@ class VkClient:
             time.sleep(0.35)
 
         return items
+
+    def get_video_urls(self, owner_id: int, video_id: int) -> dict[str, str]:
+        resp = self.session.get(
+            "https://vk.com/video_ext.php",
+            params={"oid": owner_id, "id": video_id},
+            timeout=30
+        )
+        resp.raise_for_status()
+
+        m = re.search(r'"files":\{(.+?)\}', resp.text, re.DOTALL)
+        if not m:
+            return {}
+
+        raw = "{" + m.group(1) + "}"
+        raw = raw.replace('\\/', '/').replace('\\u0026', '&')
+        files = json.loads(raw)
+
+        return {
+            k: v for k, v in files.items()
+            if k.startswith("mp4_")
+        }
 
     def get_all_history(self, peer_id: int) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []

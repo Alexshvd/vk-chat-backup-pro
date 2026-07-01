@@ -33,10 +33,10 @@ Temp/ExportMessages/dialog_{peer_id}/
 
 1. **main.py** → `VkClient.get_all_history(peer_id)` → `messages.json`
 2. **main.py** → `extract_forwarded(messages.json, ExtractedOriginalMessages/)` → per-message JSON files
-3. **main.py** → `convert_forwarded_to_md(ExtractedOriginalMessages/, MdConvertResults/)` → .md files with relative paths to `RawData/{cid}/{n}.{ext}`, fills download queue
+3. **main.py** → `convert_forwarded_to_md(ExtractedOriginalMessages/, MdConvertResults/)` → .md files with relative paths to `RawData/{cid}/{n}.{ext}`, fills download queue, downloads mp4 immediately
 4. **main.py** → `download_all(queue, MdConvertResults/)` → downloads images to `RawData/{cid}/{n}.{ext}`
 
-All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` queue; images are registered during MD generation. Step 4 downloads without delay.
+All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` queue; images are registered during MD generation. Step 4 downloads without delay. Videos are downloaded immediately during step 3 via `get_video_urls()` on `vk.com/video_ext.php`.
 
 ## Module Details
 
@@ -52,6 +52,7 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 - `get_history(peer_id, count=200, offset=0)` — single page of `messages.getHistory`
 - `get_all_history(peer_id)` — paginated fetch (200 per page, 0.35s sleep between calls). Returns list in chronological order (reversed at end).
 - Rate limit: community token = 3 RPS → 0.35s sleep ≈ ~2.85 RPS.
+- `get_video_urls(owner_id, video_id)` — fetches `vk.com/video_ext.php?oid=...&id=...`, parses mp4 URLs from embedded JSON. No authorization needed.
 
 ### export_fwd.py
 - `extract_forwarded(messages_json_path, output_dir)` — reads `messages.json`, iterates `messages[].fwd_messages[]`, saves each as `{date}_{conversation_message_id}.json`
@@ -63,7 +64,7 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 - `download_all(queue, md_dir)` — принимает `dict[int, list[DownloadItem]]`, скачивает файлы в `{md_dir}/RawData/{cid}/{n}.{ext}` без задержки
 
 ### export_md.py
-- `convert_forwarded_to_md(json_dir, md_dir)` — main conversion function, returns file count
+- `convert_forwarded_to_md(json_dir, md_dir, vk_client=None, download_queue=None)` — main conversion function, returns file count. Accepts optional `vk_client` for fetching mp4 URLs from `video_ext.php` when `video.files` is empty (e.g., short_video clips).
 
 - **Filename rules** (`_make_filename`):
   - With text: `{first_sentence}.Id{cid}.md` (max 60 chars + `...`)
@@ -116,6 +117,7 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 - **Output format**: Markdown with `<br>` for newlines (not native markdown line breaks)
 - **Video rendering**: `<video src="..." controls>` for downloaded mp4, `<details>` + `<iframe>` for VK Player fallback
 - **Video download**: controlled by `DOWNLOAD_VIDEO_SHORT`, `DOWNLOAD_VIDEO_LONG`, `VIDEO_LONG_THRESHOLD` in `config.py`
+- **Short video / clip download**: if `video.files` is empty, `_render_video` calls `vk_client.get_video_urls()` on `vk.com/video_ext.php` (no auth needed), downloads mp4 immediately to `RawData/{cid}/{n}.mp4`; player URL also constructed from `oid`/`id`
 - **`.gitignore`**: `Temp/` (all export outputs), `.env`, Python/PyCharm artifacts
 
 ## Constraints

@@ -4,12 +4,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import requests
+
 from download_media import DownloadItem
 from config import DOWNLOAD_SHORT_VIDEO, DOWNLOAD_LONG_VIDEO, LONG_VIDEO_THRESHOLD
 
 
 _download_queue = None
 _url_to_relpath = {}
+_vk_client = None
+_md_dir = None
 
 
 def _get_ext(url: str) -> str:
@@ -31,6 +35,20 @@ def _register_download(url: str, cid: int) -> str:
     return relpath
 
 
+def _download_video_now(url: str, cid: int) -> str:
+    raw_dir = Path(_md_dir) / "RawData" / str(cid)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    n = 1
+    while (raw_dir / f"{n}.mp4").exists():
+        n += 1
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
+    (raw_dir / f"{n}.mp4").write_bytes(resp.content)
+    relpath = f"RawData/{cid}/{n}.mp4"
+    _url_to_relpath[url] = relpath
+    return relpath
+
+
 def _should_download_video(duration: int) -> bool:
     if duration < LONG_VIDEO_THRESHOLD:
         return DOWNLOAD_SHORT_VIDEO
@@ -44,10 +62,12 @@ def _get_best_video_url(files: dict):
     return None
 
 
-def convert_forwarded_to_md(json_dir: str, md_dir: str, download_queue: Optional[dict[int, list[DownloadItem]]] = None) -> int:
-    global _download_queue, _url_to_relpath
+def convert_forwarded_to_md(json_dir: str, md_dir: str, vk_client=None, download_queue: Optional[dict[int, list[DownloadItem]]] = None) -> int:
+    global _download_queue, _url_to_relpath, _vk_client, _md_dir
     _download_queue = download_queue if download_queue is not None else {}
     _url_to_relpath = {}
+    _vk_client = vk_client
+    _md_dir = md_dir
 
     json_path = Path(json_dir)
     md_path = Path(md_dir)
@@ -327,6 +347,9 @@ def _render_video(att: dict, cid: int) -> list[str]:
     preview = imgs[-1].get("url", "") if imgs else ""
     files = video.get("files", {})
 
+    if not player and video.get("owner_id") and video.get("id"):
+        player = f"https://vk.com/video_ext.php?oid={video['owner_id']}&id={video['id']}"
+
     lines = []
     if player:
         lines.append(f"**Видео:** [{title}]({player})")
@@ -337,10 +360,27 @@ def _render_video(att: dict, cid: int) -> list[str]:
         relpath = _register_download(preview, cid)
         lines.append(f"![]({relpath})")
 
-    if _should_download_video(duration):
-        mp4_url = _get_best_video_url(files)
-        if mp4_url:
-            mp4_relpath = _register_download(mp4_url, cid)
+    mp4_url = _get_best_video_url(files)
+    if not mp4_url and _vk_client and video.get("owner_id") and video.get("id"):
+        try:
+            urls = _vk_client.get_video_urls(video["owner_id"], video["id"])
+            if urls:
+                mp4_url = _get_best_video_url(urls)
+                if mp4_url:
+                    video["files"] = urls
+                    files = urls
+        except Exception:
+            pass
+
+    if mp4_url and _should_download_video(duration):
+        if mp4_url in _url_to_relpath:
+            mp4_relpath = _url_to_relpath[mp4_url]
+        else:
+            try:
+                mp4_relpath = _download_video_now(mp4_url, cid)
+            except Exception:
+                mp4_relpath = ""
+        if mp4_relpath:
             lines.append(f"\n<video src=\"{mp4_relpath}\" controls></video>")
 
     if player:
@@ -388,6 +428,12 @@ def _collect_attachment_urls(att: dict, cid: int) -> list[tuple[str, str, str]]:
             preview = imgs[-1]["url"]
             urls.append(("Превью", _url_to_relpath.get(preview, ""), preview))
         mp4_url = _get_best_video_url(video.get("files", {}))
+        if not mp4_url and _vk_client and video.get("owner_id") and video.get("id"):
+            try:
+                fetched = _vk_client.get_video_urls(video["owner_id"], video["id"])
+                mp4_url = _get_best_video_url(fetched) if fetched else None
+            except Exception:
+                pass
         if mp4_url and mp4_url in _url_to_relpath:
             urls.append(("Видео файл", _url_to_relpath[mp4_url], mp4_url))
         return urls

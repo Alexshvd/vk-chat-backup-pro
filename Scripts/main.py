@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-from config import GROUP_ID, PEER_ID
+from config import PEER_ID
 from vk_client import VkClient
 from export_fwd import extract_forwarded
 from export_md import convert_forwarded_to_md
@@ -22,7 +22,6 @@ def main():
     print(f"Загружено сообщений: {len(messages)}")
 
     result = {
-        "group_id": GROUP_ID,
         "peer_id": PEER_ID,
         "total": len(messages),
         "messages": messages,
@@ -43,7 +42,7 @@ def main():
 
     md_dir = dialog_dir / "MdConvertResults"
     download_queue: dict[int, list[DownloadItem]] = {}
-    m = convert_forwarded_to_md(str(extracted_dir), str(md_dir), download_queue)
+    m = convert_forwarded_to_md(str(extracted_dir), str(md_dir), vk_client=client, download_queue=download_queue)
     print(f"Создано MD-файлов: {m}")
 
     total_images = sum(len(v) for v in download_queue.values())
