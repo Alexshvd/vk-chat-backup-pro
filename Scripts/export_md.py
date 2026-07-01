@@ -52,6 +52,32 @@ def convert_forwarded_to_md(json_dir: str, md_dir: str) -> int:
     return count
 
 
+_type_map = {
+    "photo": "Photo",
+    "video": "Video",
+    "short_video": "ShortVideo",
+    "link": "Link",
+    "wall": "Article",
+    "post": "Article",
+    "doc": "Doc",
+    "audio": "Audio",
+    "sticker": "Sticker",
+}
+
+
+def _get_attachment_types(attachments: list) -> str:
+    if not attachments:
+        return "Media"
+    types = set()
+    for att in attachments:
+        t = _type_map.get(att.get("type"))
+        if t:
+            types.add(t)
+    if len(types) == 1:
+        return list(types)[0]
+    return "Media"
+
+
 def _make_filename(fwd: dict, json_stem: str, cid: int, text_override: str = "") -> str:
     source_text = text_override if text_override else (fwd.get("text") or "").strip()
     if source_text:
@@ -60,7 +86,9 @@ def _make_filename(fwd: dict, json_stem: str, cid: int, text_override: str = "")
             first = first[:60] + "..."
         name = f"{first}.Id{cid}.md"
     else:
-        name = f"{json_stem}_photo.Id{cid}.md"
+        prefix = _get_attachment_types(fwd.get("attachments", []))
+        date_part = json_stem.rsplit("_", 1)[0] if "_" in json_stem else json_stem
+        name = f"{prefix}.{date_part}.Id{cid}.md"
     return _clean_filename(name)
 
 
