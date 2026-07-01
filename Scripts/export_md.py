@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from download_media import DownloadItem
-from config import DOWNLOAD_VIDEO_SHORT, DOWNLOAD_VIDEO_LONG, VIDEO_LONG_THRESHOLD
+from config import DOWNLOAD_SHORT_VIDEO, DOWNLOAD_LONG_VIDEO, LONG_VIDEO_THRESHOLD
 
 
 _download_queue = None
@@ -32,9 +32,9 @@ def _register_download(url: str, cid: int) -> str:
 
 
 def _should_download_video(duration: int) -> bool:
-    if duration < VIDEO_LONG_THRESHOLD:
-        return DOWNLOAD_VIDEO_SHORT
-    return DOWNLOAD_VIDEO_LONG
+    if duration < LONG_VIDEO_THRESHOLD:
+        return DOWNLOAD_SHORT_VIDEO
+    return DOWNLOAD_LONG_VIDEO
 
 
 def _get_best_video_url(files: dict):
