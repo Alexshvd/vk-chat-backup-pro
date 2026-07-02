@@ -5,7 +5,8 @@ from pathlib import Path
 from config import PEER_ID
 from vk_client import VkClient
 from export_fwd import extract_forwarded
-from export_md import convert_forwarded_to_md
+from export_md import convert_md_item_to_md
+from md_builder import build_md_items
 
 
 def main():
@@ -40,8 +41,19 @@ def main():
     print(f"Извлечено пересланных сообщений: {n}")
 
     md_dir = dialog_dir / "MdConvertResults"
-    m = convert_forwarded_to_md(str(extracted_dir), str(md_dir), vk_client=client)
-    print(f"Создано MD-файлов: {m}")
+    count = 0
+    for f in sorted(Path(extracted_dir).glob("*.json")):
+        with open(f, encoding="utf-8") as fp:
+            fwd = json.load(fp)
+        items = build_md_items(fwd, f.name, str(md_dir), vk_client=client)
+        for item in items:
+            md_text = convert_md_item_to_md(item)
+            file_path = md_dir / item.filename
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, "w", encoding="utf-8") as fp:
+                fp.write(md_text)
+            count += 1
+    print(f"Создано MD-файлов: {count}")
 
 
 if __name__ == "__main__":

@@ -98,60 +98,49 @@ def _render_message_with_wall(item: MdItem, tag: str, level: int) -> str:
 
 
 def _append_sources_table(lines: list, item: MdItem) -> None:
-    sources = _collect_sources(item)
     lines.append("## Источники")
     lines.append("")
     lines.append("| Тип | Относительная ссылка | Ссылка |")
     lines.append("|-----|---------------------|--------|")
-    for label, relpath, url in sources:
-        rel_cell = f"[{relpath}]({relpath})" if relpath else ""
-        if url:
-            display = url if len(url) <= 80 else "url ссылка"
-            url_cell = f"[{display}]({url})"
-        else:
-            url_cell = ""
-        lines.append(f"| {label} | {rel_cell} | {url_cell} |")
 
+    def _walk(item: MdItem):
+        relpath = f"../ExtractedOriginalMessages/{item.json_filename}"
+        lines.append(f"| Исходный файл | [{relpath}]({relpath}) | |")
+        for att in item.attachments:
+            _walk_attachment(att)
+        for child in item.forwarded:
+            _walk(child)
 
-def _collect_sources(item: MdItem):
-    result = [
-        ("Исходный файл", f"../ExtractedOriginalMessages/{item.json_filename}", "")
-    ]
-    for att in item.attachments:
-        result.extend(_collect_attachment_sources(att))
-    for child in item.forwarded:
-        result.extend(_collect_sources(child))
-    return result
+    def _walk_attachment(att):
+        if isinstance(att, PhotoAttachment):
+            rel_cell = f"[{att.local_path}]({att.local_path})" if att.local_path else ""
+            lines.append(f"| Фото | {rel_cell} | {_url_cell(att.original_url)} |")
+        elif isinstance(att, VideoAttachment):
+            if att.player_url:
+                lines.append(f"| Видео | | {_url_cell(att.player_url)} |")
+            if att.preview_url:
+                rel_cell = f"[{att.preview_local_path}]({att.preview_local_path})" if att.preview_local_path else ""
+                lines.append(f"| Превью | {rel_cell} | {_url_cell(att.preview_url)} |")
+            if att.mp4_url:
+                rel_cell = f"[{att.mp4_local_path}]({att.mp4_local_path})" if att.mp4_local_path else ""
+                lines.append(f"| Видео файл | {rel_cell} | {_url_cell(att.mp4_url)} |")
+        elif isinstance(att, LinkAttachment):
+            if att.url:
+                lines.append(f"| Ссылка | | {_url_cell(att.url)} |")
+        elif isinstance(att, WallAttachment):
+            post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
+            lines.append(f"| Ссылка на пост | | {_url_cell(post_url)} |")
+            for child in att.children:
+                _walk_attachment(child)
+        elif isinstance(att, DocAttachment):
+            if att.url:
+                lines.append(f"| Документ | | {_url_cell(att.url)} |")
 
+    def _url_cell(url: str) -> str:
+        display = url if len(url) <= 80 else "url ссылка"
+        return f"[{display}]({url})"
 
-def _collect_attachment_sources(att):
-    if isinstance(att, PhotoAttachment):
-        return [("Фото", att.local_path, att.original_url)]
-
-    if isinstance(att, VideoAttachment):
-        urls = []
-        if att.player_url:
-            urls.append(("Видео", "", att.player_url))
-        if att.preview_url:
-            urls.append(("Превью", att.preview_local_path, att.preview_url))
-        if att.mp4_url:
-            urls.append(("Видео файл", att.mp4_local_path, att.mp4_url))
-        return urls
-
-    if isinstance(att, LinkAttachment):
-        return [("Ссылка", "", att.url)] if att.url else []
-
-    if isinstance(att, WallAttachment):
-        post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
-        result = [("Ссылка на пост", "", post_url)]
-        for child in att.children:
-            result.extend(_collect_attachment_sources(child))
-        return result
-
-    if isinstance(att, DocAttachment):
-        return [("Документ", "", att.url)] if att.url else []
-
-    return []
+    _walk(item)
 
 
 def _render_attachment(att):

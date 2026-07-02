@@ -18,10 +18,8 @@ def build_md_items(
     json_filename: str,
     md_dir: str,
     vk_client=None,
-    url_to_relpath: Optional[Dict[str, str]] = None,
 ) -> List[MdItem]:
-    if url_to_relpath is None:
-        url_to_relpath = {}
+    url_to_relpath = {}
 
     cid = fwd.get("conversation_message_id")
     if cid is None:
