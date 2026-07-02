@@ -5,8 +5,8 @@ from pathlib import Path
 from config import PEER_ID
 from vk_client import VkClient
 from export_fwd import extract_forwarded
-from export_md import convert_md_item_to_md
-from md_builder import build_md_items
+from md_renderer import render_md_item
+from md_item_builder import build_md_items
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
             fwd = json.load(fp)
         items = build_md_items(fwd, f.name, str(md_dir), vk_client=client)
         for item in items:
-            md_text = convert_md_item_to_md(item)
+            md_text = render_md_item(item)
             file_path = md_dir / item.filename
             file_path.parent.mkdir(parents=True, exist_ok=True)
             with open(file_path, "w", encoding="utf-8") as fp:
