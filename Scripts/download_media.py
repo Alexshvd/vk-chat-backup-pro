@@ -10,6 +10,14 @@ class DownloadItem:
     relpath: str
 
 
+def download_file(url: str, filepath: str, timeout: int = 30) -> None:
+    filepath = Path(filepath)
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(url, timeout=timeout)
+    resp.raise_for_status()
+    filepath.write_bytes(resp.content)
+
+
 def download_all(queue: dict[int, list[DownloadItem]], md_dir: str) -> None:
     for cid, items in queue.items():
         print(f"  CID {cid}: {len(items)} файлов")
