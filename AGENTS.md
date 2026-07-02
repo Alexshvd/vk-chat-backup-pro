@@ -7,14 +7,17 @@ Backup forwarded messages from a VK community chat: fetch chat history via VK AP
 
 ```
 Scripts/
-├── main.py            # Entry point: fetch → extract → convert
-├── config.py          # Load VK_TOKEN, GROUP_ID, PEER_ID from .env
-├── vk_client.py       # VK API client (raw requests, pagination, rate limiting)
-├── export_fwd.py      # Extract fwd_messages[] from messages.json
-├── export_md.py       # Convert forwarded JSON files to Markdown
-├── requirements.txt   # requests, python-dotenv
-├── .env.example       # Template for credentials
-├── .gitignore         # Ignores .env, Temp/, __pycache__/
+├── main.py              # Entry point: fetch → extract → build → render → write
+├── config.py            # Load VK_TOKEN, GROUP_ID, PEER_ID from .env
+├── vk_client.py         # VK API client (raw requests, pagination, rate limiting)
+├── export_fwd.py        # Extract fwd_messages[] from messages.json
+├── MdItem.py            # DTO: BaseAttachmentItem + 8 subclasses + MdItem
+├── md_item_builder.py   # build_md_items(): JSON → MdItem, resolves attachments, downloads files
+├── md_renderer.py       # render_md_item(): MdItem → Markdown (pure, no I/O)
+├── download_media.py    # download_file() + DownloadItem + download_all
+├── requirements.txt     # requests, python-dotenv
+├── .env.example         # Template for credentials
+├── .gitignore           # Ignores .env, Temp/, __pycache__/
 ```
 
 Output directory structure:
@@ -33,10 +36,10 @@ Temp/ExportMessages/dialog_{peer_id}/
 
 1. **main.py** → `VkClient.get_all_history(peer_id)` → `messages.json`
 2. **main.py** → `extract_forwarded(messages.json, ExtractedOriginalMessages/)` → per-message JSON files
-3. **main.py** → `convert_forwarded_to_md(ExtractedOriginalMessages/, MdConvertResults/)` → .md files with relative paths to `RawData/{cid}/{n}.{ext}`, fills download queue, downloads mp4 immediately
-4. **main.py** → `download_all(queue, MdConvertResults/)` → downloads images to `RawData/{cid}/{n}.{ext}`
+3. **main.py** → `build_md_items(JSON, name, md_dir, vk_client)` → `list[MdItem]` with resolved attachments and downloaded files
+4. **main.py** → `render_md_item(item)` → Markdown string → write to `.md` file
 
-All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` queue; images are registered during MD generation. Step 4 downloads without delay. Videos are downloaded immediately during step 3 via `get_video_urls()` on `vk.com/video_ext.php`.
+All steps run unconditionally. Step 3 resolves all attachments into typed DTOs and downloads photos/stickers/videos immediately. Step 4 is pure rendering (no I/O).
 
 ## Module Details
 
@@ -44,7 +47,7 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 - Loads `.env` from the same directory as the script
 - Exports: `VK_TOKEN` (str), `GROUP_ID` (int), `PEER_ID` (int)
 - Hardcoded: `API_VERSION = "5.199"`, `API_BASE_URL = "https://api.vk.com/method"`
-- Video download flags: `DOWNLOAD_VIDEO_SHORT` (bool), `DOWNLOAD_VIDEO_LONG` (bool), `VIDEO_LONG_THRESHOLD` (int, секунды)
+- Video download flags: `DOWNLOAD_SHORT_VIDEO` (bool), `DOWNLOAD_LONG_VIDEO` (bool), `LONG_VIDEO_THRESHOLD` (int, секунды)
 
 ### vk_client.py
 - `VkClient(token)` — raw `requests.Session`-based VK API client
@@ -61,19 +64,34 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
 
 ### download_media.py
 - `DownloadItem` — dataclass: `url` (оригинальный URL), `relpath` (относительный путь для сохранения)
+- `download_file(url, filepath, timeout=30)` — скачивает один файл в указанный путь
 - `download_all(queue, md_dir)` — принимает `dict[int, list[DownloadItem]]`, скачивает файлы в `{md_dir}/RawData/{cid}/{n}.{ext}` без задержки
 
-### export_md.py
-- `convert_forwarded_to_md(json_dir, md_dir, vk_client=None, download_queue=None)` — main conversion function, returns file count. Accepts optional `vk_client` for fetching mp4 URLs from `video_ext.php` when `video.files` is empty (e.g., short_video clips).
+### MdItem.py
+- `BaseAttachmentItem` — marker base class для всех типов вложений
+- `PhotoAttachment`, `VideoAttachment`, `LinkAttachment`, `DocAttachment`, `AudioAttachment`, `StickerAttachment`, `WallAttachment` — dataclass-наследники с уже скачанными данными (local_path, urls, и т.д.)
+- `MdItem` — dataclass: `cid`, `from_id`, `date`, `text`, `attachments: list[BaseAttachmentItem]`, `forwarded: list[MdItem]`, `json_filename`, `heading`, `filename`, `is_wall_split`
 
-- **Filename rules** (`_make_filename`):
-  - With text: `{first_sentence}.Id{cid}.md` (max 60 chars + `...`)
-  - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
-  - `Статья.` prefix if only wall/post attachment with no message text
-  - Multiple wall posts → `_part_N` suffix per wall post
+### md_item_builder.py
+- `build_md_items(fwd, json_filename, md_dir, vk_client=None, url_to_relpath=None)` — читает JSON dict, создаёт `list[MdItem]`. Рекурсивно обрабатывает `fwd_messages`. Скачивает фото/видео/стикеры сразу.
+- **Filename rules**:
+  - С текстом: `{first_sentence}.Id{cid}.md` (max 60 chars + `...`)
+  - Без текста: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
+  - `Статья.` prefix если только wall/post без текста сообщения
+  - Несколько wall/post → `_part_N` suffix
   - Filename cleaned: emojis removed, `—`→`-`, special chars `\/*?:"<>|` → `_`
-
 - **First sentence logic** (`_first_sentence`): Split on `\n`, `.`, `!`, `?` — take first part
+
+### md_renderer.py
+- `render_md_item(item, level=1)` — превращает `MdItem` в Markdown (чистая функция, без I/O)
+- Dispatch по `isinstance` (не строковые сравнения):
+  - `PhotoAttachment` → `**Фото:** ![](local_path)`
+  - `VideoAttachment` → `**Видео:** [title](player)`, preview, `<video>` / `<details><iframe>`
+  - `LinkAttachment` → `**Ссылка:** [title](url)`
+  - `DocAttachment` → `**Документ:** [title](url)`
+  - `AudioAttachment` → `**Аудио:** artist — title`
+  - `StickerAttachment` → `**Стикер:** ![](local_path)`
+  - `WallAttachment` → expanded inline под `### Запись на стене`
 
 - **Markdown structure** (`_render_message`):
   - `# first_sentence` (or `# Сообщение (id N)` fallback)
@@ -82,11 +100,10 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
   - Otherwise: text → `## Вложения` → attachments → nested fwd_messages (recursive, `## Пересланные сообщения`)
   - Newlines in text → `<br>`
 
-- **Markdown for wall posts** (`_render_message_with_wall`):
+- **Markdown for wall posts** (`_render_message_with_wall`, when `is_wall_split=True`):
   - Same header, then `## Вложения` → non-wall attachments → wall post (under `### Запись на стене`)
-  - Wall post: `**Ссылка на запись:** [vk.com/wall...]`, text, nested attachments
 
-- **Источники table** (both render functions):
+- **Источники table**: rendered inline via `_append_sources_table` (без отдельных функций `_collect_sources`)
   ```
   | Тип | Относительная ссылка | Ссылка |
   |-----|---------------------|--------|
@@ -98,26 +115,17 @@ All steps run unconditionally. Step 3 accepts a `dict[int, list[DownloadItem]]` 
   | Ссылка на пост | | [url](url) |
   | Документ | | [url](url) |
   ```
-  Collected recursively (including nested fwd_messages and wall post attachments)
-
-- **Attachment rendering** (`_render_attachment`):
-  - Photo: `**Фото:** ![](url)` (largest size)
-  - Video: `**Видео:** [title](player)` + preview image
-  - Link: `**Ссылка:** [title](url)`
-  - Doc: `**Документ:** [title](url)`
-  - Audio: `**Аудио:** artist — title`
-  - Sticker: `**Стикер:** ![](url)` (last image)
-  - Wall/post: expanded inline
+  Обходится рекурсивно (включая вложенные fwd_messages и wall post attachments)
 
 ## Conventions
 
 - **Python 3.9** — no `X | Y` union syntax, use `Optional[X]`, `Union[X, Y]`
 - **Raw HTTP** — use `requests`, not `vk_api` library
-- **No type annotations** in `export_md.py` (legacy code)
+- **No type annotations** in `export_fwd.py` (legacy code)
 - **Output format**: Markdown with `<br>` for newlines (not native markdown line breaks)
 - **Video rendering**: `<video src="..." controls>` for downloaded mp4, `<details>` + `<iframe>` for VK Player fallback
-- **Video download**: controlled by `DOWNLOAD_VIDEO_SHORT`, `DOWNLOAD_VIDEO_LONG`, `VIDEO_LONG_THRESHOLD` in `config.py`
-- **Short video / clip download**: if `video.files` is empty, `_render_video` calls `vk_client.get_video_urls()` on `vk.com/video_ext.php` (no auth needed), downloads mp4 immediately to `RawData/{cid}/{n}.mp4`; player URL also constructed from `oid`/`id`
+- **Video download**: controlled by `DOWNLOAD_SHORT_VIDEO`, `DOWNLOAD_LONG_VIDEO`, `LONG_VIDEO_THRESHOLD` in `config.py`
+- **Short video / clip download**: if `video.files` is empty, `_resolve_video` calls `vk_client.get_video_urls()` on `vk.com/video_ext.php` (no auth needed), downloads mp4 immediately to `RawData/{cid}/{n}.mp4`; player URL also constructed from `oid`/`id`
 - **`.gitignore`**: `Temp/` (all export outputs), `.env`, Python/PyCharm artifacts
 
 ## Constraints
