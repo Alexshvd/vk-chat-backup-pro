@@ -8,8 +8,8 @@ from md_item_builder import build_md_items
 from author_resolver import load_authors, ensure_author_avatars
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-INPUT_FILE = BASE_DIR / "Temp" / "ExportMessages" / "messages.json"
+BASE_DIR = Path(__file__).resolve().parent
+INPUT_FILE = BASE_DIR / "Temp" / "messages.json"
 
 
 def main():

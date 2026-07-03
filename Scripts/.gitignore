@@ -20,4 +20,5 @@ env/
 # Project-specific
 .env
 __pycache__/
-Temp/
+Temp/ExportMessages/
+Temp/messages.json
