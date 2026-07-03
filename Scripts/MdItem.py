@@ -56,6 +56,7 @@ class WallAttachment(BaseAttachmentItem):
     id: Any = None
     text: str = ""
     children: List[BaseAttachmentItem] = field(default_factory=list)
+    author: Optional[AuthorInfo] = None
 
 
 @dataclass

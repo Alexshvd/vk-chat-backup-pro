@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any, Optional
 
 from MdItem import (
     MdItem,
@@ -20,9 +21,8 @@ def _fmt_date(ts: int) -> str:
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _render_author_line(item: MdItem) -> str:
-    parts = [f"**От:** {item.from_id}"]
-    author = item.author
+def _render_author_compact(from_id: Any, author: Optional = None) -> str:
+    parts = [f"**От:** {from_id}"]
     if author:
         if author.photo_local:
             parts.append(f"![]({author.photo_local})")
@@ -33,6 +33,10 @@ def _render_author_line(item: MdItem) -> str:
         if author.author_type:
             parts.append(f"[{author.author_type}]")
     return " ".join(parts)
+
+
+def _render_author_line(item: MdItem) -> str:
+    return _render_author_compact(item.from_id, item.author)
 
 
 def _render_message(item: MdItem, tag: str, level: int) -> str:
@@ -146,6 +150,9 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
             if att.url:
                 lines.append(f"| Ссылка | | {_url_cell(att.url)} |")
         elif isinstance(att, WallAttachment):
+            if att.author and att.author.photo_url:
+                rel_cell = f"[{att.author.photo_local}]({att.author.photo_local})" if att.author.photo_local else ""
+                lines.append(f"| Аватар автора поста | {rel_cell} | {_url_cell(att.author.photo_url)} |")
             post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
             lines.append(f"| Ссылка на пост | | {_url_cell(post_url)} |")
             for child in att.children:
@@ -220,6 +227,8 @@ def _render_link(att: LinkAttachment) -> str:
 def _render_wall(att: WallAttachment) -> list:
     post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
     lines = ["", "### Запись на стене", ""]
+    lines.append(_render_author_compact(att.owner_id, att.author))
+    lines.append("")
     text = att.text
     children = att.children
 

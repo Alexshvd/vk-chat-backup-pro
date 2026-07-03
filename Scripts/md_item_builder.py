@@ -36,7 +36,7 @@ def build_md_items(
 
     raw_attachments = fwd.get("attachments", [])
     resolved_attachments = [
-        _resolve_attachment(a, cid, md_dir, vk_client, url_to_relpath)
+        _resolve_attachment(a, cid, md_dir, vk_client, url_to_relpath, authors)
         for a in raw_attachments
     ]
 
@@ -120,6 +120,7 @@ def _resolve_attachment(
     md_dir: str,
     vk_client,
     url_to_relpath: Dict[str, str],
+    authors: dict[int, AuthorInfo],
 ) -> BaseAttachmentItem:
     t = att.get("type")
     if t == "photo":
@@ -132,7 +133,7 @@ def _resolve_attachment(
     if t == "link":
         return _resolve_link(att.get("link", {}))
     if t in ("wall", "post"):
-        return _resolve_wall(att.get(t, {}), cid, md_dir, vk_client, url_to_relpath)
+        return _resolve_wall(att.get(t, {}), cid, md_dir, vk_client, url_to_relpath, authors)
     if t == "doc":
         return _resolve_doc(att.get("doc", {}))
     if t == "audio":
@@ -243,16 +244,20 @@ def _resolve_sticker(
 def _resolve_wall(
     data: dict, cid: int, md_dir: str,
     vk_client, url_to_relpath: Dict[str, str],
+    authors: dict[int, AuthorInfo],
 ) -> WallAttachment:
+    owner_id = data.get("owner_id")
     children = [
-        _resolve_attachment(a, cid, md_dir, vk_client, url_to_relpath)
+        _resolve_attachment(a, cid, md_dir, vk_client, url_to_relpath, authors)
         for a in data.get("attachments", [])
     ]
+    author = authors.get(owner_id) if owner_id is not None else None
     return WallAttachment(
-        owner_id=data.get("owner_id"),
+        owner_id=owner_id,
         id=data.get("id"),
         text=(data.get("text") or "").strip(),
         children=children,
+        author=author,
     )
 
 
