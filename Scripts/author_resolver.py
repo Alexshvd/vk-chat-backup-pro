@@ -84,13 +84,13 @@ def ensure_author_avatars(
         filepath = Path(authors_dir) / filename
 
         if filepath.exists():
-            relpath = f"Autors/{filename}"
+            relpath = f"../Autors/{filename}"
             url_to_relpath[info.photo_url] = relpath
             info.photo_local = relpath
             continue
 
         filepath.parent.mkdir(parents=True, exist_ok=True)
         download_file(info.photo_url, str(filepath))
-        relpath = f"Autors/{filename}"
+        relpath = f"../Autors/{filename}"
         url_to_relpath[info.photo_url] = relpath
         info.photo_local = relpath
