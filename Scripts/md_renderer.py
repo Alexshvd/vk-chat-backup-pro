@@ -20,11 +20,24 @@ def _fmt_date(ts: int) -> str:
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _render_author_line(item: MdItem) -> str:
+    parts = [f"**От:** {item.from_id}"]
+    if item.author_photo_local:
+        parts.append(f"![]({item.author_photo_local})")
+    if item.author_screen_name:
+        parts.append(f"@{item.author_screen_name}")
+    if item.author_name:
+        parts.append(f"({item.author_name})")
+    if item.author_type:
+        parts.append(f"[{item.author_type}]")
+    return " ".join(parts)
+
+
 def _render_message(item: MdItem, tag: str, level: int) -> str:
     lines = [
         f"{tag} {item.heading}",
         "",
-        f"**От:** {item.from_id}",
+        _render_author_line(item),
     ]
     if item.date:
         lines.append(f"**Дата:** {_fmt_date(item.date)}")
@@ -73,7 +86,7 @@ def _render_message_with_wall(item: MdItem, tag: str, level: int) -> str:
     lines = [
         f"{tag} {item.heading}",
         "",
-        f"**От:** {item.from_id}",
+        _render_author_line(item),
     ]
     if item.date:
         lines.append(f"**Дата:** {_fmt_date(item.date)}")
@@ -104,6 +117,9 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
     lines.append("|-----|---------------------|--------|")
 
     def _walk(item: MdItem):
+        if item.author_photo_url:
+            rel_cell = f"[{item.author_photo_local}]({item.author_photo_local})" if item.author_photo_local else ""
+            lines.append(f"| Аватар автора | {rel_cell} | {_url_cell(item.author_photo_url)} |")
         relpath = f"../ExtractedOriginalMessages/{item.json_filename}"
         lines.append(f"| Исходный файл | [{relpath}]({relpath}) | |")
         for att in item.attachments:

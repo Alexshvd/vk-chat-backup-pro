@@ -9,6 +9,7 @@ from MdItem import (
     PhotoAttachment, VideoAttachment, LinkAttachment,
     DocAttachment, AudioAttachment, StickerAttachment, WallAttachment,
 )
+from author_resolver import AuthorInfo
 from download_media import download_file
 from config import DOWNLOAD_SHORT_VIDEO, DOWNLOAD_LONG_VIDEO, LONG_VIDEO_THRESHOLD
 
@@ -17,6 +18,7 @@ def build_md_items(
     fwd: dict,
     json_filename: str,
     md_dir: str,
+    authors: dict[int, AuthorInfo],
     vk_client=None,
     url_to_relpath: Optional[Dict[str, str]] = None,
 ) -> List[MdItem]:
@@ -30,6 +32,7 @@ def build_md_items(
     text = (fwd.get("text") or "").strip()
     from_id = fwd.get("from_id")
     date = fwd.get("date")
+    author = authors.get(from_id) if from_id is not None else None
 
     raw_attachments = fwd.get("attachments", [])
     resolved_attachments = [
@@ -40,7 +43,7 @@ def build_md_items(
     resolved_forwarded = []
     for child in fwd.get("fwd_messages", []):
         resolved_forwarded.extend(
-            build_md_items(child, json_filename, md_dir, vk_client, url_to_relpath)
+            build_md_items(child, json_filename, md_dir, authors, vk_client, url_to_relpath)
         )
 
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
@@ -50,7 +53,7 @@ def build_md_items(
     if len(walls) < 2:
         item = _make_item(
             cid, from_id, date, text, resolved_attachments,
-            resolved_forwarded, json_filename,
+            resolved_forwarded, json_filename, author,
         )
         item.heading = _compute_heading(text, cid)
 
@@ -73,7 +76,7 @@ def build_md_items(
         wall_text = wall.text or ""
         item = _make_item(
             cid, from_id, date, text, others + [wall],
-            resolved_forwarded, json_filename,
+            resolved_forwarded, json_filename, author,
         )
         item.heading = _compute_heading(text, cid)
         item.filename = _compute_filename(
@@ -93,8 +96,9 @@ def _make_item(
     cid: int, from_id: Any, date: int, text: str,
     attachments: List[BaseAttachmentItem],
     forwarded: List[MdItem], json_filename: str,
+    author: AuthorInfo = None,
 ) -> MdItem:
-    return MdItem(
+    item = MdItem(
         cid=cid,
         from_id=from_id,
         date=date,
@@ -105,6 +109,14 @@ def _make_item(
         heading="",
         filename="",
     )
+    if author:
+        item.author_id = author.author_id
+        item.author_name = author.name
+        item.author_screen_name = author.screen_name
+        item.author_photo_url = author.photo_url
+        item.author_photo_local = author.photo_local
+        item.author_type = author.author_type
+    return item
 
 
 def _resolve_attachment(

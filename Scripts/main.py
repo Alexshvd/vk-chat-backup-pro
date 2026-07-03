@@ -5,9 +5,11 @@ from pathlib import Path
 from export_fwd import extract_items
 from md_renderer import render_md_item
 from md_item_builder import build_md_items
+from author_resolver import load_authors, ensure_author_avatars
 
 
-INPUT_FILE = Path("..\Temp\ExportMessages\messages.json")
+BASE_DIR = Path(__file__).resolve().parent.parent
+INPUT_FILE = BASE_DIR / "Temp" / "ExportMessages" / "messages.json"
 
 
 def main():
@@ -20,7 +22,15 @@ def main():
     peer_id = data["peer_id"]
     print(f"Загружено сообщений: {len(data['items'])}")
 
-    dialog_dir = Path("Temp/ExportMessages") / f"dialog_{peer_id}"
+    dialog_dir = BASE_DIR / "Temp" / "ExportMessages" / f"dialog_{peer_id}"
+
+    print("Загрузка авторов...")
+    authors = load_authors(str(INPUT_FILE))
+    print(f"Найдено авторов: {len(authors)}")
+
+    url_to_relpath: dict[str, str] = {}
+    ensure_author_avatars(authors, str(dialog_dir / "Autors"), url_to_relpath)
+
     dialog_dir.mkdir(parents=True, exist_ok=True)
 
     extracted_dir = dialog_dir / "ExtractedOriginalMessages"
@@ -34,7 +44,10 @@ def main():
     for message_index, message_file in enumerate(message_files):
         with open(message_file, encoding="utf-8") as fp:
             item_data = json.load(fp)
-        items = build_md_items(item_data, message_file.name, str(md_dir), vk_client=None)
+        items = build_md_items(
+            item_data, message_file.name, str(md_dir), authors,
+            vk_client=None, url_to_relpath=url_to_relpath,
+        )
         for md_index, item in enumerate(items):
             md_text = render_md_item(item)
             file_path = md_dir / item.filename
