@@ -7,7 +7,7 @@ from md_renderer import render_md_item
 from md_item_builder import build_md_items
 
 
-INPUT_FILE = Path("Temp/ExportMessages/messages.json")
+INPUT_FILE = Path("..\Temp\ExportMessages\messages.json")
 
 
 def main():
