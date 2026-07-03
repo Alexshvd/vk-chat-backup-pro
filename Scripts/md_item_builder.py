@@ -110,12 +110,7 @@ def _make_item(
         filename="",
     )
     if author:
-        item.author_id = author.author_id
-        item.author_name = author.name
-        item.author_screen_name = author.screen_name
-        item.author_photo_url = author.photo_url
-        item.author_photo_local = author.photo_local
-        item.author_type = author.author_type
+        item.author = author
     return item
 
 

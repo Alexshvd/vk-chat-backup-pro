@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
+from author_resolver import AuthorInfo
+
 
 class BaseAttachmentItem:
     pass
@@ -68,9 +70,4 @@ class MdItem:
     heading: str
     filename: str
     is_wall_split: bool = False
-    author_id: int = 0
-    author_name: str = ""
-    author_screen_name: str = ""
-    author_photo_url: str = ""
-    author_photo_local: str = ""
-    author_type: str = ""
+    author: Optional[AuthorInfo] = None

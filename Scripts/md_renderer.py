@@ -22,14 +22,16 @@ def _fmt_date(ts: int) -> str:
 
 def _render_author_line(item: MdItem) -> str:
     parts = [f"**От:** {item.from_id}"]
-    if item.author_photo_local:
-        parts.append(f"![]({item.author_photo_local})")
-    if item.author_screen_name:
-        parts.append(f"@{item.author_screen_name}")
-    if item.author_name:
-        parts.append(f"({item.author_name})")
-    if item.author_type:
-        parts.append(f"[{item.author_type}]")
+    author = item.author
+    if author:
+        if author.photo_local:
+            parts.append(f"![]({author.photo_local})")
+        if author.screen_name:
+            parts.append(f"@{author.screen_name}")
+        if author.name:
+            parts.append(f"({author.name})")
+        if author.author_type:
+            parts.append(f"[{author.author_type}]")
     return " ".join(parts)
 
 
@@ -117,9 +119,9 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
     lines.append("|-----|---------------------|--------|")
 
     def _walk(item: MdItem):
-        if item.author_photo_url:
-            rel_cell = f"[{item.author_photo_local}]({item.author_photo_local})" if item.author_photo_local else ""
-            lines.append(f"| Аватар автора | {rel_cell} | {_url_cell(item.author_photo_url)} |")
+        if item.author and item.author.photo_url:
+            rel_cell = f"[{item.author.photo_local}]({item.author.photo_local})" if item.author.photo_local else ""
+            lines.append(f"| Аватар автора | {rel_cell} | {_url_cell(item.author.photo_url)} |")
         relpath = f"../ExtractedOriginalMessages/{item.json_filename}"
         lines.append(f"| Исходный файл | [{relpath}]({relpath}) | |")
         for att in item.attachments:
