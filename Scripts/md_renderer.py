@@ -25,7 +25,7 @@ def _render_author_compact(from_id: Any, author: Optional = None) -> str:
     parts = [f"**От:** {from_id}"]
     if author:
         if author.photo_local:
-            parts.append(f"![]({author.photo_local})")
+            parts.append(f'<img width="36" height="36" src="{author.photo_local}">')
         if author.screen_name:
             parts.append(f"@{author.screen_name}")
         if author.name:
