@@ -1,8 +1,11 @@
+import json
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
+
+import requests
 
 from MdItem import (
     BaseAttachmentItem, MdItem,
@@ -155,6 +158,60 @@ def _resolve_photo(
     return PhotoAttachment(original_url=url, local_path=local_path)
 
 
+def _fetch_embed_video_files(owner_id: int, video_id: int) -> dict:
+    try:
+        resp = requests.get(
+            "https://vk.com/video_ext.php",
+            params={"oid": owner_id, "id": video_id},
+            timeout=30,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        resp.raise_for_status()
+        text = resp.text
+    except Exception:
+        return {}
+
+    idx = text.find('"apiPrefetchCache"')
+    if idx < 0:
+        return {}
+
+    files_pos = text.find('"files"', idx)
+    if files_pos < 0:
+        return {}
+
+    brace = text.find("{", files_pos + 7)
+    if brace < 0:
+        return {}
+
+    depth = 0
+    in_str = False
+    escaped = False
+    for i in range(brace, len(text)):
+        ch = text[i]
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\" and in_str:
+            escaped = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if not in_str:
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    blob = text[brace : i + 1]
+                    try:
+                        files = json.loads(blob)
+                        return {k: v for k, v in files.items() if k.startswith("mp4_")}
+                    except json.JSONDecodeError:
+                        return {}
+    return {}
+
+
 def _resolve_video(
     video: dict, cid: int, md_dir: str,
     vk_client, url_to_relpath: Dict[str, str],
@@ -178,7 +235,18 @@ def _resolve_video(
         if preview_url else ""
     )
 
-    mp4_url = _get_best_video_url(files)
+    mp4_url = None
+
+    if video.get("owner_id") and video.get("id"):
+        try:
+            embed_files = _fetch_embed_video_files(video["owner_id"], video["id"])
+            mp4_url = _get_best_video_url(embed_files)
+        except Exception:
+            pass
+
+    if not mp4_url:
+        mp4_url = _get_best_video_url(files)
+
     if not mp4_url and vk_client and video.get("owner_id") and video.get("id"):
         try:
             urls = vk_client.get_video_urls(video["owner_id"], video["id"])
