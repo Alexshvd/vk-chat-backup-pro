@@ -21,30 +21,33 @@ def _fmt_date(ts: int) -> str:
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _render_author_compact(from_id: Any, author: Optional = None) -> str:
+def _render_author_compact(from_id: Any, author: Optional = None, date: Optional[int] = None) -> str:
     if author and author.photo_local:
-        html = f'**От:** {from_id}<br><table><tr><td valign="middle"><img width="36" height="36" src="{author.photo_local}"></td><td valign="middle">'
+        html = f'<table><tr><td valign="middle"><img width="36" height="36" src="{author.photo_local}"></td><td valign="middle">'
         parts = []
         if author.name:
-            parts.append(author.name)
-        if author.author_type:
+            parts.append(f"<b>{author.name}</b> [{author.author_type}]" if author.author_type else author.name)
+        elif author.author_type:
             parts.append(f"[{author.author_type}]")
+        if date:
+            parts.append(f"<b>Дата:</b> {_fmt_date(date)}")
         if author.screen_name:
-            parts.append(f"@{author.screen_name}")
+            parts.append(f"<b>Ник:</b> {author.screen_name}")
+        parts.append(f"<b>Id:</b> {from_id}")
         return html + "<br>".join(parts) + "</td></tr></table>"
-    parts = [f"**От:** {from_id}"]
+    parts = [f"<b>Id:</b> {from_id}"]
     if author:
-        if author.screen_name:
-            parts.append(f"@{author.screen_name}")
         if author.name:
-            parts.append(f"({author.name})")
-        if author.author_type:
+            parts.append(f"<b>{author.name}</b> [{author.author_type}]" if author.author_type else author.name)
+        elif author.author_type:
             parts.append(f"[{author.author_type}]")
+        if author.screen_name:
+            parts.append(f"<b>Ник:</b> {author.screen_name}")
     return " ".join(parts)
 
 
 def _render_author_line(item: MdItem) -> str:
-    return _render_author_compact(item.from_id, item.author)
+    return _render_author_compact(item.from_id, item.author, item.date)
 
 
 def _render_message(item: MdItem, tag: str, level: int) -> str:
@@ -52,10 +55,8 @@ def _render_message(item: MdItem, tag: str, level: int) -> str:
         f"{tag} {item.heading}",
         "",
         _render_author_line(item),
+        "",
     ]
-    if item.date:
-        lines.append(f"**Дата:** {_fmt_date(item.date)}")
-    lines.append("")
 
     text = item.text
     attachments = item.attachments
@@ -101,10 +102,8 @@ def _render_message_with_wall(item: MdItem, tag: str, level: int) -> str:
         f"{tag} {item.heading}",
         "",
         _render_author_line(item),
+        "",
     ]
-    if item.date:
-        lines.append(f"**Дата:** {_fmt_date(item.date)}")
-    lines.append("")
 
     if item.text:
         lines.append(item.text.replace("\n", "<br>\n"))
