@@ -22,10 +22,18 @@ def _fmt_date(ts: int) -> str:
 
 
 def _render_author_compact(from_id: Any, author: Optional = None) -> str:
+    if author and author.photo_local:
+        html = f'**От:** {from_id}<br><table><tr><td valign="middle"><img width="36" height="36" src="{author.photo_local}"></td><td valign="middle">'
+        parts = []
+        if author.name:
+            parts.append(author.name)
+        if author.author_type:
+            parts.append(f"[{author.author_type}]")
+        if author.screen_name:
+            parts.append(f"@{author.screen_name}")
+        return html + "<br>".join(parts) + "</td></tr></table>"
     parts = [f"**От:** {from_id}"]
     if author:
-        if author.photo_local:
-            parts.append(f'<img width="36" height="36" src="{author.photo_local}">')
         if author.screen_name:
             parts.append(f"@{author.screen_name}")
         if author.name:
