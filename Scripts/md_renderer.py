@@ -22,7 +22,7 @@ def _fmt_date(ts: int) -> str:
 
 
 def _render_author_compact(from_id: Any, author: Optional = None, date: Optional[int] = None) -> str:
-    img_cell = f'<td valign="middle"><img width="36" height="36" src="{author.photo_local}"></td>' if (author and author.photo_local) else ""
+    img_cell = f'<td valign="middle"><img width="55" height="55" src="{author.photo_local}"></td>' if (author and author.photo_local) else ""
     parts = []
     if author:
         if author.name:
