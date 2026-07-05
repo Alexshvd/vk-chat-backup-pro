@@ -35,7 +35,7 @@ except ValueError:
 API_VERSION = "5.199"
 API_BASE_URL = "https://api.vk.com/method"
 
-EXPORT_ROOT = os.getenv("EXPORT_ROOT", str(Path(__file__).resolve().parent.parent))
+EXPORT_ROOT = os.getenv("EXPORT_ROOT", str(Path(__file__).resolve().parent / "Temp" / "ExportMessages"))
 
 DOWNLOAD_SHORT_VIDEO = True
 DOWNLOAD_LONG_VIDEO = False
