@@ -22,7 +22,7 @@ def _fmt_date(ts: int) -> str:
 
 
 def _render_author_compact(from_id: Any, author: Optional = None, date: Optional[int] = None) -> str:
-    img_cell = f'<td valign="middle"><img width="55" height="55" src="{author.photo_local}"></td>' if (author and author.photo_local) else ""
+    img_cell = f'<td style="vertical-align:middle"><img width="55" height="55" src="{author.photo_local}"></td>' if (author and author.photo_local) else ""
     parts = []
     if author:
         if author.name:
@@ -34,7 +34,7 @@ def _render_author_compact(from_id: Any, author: Optional = None, date: Optional
     if author and author.screen_name:
         parts.append(f"<b>Ник:</b> {author.screen_name}")
     parts.append(f"<b>Id:</b> {from_id}")
-    return f"<table><tr>{img_cell}<td valign=\"middle\">" + "<br>".join(parts) + "</td></tr></table>"
+    return f"<table><tr>{img_cell}<td style=\"vertical-align:middle\">" + "<br>".join(parts) + "</td></tr></table>"
 
 
 def _render_author_line(item: MdItem) -> str:
