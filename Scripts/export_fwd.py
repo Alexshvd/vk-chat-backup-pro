@@ -27,15 +27,12 @@ def extract_forwarded(messages_json_path: str, output_dir: str) -> int:
     return count
 
 
-def extract_items(messages_json_path: str, output_dir: str) -> int:
-    with open(messages_json_path, encoding="utf-8") as f:
-        data = json.load(f)
-
+def extract_items_from_data(items: list, output_dir: str) -> int:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
     count = 0
-    for msg in data.get("items", []):
+    for msg in items:
         ts = msg.get("date")
         cid = msg.get("conversation_message_id")
         if ts is None or cid is None:

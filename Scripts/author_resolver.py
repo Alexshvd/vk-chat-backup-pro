@@ -17,9 +17,7 @@ class AuthorInfo:
     author_type: str
 
 
-def load_authors(messages_json_path: str) -> dict[int, AuthorInfo]:
-    with open(messages_json_path, encoding="utf-8") as f:
-        data = json.load(f)
+def load_authors(data: dict) -> dict[int, AuthorInfo]:
 
     authors: dict[int, AuthorInfo] = {}
 
