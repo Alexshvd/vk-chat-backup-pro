@@ -136,8 +136,8 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
             rel_cell = f"[{att.local_path}]({att.local_path})" if att.local_path else ""
             lines.append(f"| Фото | {rel_cell} | {_url_cell(att.original_url)} |")
         elif isinstance(att, VideoAttachment):
-            rel_cell = f"[{att.mp4_local_path}]({att.mp4_local_path})" if att.mp4_local_path else ""
             if att.player_url:
+                rel_cell = f"[{att.mp4_local_path}]({att.mp4_local_path})" if att.mp4_local_path else ""
                 lines.append(f"| Видео | {rel_cell} | {_url_cell(att.player_url)} |")
             if att.preview_url:
                 rel_cell = f"[{att.preview_local_path}]({att.preview_local_path})" if att.preview_local_path else ""
