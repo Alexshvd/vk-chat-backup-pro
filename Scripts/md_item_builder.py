@@ -12,13 +12,15 @@ from MdItem import (
 from author_resolver import AuthorInfo
 from download_media import download_file
 from vk_client import get_video_embed_urls
-from config import DOWNLOAD_SHORT_VIDEO, DOWNLOAD_LONG_VIDEO, LONG_VIDEO_THRESHOLD
+from config import DOWNLOAD_SHORT_VIDEO, DOWNLOAD_LONG_VIDEO, LONG_VIDEO_THRESHOLD, path_rel
 
 
 def build_md_items(
     fwd: dict,
     json_filename: str,
     md_dir: str,
+    little_raw_data_dir: str,
+    large_raw_data_dir: str,
     authors: dict[int, AuthorInfo],
     vk_client=None,
     url_to_relpath: Optional[Dict[str, str]] = None,
@@ -37,14 +39,14 @@ def build_md_items(
 
     raw_attachments = fwd.get("attachments", [])
     resolved_attachments = [
-        _resolve_attachment(a, cid, md_dir, vk_client, url_to_relpath, authors)
+        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, vk_client, url_to_relpath, authors)
         for a in raw_attachments
     ]
 
     resolved_forwarded = []
     for child in fwd.get("fwd_messages", []):
         resolved_forwarded.extend(
-            build_md_items(child, json_filename, md_dir, authors, vk_client, url_to_relpath)
+            build_md_items(child, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, vk_client, url_to_relpath)
         )
 
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
@@ -119,45 +121,49 @@ def _resolve_attachment(
     att: dict,
     cid: int,
     md_dir: str,
+    little_raw_data_dir: str,
+    large_raw_data_dir: str,
     vk_client,
     url_to_relpath: Dict[str, str],
     authors: dict[int, AuthorInfo],
 ) -> BaseAttachmentItem:
     t = att.get("type")
     if t == "photo":
-        return _resolve_photo(att.get("photo", {}), cid, md_dir, url_to_relpath)
+        return _resolve_photo(att.get("photo", {}), cid, little_raw_data_dir, md_dir, url_to_relpath)
     if t in ("video", "short_video"):
         return _resolve_video(
-            att.get("video", {}), cid, md_dir, vk_client, url_to_relpath,
+            att.get("video", {}), cid, little_raw_data_dir, large_raw_data_dir, md_dir,
+            vk_client, url_to_relpath,
             is_short=(t == "short_video"),
         )
     if t == "link":
         return _resolve_link(att.get("link", {}))
     if t in ("wall", "post"):
-        return _resolve_wall(att.get(t, {}), cid, md_dir, vk_client, url_to_relpath, authors)
+        return _resolve_wall(att.get(t, {}), cid, md_dir, little_raw_data_dir, large_raw_data_dir, vk_client, url_to_relpath, authors)
     if t == "doc":
         return _resolve_doc(att.get("doc", {}))
     if t == "audio":
         return _resolve_audio(att.get("audio", {}))
     if t == "sticker":
-        return _resolve_sticker(att.get("sticker", {}), cid, md_dir, url_to_relpath)
+        return _resolve_sticker(att.get("sticker", {}), cid, little_raw_data_dir, md_dir, url_to_relpath)
     return BaseAttachmentItem()
 
 
 def _resolve_photo(
-    photo: dict, cid: int, md_dir: str, url_to_relpath: Dict[str, str],
+    photo: dict, cid: int, little_raw_data_dir: str, md_dir: str, url_to_relpath: Dict[str, str],
 ) -> PhotoAttachment:
     sizes = photo.get("sizes", [])
     if not sizes:
         return PhotoAttachment(original_url="")
     biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
     url = biggest.get("url", "")
-    local_path = _download_to_raw(url, cid, md_dir, url_to_relpath) if url else ""
+    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath) if url else ""
     return PhotoAttachment(original_url=url, local_path=local_path)
 
 
 def _resolve_video(
-    video: dict, cid: int, md_dir: str,
+    video: dict, cid: int,
+    little_raw_data_dir: str, large_raw_data_dir: str, md_dir: str,
     vk_client, url_to_relpath: Dict[str, str],
     is_short: bool,
 ) -> VideoAttachment:
@@ -175,7 +181,7 @@ def _resolve_video(
         )
 
     preview_local = (
-        _download_to_raw(preview_url, cid, md_dir, url_to_relpath)
+        _download_to_raw(preview_url, cid, little_raw_data_dir, md_dir, url_to_relpath)
         if preview_url else ""
     )
 
@@ -206,7 +212,7 @@ def _resolve_video(
         else:
             try:
                 mp4_local = _download_to_raw(
-                    mp4_url, cid, md_dir, url_to_relpath, force_ext="mp4"
+                    mp4_url, cid, large_raw_data_dir, md_dir, url_to_relpath, force_ext="mp4"
                 )
             except Exception:
                 mp4_local = ""
@@ -245,22 +251,23 @@ def _resolve_audio(audio: dict) -> AudioAttachment:
 
 
 def _resolve_sticker(
-    sticker: dict, cid: int, md_dir: str, url_to_relpath: Dict[str, str],
+    sticker: dict, cid: int, little_raw_data_dir: str, md_dir: str, url_to_relpath: Dict[str, str],
 ) -> StickerAttachment:
     imgs = sticker.get("images", [])
     url = imgs[-1].get("url", "") if imgs else ""
-    local_path = _download_to_raw(url, cid, md_dir, url_to_relpath) if url else ""
+    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath) if url else ""
     return StickerAttachment(original_url=url, local_path=local_path)
 
 
 def _resolve_wall(
     data: dict, cid: int, md_dir: str,
+    little_raw_data_dir: str, large_raw_data_dir: str,
     vk_client, url_to_relpath: Dict[str, str],
     authors: dict[int, AuthorInfo],
 ) -> WallAttachment:
     owner_id = data.get("owner_id")
     children = [
-        _resolve_attachment(a, cid, md_dir, vk_client, url_to_relpath, authors)
+        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, vk_client, url_to_relpath, authors)
         for a in data.get("attachments", [])
     ]
     author = authors.get(owner_id) if owner_id is not None else None
@@ -274,23 +281,23 @@ def _resolve_wall(
 
 
 def _download_to_raw(
-    url: str, cid: int, md_dir: str,
-    url_to_relpath: Dict[str, str], force_ext: str = "",
+    url: str, cid: int, storage_dir: str,
+    md_dir: str, url_to_relpath: Dict[str, str], force_ext: str = "",
 ) -> str:
     if url in url_to_relpath:
         return url_to_relpath[url]
 
     ext = force_ext if force_ext else _get_ext(url)
-    raw_dir = Path(md_dir) / "RawData" / str(cid)
+    raw_dir = Path(storage_dir) / str(cid)
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     n = 1
     while (raw_dir / f"{n}.{ext}").exists():
         n += 1
 
-    relpath = f"RawData/{cid}/{n}.{ext}"
     filepath = raw_dir / f"{n}.{ext}"
     download_file(url, str(filepath))
+    relpath = path_rel(str(filepath), md_dir)
     url_to_relpath[url] = relpath
     return relpath
 

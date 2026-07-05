@@ -3,6 +3,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def path_rel(target: str, start: str = os.curdir) -> str:
+    return os.path.relpath(target, start).replace("\\", "/")
+
+
 dotenv_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path)
 
@@ -30,6 +34,8 @@ except ValueError:
 
 API_VERSION = "5.199"
 API_BASE_URL = "https://api.vk.com/method"
+
+EXPORT_ROOT = os.getenv("EXPORT_ROOT", str(Path(__file__).resolve().parent.parent))
 
 DOWNLOAD_SHORT_VIDEO = True
 DOWNLOAD_LONG_VIDEO = False

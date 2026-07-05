@@ -124,7 +124,7 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
         if item.author and item.author.photo_url:
             rel_cell = f"[{item.author.photo_local}]({item.author.photo_local})" if item.author.photo_local else ""
             lines.append(f"| Аватар автора | {rel_cell} | {_url_cell(item.author.photo_url)} |")
-        relpath = f"../ExtractedOriginalMessages/{item.json_filename}"
+        relpath = f"../OriginalMessages/{item.json_filename}"
         lines.append(f"| Исходный файл | [{relpath}]({relpath}) | |")
         for att in item.attachments:
             _walk_attachment(att)

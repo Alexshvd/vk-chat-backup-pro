@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from download_media import download_file
+from config import path_rel
 
 
 @dataclass
@@ -70,6 +71,7 @@ def ensure_author_avatars(
     authors: dict[int, AuthorInfo],
     authors_dir: str,
     url_to_relpath: dict[str, str],
+    md_dir: str,
 ) -> None:
     for author_id, info in authors.items():
         if not info.photo_url:
@@ -84,13 +86,13 @@ def ensure_author_avatars(
         filepath = Path(authors_dir) / filename
 
         if filepath.exists():
-            relpath = f"../Autors/{filename}"
+            relpath = path_rel(str(filepath), md_dir)
             url_to_relpath[info.photo_url] = relpath
             info.photo_local = relpath
             continue
 
         filepath.parent.mkdir(parents=True, exist_ok=True)
         download_file(info.photo_url, str(filepath))
-        relpath = f"../Autors/{filename}"
+        relpath = path_rel(str(filepath), md_dir)
         url_to_relpath[info.photo_url] = relpath
         info.photo_local = relpath
