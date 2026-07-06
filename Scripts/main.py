@@ -6,7 +6,17 @@ from export_fwd import extract_items_from_data
 from md_renderer import render_md_item
 from md_item_builder import build_md_items
 from author_resolver import load_authors, ensure_author_avatars
-from config import EXPORT_ROOT
+from config import EXPORT_ROOT, MIN_CID_BY_PEER_ID, MIN_DATE_BY_PEER_ID
+
+
+def _is_msg_filtered(item: dict, peer_id: int) -> bool:
+    min_cid = MIN_CID_BY_PEER_ID.get(peer_id)
+    min_date = MIN_DATE_BY_PEER_ID.get(peer_id)
+    if min_cid is not None and (item.get("conversation_message_id") or 0) <= min_cid:
+        return True
+    if min_date is not None and (item.get("date") or 0) <= min_date:
+        return True
+    return False
 
 
 def main():
@@ -61,7 +71,8 @@ def main():
         url_to_relpath: dict[str, str] = {}
         ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir))
 
-        n = extract_items_from_data(items, str(original_messages_dir))
+        filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id)]
+        n = extract_items_from_data(filtered_items, str(original_messages_dir))
         print(f"  Сохранено сообщений: {n}")
 
         count = 0
@@ -69,6 +80,8 @@ def main():
         for message_index, message_file in enumerate(message_files):
             with open(message_file, encoding="utf-8") as fp:
                 item_data = json.load(fp)
+            if _is_msg_filtered(item_data, peer_id):
+                continue
             md_items = build_md_items(
                 item_data, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),

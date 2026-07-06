@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -40,3 +41,15 @@ EXPORT_ROOT = os.getenv("EXPORT_ROOT", str(Path(__file__).resolve().parent / "Te
 DOWNLOAD_SHORT_VIDEO = True
 DOWNLOAD_LONG_VIDEO = False
 LONG_VIDEO_THRESHOLD = 180
+
+_MIN_DATE_RAW: dict[int, str] = {
+    # 2000000001: "2026-06-30-00-00-00",
+}
+
+MIN_DATE_BY_PEER_ID: dict[int, int] = {}
+for _pid, _s in _MIN_DATE_RAW.items():
+    MIN_DATE_BY_PEER_ID[_pid] = int(datetime.strptime(_s, "%Y-%m-%d-%H-%M-%S").timestamp())
+
+MIN_CID_BY_PEER_ID: dict[int, int] = {
+    # 2000000001: 1660,
+}
