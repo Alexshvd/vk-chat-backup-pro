@@ -10,6 +10,9 @@ def path_rel(target: str, start: str = os.curdir) -> str:
 
 
 def load_config(path: str) -> Config:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Config file not found: {path}")
+
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
 
