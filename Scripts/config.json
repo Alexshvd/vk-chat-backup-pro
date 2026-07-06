@@ -1,8 +1,0 @@
-{
-    "export_root": "",
-    "download_short_video": true,
-    "download_long_video": false,
-    "long_video_threshold": 180,
-    "min_cid_by_peer_id": {},
-    "min_date_by_peer_id": {}
-}
