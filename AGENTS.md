@@ -9,8 +9,7 @@ Read local `messages.json` files, extract all messages into individual JSON file
 Scripts/
 ├── main.py              # Entry point: parse sources → extract → build → render → write
 ├── config.py            # Config dataclass (pure, no side-effects)
-├── config.json          # All settings: export_root, filters, video flags
-├── config_loader.py     # load_config(path) + path_rel()
+├── config_loader.py     # load_config(path) — reads config.json, validates existence + path_rel()
 ├── author_resolver.py   # AuthorInfo dataclass + load_authors() + ensure_author_avatars()
 ├── vk_client.py         # get_video_embed_urls() — standalone, no class
 ├── export_fwd.py        # extract_items_from_data(items, output_dir)
@@ -54,7 +53,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `Config` dataclass with fields: `export_root`, `download_short_video`, `download_long_video`, `long_video_threshold`, `min_cid_by_peer_id`, `min_date_by_peer_id`
 - Pure data container, no logic
 
-### config.json
+### config.json (user-provided, not tracked in git)
 - `export_root` — path to export root (default: `Scripts/Temp/ExportMessages/`)
 - `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
 - `min_cid_by_peer_id` — per-dialog filter: `{peer_id: min_cid}` (messages with cid <= min_cid are skipped)
@@ -62,7 +61,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - If peer_id not in dict — filter disabled for that dialog
 
 ### config_loader.py
-- `load_config(path: str) -> Config` — reads `config.json`, parses and transforms (str keys → int, date strings → unix timestamps)
+- `load_config(path: str) -> Config` — reads `config.json`, raises `FileNotFoundError` if file doesn't exist with path in message; parses and transforms (str keys → int, date strings → unix timestamps)
 - `path_rel(target, start)` — `os.path.relpath()` with `\` → `/`
 
 ### vk_client.py
@@ -76,7 +75,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `ensure_author_avatars(authors, authors_dir, url_to_relpath, md_dir)` — downloads avatars to `AutorImages/`, computes relpath from `md_dir`
 
 ### export_fwd.py
-- `extract_items_from_data(items: list, output_dir: str)` — writes each item as `{date}_{cid}.json`. No dedup (data already deduplicated by caller).
+- `extract_items_from_data(items: list, output_dir: str)` — writes each item as `{date}_{cid}.json`. No guard for missing cid/date (guaranteed upstream). No dedup (data already deduplicated by caller).
 
 ### download_media.py
 - `download_file(url, filepath, timeout=30)` — downloads a single file
@@ -104,7 +103,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `render_md_item(item, level=1)` — pure function, no I/O
 - Dispatch by `isinstance` (not string comparison)
 - **Author rendering**: HTML `<table>` with `<img width="55" height="55" style="vertical-align:middle">`, inline CSS
-- **Sources table**: per-attachment rows with relative links (computed via `path_rel()`)
+- **Sources table**: per-attachment rows for all 8 types (Photo, Video, Link, Doc, Audio, Sticker, Wall) with relative links (computed via `path_rel()`)
 
 ## Conventions
 
