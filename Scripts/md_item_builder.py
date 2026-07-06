@@ -12,7 +12,7 @@ from MdItem import (
 from author_resolver import AuthorInfo
 from download_media import download_file
 from vk_client import get_video_embed_urls
-from config import DOWNLOAD_SHORT_VIDEO, DOWNLOAD_LONG_VIDEO, LONG_VIDEO_THRESHOLD, path_rel
+from config_loader import config, path_rel
 
 
 def build_md_items(
@@ -301,9 +301,9 @@ def _get_ext(url: str) -> str:
 
 
 def _should_download_video(duration: int) -> bool:
-    if duration < LONG_VIDEO_THRESHOLD:
-        return DOWNLOAD_SHORT_VIDEO
-    return DOWNLOAD_LONG_VIDEO
+    if duration < config.long_video_threshold:
+        return config.download_short_video
+    return config.download_long_video
 
 
 def _get_best_video_url(files: dict) -> Optional[str]:

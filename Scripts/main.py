@@ -6,12 +6,12 @@ from export_fwd import extract_items_from_data
 from md_renderer import render_md_item
 from md_item_builder import build_md_items
 from author_resolver import load_authors, ensure_author_avatars
-from config import EXPORT_ROOT, MIN_CID_BY_PEER_ID, MIN_DATE_BY_PEER_ID
+from config_loader import config
 
 
 def _is_msg_filtered(item: dict, peer_id: int) -> bool:
-    min_cid = MIN_CID_BY_PEER_ID.get(peer_id)
-    min_date = MIN_DATE_BY_PEER_ID.get(peer_id)
+    min_cid = config.min_cid_by_peer_id.get(peer_id)
+    min_date = config.min_date_by_peer_id.get(peer_id)
     if min_cid is not None and (item.get("conversation_message_id") or 0) <= min_cid:
         return True
     if min_date is not None and (item.get("date") or 0) <= min_date:
@@ -22,7 +22,7 @@ def _is_msg_filtered(item: dict, peer_id: int) -> bool:
 def main():
     start_create_time = datetime.now()
 
-    export_root = Path(EXPORT_ROOT)
+    export_root = Path(config.export_root)
     sources_dir = export_root / "ExportMessages" / "Sources"
     dialogs_dir = export_root / "ExportMessages" / "Dialogs"
     autor_images_dir = dialogs_dir / "AutorImages"

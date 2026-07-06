@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from download_media import download_file
-from config import path_rel
+from config_loader import path_rel
 
 
 @dataclass
