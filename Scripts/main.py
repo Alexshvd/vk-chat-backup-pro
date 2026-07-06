@@ -86,7 +86,7 @@ def main():
                 item_data, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),
                 authors,
-                vk_client=None, url_to_relpath=url_to_relpath,
+                url_to_relpath=url_to_relpath,
             )
             for md_index, item in enumerate(md_items):
                 md_text = render_md_item(item)
