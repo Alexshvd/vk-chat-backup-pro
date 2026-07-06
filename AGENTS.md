@@ -1,140 +1,135 @@
 # VkChatBackupCommunity
 
 ## Goal
-Backup forwarded messages from a VK community chat: fetch chat history via VK API, extract all forwarded (`fwd_messages`) messages into individual JSON files, then convert them to Markdown files with full attachment rendering and a sources table.
+Read local `messages.json` files, extract all messages into individual JSON files, resolve attachments (photos, videos, stickers, links, docs, audio, wall posts), download media files, render as Markdown with author info and sources table.
 
 ## Project Structure
 
 ```
 Scripts/
-├── main.py              # Entry point: fetch → extract → build → render → write
-├── config.py            # Load VK_TOKEN, GROUP_ID, PEER_ID from .env
-├── vk_client.py         # VK API client (raw requests, pagination, rate limiting)
-├── export_fwd.py        # Extract fwd_messages[] from messages.json
+├── main.py              # Entry point: parse sources → extract → build → render → write
+├── config.py            # Config dataclass (pure, no side-effects)
+├── config.json          # All settings: export_root, filters, video flags
+├── config_loader.py     # load_config(path) + path_rel()
+├── author_resolver.py   # AuthorInfo dataclass + load_authors() + ensure_author_avatars()
+├── vk_client.py         # get_video_embed_urls() — standalone, no class
+├── export_fwd.py        # extract_items_from_data(items, output_dir)
 ├── MdItem.py            # DTO: BaseAttachmentItem + 8 subclasses + MdItem
 ├── md_item_builder.py   # build_md_items(): JSON → MdItem, resolves attachments, downloads files
 ├── md_renderer.py       # render_md_item(): MdItem → Markdown (pure, no I/O)
 ├── download_media.py    # download_file() + DownloadItem + download_all
 ├── requirements.txt     # requests, python-dotenv
-├── .env.example         # Template for credentials
-├── .gitignore           # Ignores .env, Temp/, __pycache__/
+├── .gitignore           # Ignores Temp/, __pycache__/
 ```
 
-Output directory structure:
+Output directory structure (`EXPORT_ROOT`):
 ```
-Temp/ExportMessages/dialog_{peer_id}/
-├── messages.json                      # Full chat history
-├── ExtractedOriginalMessages/         # Individual forwarded message JSON files
-│   ├── {date}_{cid}.json
-│   └── ...
-└── MdConvertResults/                  # Converted Markdown files
-    ├── {first_sentence}.Id{cid}.md
-    └── ...
+{EXPORT_ROOT}/
+├── ExportMessages/
+│   ├── Sources/                      # Input: one or more messages.json files
+│   │   └── messages.json
+│   └── Dialogs/
+│       ├── AutorImages/              # Shared author avatars
+│       └── dialog_{peer_id}/
+│           ├── RawData/              # Small attachments (images, previews, stickers)
+│           ├── OriginalMessages/     # Individual message JSON files {date}_{cid}.json
+│           └── MdFiles/              # Rendered Markdown files
+└── LargeRawData/                     # Large files (videos)
+    └── dialog_{peer_id}/{cid}/
 ```
 
 ## Data Flow
 
-1. **main.py** → `VkClient.get_all_history(peer_id)` → `messages.json`
-2. **main.py** → `extract_forwarded(messages.json, ExtractedOriginalMessages/)` → per-message JSON files
-3. **main.py** → `build_md_items(JSON, name, md_dir, vk_client)` → `list[MdItem]` with resolved attachments and downloaded files
-4. **main.py** → `render_md_item(item)` → Markdown string → write to `.md` file
+1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups
+2. **main.py** → `load_authors(merged_data)` → `dict[int, AuthorInfo]`
+3. **main.py** → per dialog: `extract_items_from_data(filtered_items)` → `{date}_{cid}.json`
+4. **main.py** → per dialog: `build_md_items(json, config, ...)` → `list[MdItem]` with resolved attachments and downloaded files
+5. **main.py** → per dialog: `render_md_item(item)` → Markdown → write `.md` file
 
-All steps run unconditionally. Step 3 resolves all attachments into typed DTOs and downloads photos/stickers/videos immediately. Step 4 is pure rendering (no I/O).
+Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos immediately. Step 5 is pure rendering (no I/O).
 
 ## Module Details
 
 ### config.py
-- Loads `.env` from the same directory as the script
-- Exports: `VK_TOKEN` (str), `GROUP_ID` (int), `PEER_ID` (int)
-- Hardcoded: `API_VERSION = "5.199"`, `API_BASE_URL = "https://api.vk.com/method"`
-- Video download flags: `DOWNLOAD_SHORT_VIDEO` (bool), `DOWNLOAD_LONG_VIDEO` (bool), `LONG_VIDEO_THRESHOLD` (int, секунды)
+- `Config` dataclass with fields: `export_root`, `download_short_video`, `download_long_video`, `long_video_threshold`, `min_cid_by_peer_id`, `min_date_by_peer_id`
+- Pure data container, no logic
+
+### config.json
+- `export_root` — path to export root (default: `Scripts/Temp/ExportMessages/`)
+- `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
+- `min_cid_by_peer_id` — per-dialog filter: `{peer_id: min_cid}` (messages with cid <= min_cid are skipped)
+- `min_date_by_peer_id` — per-dialog filter: `{peer_id: "yyyy-mm-dd-hh-mm-ss"}` (messages with date <= filter are skipped)
+- If peer_id not in dict — filter disabled for that dialog
+
+### config_loader.py
+- `load_config(path: str) -> Config` — reads `config.json`, parses and transforms (str keys → int, date strings → unix timestamps)
+- `path_rel(target, start)` — `os.path.relpath()` with `\` → `/`
 
 ### vk_client.py
-- `VkClient(token)` — raw `requests.Session`-based VK API client
-- `_call(method, params, retries=3)` — generic API call with retry on error 6 (too many requests per second). Backoff: `2^attempt` seconds. Raises `RuntimeError` on other errors.
-- `get_history(peer_id, count=200, offset=0)` — single page of `messages.getHistory`
-- `get_all_history(peer_id)` — paginated fetch (200 per page, 0.35s sleep between calls). Returns list in chronological order (reversed at end).
-- Rate limit: community token = 3 RPS → 0.35s sleep ≈ ~2.85 RPS.
-- `get_video_urls(owner_id, video_id)` — fetches `vk.com/video_ext.php?oid=...&id=...`, parses mp4 URLs from embedded JSON. No authorization needed.
+- `get_video_embed_urls(owner_id, video_id)` — standalone, fetches `vk.com/video_ext.php`, parses mp4 URLs from embedded JSON (`apiPrefetchCache`). No authorization needed.
+- `_parse_video_embed(text)` — handles both new `apiPrefetchCache` format and old regex fallback
+- No class, no VK API calls
+
+### author_resolver.py
+- `AuthorInfo` dataclass: `author_id`, `name`, `screen_name`, `photo_url`, `photo_local`, `author_type`
+- `load_authors(data: dict)` — parses `profiles[]` (users) and `groups[]` (communities) from merged messages data
+- `ensure_author_avatars(authors, authors_dir, url_to_relpath, md_dir)` — downloads avatars to `AutorImages/`, computes relpath from `md_dir`
 
 ### export_fwd.py
-- `extract_forwarded(messages_json_path, output_dir)` — reads `messages.json`, iterates `messages[].fwd_messages[]`, saves each as `{date}_{conversation_message_id}.json`
-- Skips entries without `date` or `conversation_message_id`
-- Returns count of extracted files
+- `extract_items_from_data(items: list, output_dir: str)` — writes each item as `{date}_{cid}.json`. No dedup (data already deduplicated by caller).
 
 ### download_media.py
-- `DownloadItem` — dataclass: `url` (оригинальный URL), `relpath` (относительный путь для сохранения)
-- `download_file(url, filepath, timeout=30)` — скачивает один файл в указанный путь
-- `download_all(queue, md_dir)` — принимает `dict[int, list[DownloadItem]]`, скачивает файлы в `{md_dir}/RawData/{cid}/{n}.{ext}` без задержки
+- `download_file(url, filepath, timeout=30)` — downloads a single file
+- `DownloadItem`, `download_all()` — legacy, not used
 
 ### MdItem.py
-- `BaseAttachmentItem` — marker base class для всех типов вложений
-- `PhotoAttachment`, `VideoAttachment`, `LinkAttachment`, `DocAttachment`, `AudioAttachment`, `StickerAttachment`, `WallAttachment` — dataclass-наследники с уже скачанными данными (local_path, urls, и т.д.)
-- `MdItem` — dataclass: `cid`, `from_id`, `date`, `text`, `attachments: list[BaseAttachmentItem]`, `forwarded: list[MdItem]`, `json_filename`, `heading`, `filename`, `is_wall_split`
+- `BaseAttachmentItem` — marker base class
+- `PhotoAttachment`, `VideoAttachment`, `LinkAttachment`, `DocAttachment`, `AudioAttachment`, `StickerAttachment`, `WallAttachment` — dataclass subclasses with already-downloaded data
+- `MdItem` — dataclass: `cid`, `from_id`, `date`, `text`, `attachments: list[BaseAttachmentItem]`, `forwarded: list[MdItem]`, `json_filename`, `heading`, `filename`, `is_wall_split`, `author: Optional[AuthorInfo]`
 
 ### md_item_builder.py
-- `build_md_items(fwd, json_filename, md_dir, vk_client=None, url_to_relpath=None)` — читает JSON dict, создаёт `list[MdItem]`. Рекурсивно обрабатывает `fwd_messages`. Скачивает фото/видео/стикеры сразу.
+- `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers immediately.
+- `config: Config` passed through chain: `_resolve_attachment()` → `_resolve_video()` → `_should_download_video(config)`, `_resolve_wall()` → `_resolve_attachment()`
 - **Filename rules**:
-  - С текстом: `{first_sentence}.Id{cid}.md` (max 60 chars + `...`)
-  - Без текста: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
-  - `Статья.` prefix если только wall/post без текста сообщения
-  - Несколько wall/post → `_part_N` suffix
+  - With text: `{first_sentence}.Id{cid}.md` (max 60 chars + `...`)
+  - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
+  - `Статья.` prefix if only wall/post without text
+  - Multiple wall/post → `_part_N` suffix
   - Filename cleaned: emojis removed, `—`→`-`, special chars `\/*?:"<>|` → `_`
-- **First sentence logic** (`_first_sentence`): Split on `\n`, `.`, `!`, `?` — take first part
+- **First sentence** (`_first_sentence`): Split on `\n`, `.`, `!`, `?` — take first part
+- Video download: `_resolve_video()` calls `get_video_embed_urls(oid, vid)` → `_get_best_video_url()` → `_download_to_raw()` to `LargeRawData/`
+- Controlled by `config.long_video_threshold`, `config.download_short_video`, `config.download_long_video`
 
 ### md_renderer.py
-- `render_md_item(item, level=1)` — превращает `MdItem` в Markdown (чистая функция, без I/O)
-- Dispatch по `isinstance` (не строковые сравнения):
-  - `PhotoAttachment` → `**Фото:** ![](local_path)`
-  - `VideoAttachment` → `**Видео:** [title](player)`, preview, `<video>` / `<details><iframe>`
-  - `LinkAttachment` → `**Ссылка:** [title](url)`
-  - `DocAttachment` → `**Документ:** [title](url)`
-  - `AudioAttachment` → `**Аудио:** artist — title`
-  - `StickerAttachment` → `**Стикер:** ![](local_path)`
-  - `WallAttachment` → expanded inline под `### Запись на стене`
-
-- **Markdown structure** (`_render_message`):
-  - `# first_sentence` (or `# Сообщение (id N)` fallback)
-  - `**От:** from_id`, `**Дата:** YYYY-MM-DD HH:MM:SS`
-  - Single attachment before text only when: text exists + exactly 1 attachment + no nested fwd_messages
-  - Otherwise: text → `## Вложения` → attachments → nested fwd_messages (recursive, `## Пересланные сообщения`)
-  - Newlines in text → `<br>`
-
-- **Markdown for wall posts** (`_render_message_with_wall`, when `is_wall_split=True`):
-  - Same header, then `## Вложения` → non-wall attachments → wall post (under `### Запись на стене`)
-
-- **Источники table**: rendered inline via `_append_sources_table` (без отдельных функций `_collect_sources`)
-  ```
-  | Тип | Относительная ссылка | Ссылка |
-  |-----|---------------------|--------|
-  | Исходный файл | | [relative/path.json](relative/path.json) |
-  | Фото | RawData/{cid}/{n}.jpg | [url](url) |
-  | Видео | | [url](url) |
-  | Превью | RawData/{cid}/{n}.jpg | [url](url) |
-  | Ссылка | | [url](url) |
-  | Ссылка на пост | | [url](url) |
-  | Документ | | [url](url) |
-  ```
-  Обходится рекурсивно (включая вложенные fwd_messages и wall post attachments)
+- `render_md_item(item, level=1)` — pure function, no I/O
+- Dispatch by `isinstance` (not string comparison)
+- **Author rendering**: HTML `<table>` with `<img width="55" height="55" style="vertical-align:middle">`, inline CSS
+- **Sources table**: per-attachment rows with relative links (computed via `path_rel()`)
 
 ## Conventions
 
 - **Python 3.9** — no `X | Y` union syntax, use `Optional[X]`, `Union[X, Y]`
-- **Raw HTTP** — use `requests`, not `vk_api` library
-- **No type annotations** in `export_fwd.py` (legacy code)
-- **Output format**: Markdown with `<br>` for newlines (not native markdown line breaks)
+- **Output format**: Markdown with `<br>` for newlines
 - **Video rendering**: `<video src="..." controls>` for downloaded mp4, `<details>` + `<iframe>` for VK Player fallback
-- **Video download**: controlled by `DOWNLOAD_SHORT_VIDEO`, `DOWNLOAD_LONG_VIDEO`, `LONG_VIDEO_THRESHOLD` in `config.py`
-- **Short video / clip download**: if `video.files` is empty, `_resolve_video` calls `vk_client.get_video_urls()` on `vk.com/video_ext.php` (no auth needed), downloads mp4 immediately to `RawData/{cid}/{n}.mp4`; player URL also constructed from `oid`/`id`
-- **`.gitignore`**: `Temp/` (all export outputs), `.env`, Python/PyCharm artifacts
+- **Relative paths**: computed via `path_rel()` — forward slashes, relative from `MdFiles/` dir
+- **`.gitignore`**: `Temp/`, `__pycache__/`
 
-## Constraints
+## Launch
 
-- Community VK token: 3 RPS limit → 0.35s sleep between calls; error 6 retry with 1→2→4s backoff
-- VK dev site is JavaScript-rendered — API knowledge is from training data / documentation
-- VK API `messages.getHistory` returns newest-first; `get_all_history()` reverses at end
+```sh
+python main.py --config config.json
+```
+
+## Filtering
+
+Two per-dialog filters in `config.json`:
+- `min_cid_by_peer_id`: skip messages where `conversation_message_id <= value`
+- `min_date_by_peer_id`: skip messages where `date <= parsed unix timestamp`
+
+Applied in two places:
+1. Before `extract_items_from_data()` — filtered items don't get JSON files
+2. When iterating `OriginalMessages/` — existing filtered files are skipped (defense against pre-filter leftovers)
 
 ## Dependencies
 
 - `requests>=2.28.0`
-- `python-dotenv>=1.0.0`
