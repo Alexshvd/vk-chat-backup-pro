@@ -12,7 +12,8 @@ from MdItem import (
 from author_resolver import AuthorInfo
 from download_media import download_file
 from vk_client import get_video_embed_urls
-from config_loader import config, path_rel
+from config import Config
+from config_loader import path_rel
 
 
 def build_md_items(
@@ -22,6 +23,7 @@ def build_md_items(
     little_raw_data_dir: str,
     large_raw_data_dir: str,
     authors: dict[int, AuthorInfo],
+    config: Config,
     url_to_relpath: Optional[Dict[str, str]] = None,
 ) -> List[MdItem]:
     if url_to_relpath is None:
@@ -38,14 +40,14 @@ def build_md_items(
 
     raw_attachments = fwd.get("attachments", [])
     resolved_attachments = [
-        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors)
+        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
         for a in raw_attachments
     ]
 
     resolved_forwarded = []
     for child in fwd.get("fwd_messages", []):
         resolved_forwarded.extend(
-            build_md_items(child, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, url_to_relpath)
+            build_md_items(child, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)
         )
 
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
@@ -124,6 +126,7 @@ def _resolve_attachment(
     large_raw_data_dir: str,
     url_to_relpath: Dict[str, str],
     authors: dict[int, AuthorInfo],
+    config: Config,
 ) -> BaseAttachmentItem:
     t = att.get("type")
     if t == "photo":
@@ -131,13 +134,13 @@ def _resolve_attachment(
     if t in ("video", "short_video"):
         return _resolve_video(
             att.get("video", {}), cid, little_raw_data_dir, large_raw_data_dir, md_dir,
-            url_to_relpath,
+            url_to_relpath, config,
             is_short=(t == "short_video"),
         )
     if t == "link":
         return _resolve_link(att.get("link", {}))
     if t in ("wall", "post"):
-        return _resolve_wall(att.get(t, {}), cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors)
+        return _resolve_wall(att.get(t, {}), cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
     if t == "doc":
         return _resolve_doc(att.get("doc", {}))
     if t == "audio":
@@ -163,6 +166,7 @@ def _resolve_video(
     video: dict, cid: int,
     little_raw_data_dir: str, large_raw_data_dir: str, md_dir: str,
     url_to_relpath: Dict[str, str],
+    config: Config,
     is_short: bool,
 ) -> VideoAttachment:
     title = video.get("title", "")
@@ -196,7 +200,7 @@ def _resolve_video(
         mp4_url = _get_best_video_url(files)
 
     mp4_local = ""
-    if mp4_url and _should_download_video(duration):
+    if mp4_url and _should_download_video(duration, config):
         if mp4_url in url_to_relpath:
             mp4_local = url_to_relpath[mp4_url]
         else:
@@ -254,10 +258,11 @@ def _resolve_wall(
     little_raw_data_dir: str, large_raw_data_dir: str,
     url_to_relpath: Dict[str, str],
     authors: dict[int, AuthorInfo],
+    config: Config,
 ) -> WallAttachment:
     owner_id = data.get("owner_id")
     children = [
-        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors)
+        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
         for a in data.get("attachments", [])
     ]
     author = authors.get(owner_id) if owner_id is not None else None
@@ -300,7 +305,7 @@ def _get_ext(url: str) -> str:
     return "jpg"
 
 
-def _should_download_video(duration: int) -> bool:
+def _should_download_video(duration: int, config: Config) -> bool:
     if duration < config.long_video_threshold:
         return config.download_short_video
     return config.download_long_video

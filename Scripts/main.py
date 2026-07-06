@@ -1,15 +1,17 @@
+import argparse
 import json
 from datetime import datetime
 from pathlib import Path
 
+from config import Config
+from config_loader import load_config
 from export_fwd import extract_items_from_data
 from md_renderer import render_md_item
 from md_item_builder import build_md_items
 from author_resolver import load_authors, ensure_author_avatars
-from config_loader import config
 
 
-def _is_msg_filtered(item: dict, peer_id: int) -> bool:
+def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
     min_cid = config.min_cid_by_peer_id.get(peer_id)
     min_date = config.min_date_by_peer_id.get(peer_id)
     if min_cid is not None and (item.get("conversation_message_id") or 0) <= min_cid:
@@ -19,7 +21,7 @@ def _is_msg_filtered(item: dict, peer_id: int) -> bool:
     return False
 
 
-def main():
+def main(config: Config):
     start_create_time = datetime.now()
 
     export_root = Path(config.export_root)
@@ -71,7 +73,7 @@ def main():
         url_to_relpath: dict[str, str] = {}
         ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir))
 
-        filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id)]
+        filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id, config)]
         n = extract_items_from_data(filtered_items, str(original_messages_dir))
         print(f"  Сохранено сообщений: {n}")
 
@@ -80,12 +82,12 @@ def main():
         for message_index, message_file in enumerate(message_files):
             with open(message_file, encoding="utf-8") as fp:
                 item_data = json.load(fp)
-            if _is_msg_filtered(item_data, peer_id):
+            if _is_msg_filtered(item_data, peer_id, config):
                 continue
             md_items = build_md_items(
                 item_data, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),
-                authors,
+                authors, config,
                 url_to_relpath=url_to_relpath,
             )
             for md_index, item in enumerate(md_items):
@@ -103,4 +105,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", "-c", required=True, help="Path to config.json")
+    args = parser.parse_args()
+    main(load_config(args.config))
