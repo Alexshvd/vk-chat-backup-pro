@@ -62,7 +62,7 @@ def build_md_items(
         item.heading = _compute_heading(text, cid)
 
         if len(walls) == 1 and not text:
-            wall_text = walls[0].text or ""
+            wall_text = walls[0].text
             item.filename = _compute_filename(
                 text, resolved_attachments, json_stem, cid, wall_text
             )
@@ -77,7 +77,7 @@ def build_md_items(
 
     result = []
     for i, wall in enumerate(walls, 1):
-        wall_text = wall.text or ""
+        wall_text = wall.text
         item = _make_item(
             cid, from_id, date, text, others + [wall],
             resolved_forwarded, json_filename, author,
@@ -176,10 +176,13 @@ def _resolve_video(
     preview_url = imgs[-1].get("url", "") if imgs else ""
     files = video.get("files", {})
 
-    if not player and video.get("owner_id") and video.get("id"):
+    owner_id = video.get("owner_id")
+    video_id = video.get("id")
+
+    if not player and owner_id and video_id:
         player = (
             f"https://vk.com/video_ext.php?"
-            f"oid={video['owner_id']}&id={video['id']}"
+            f"oid={owner_id}&id={video_id}"
         )
 
     preview_local = (
@@ -189,9 +192,9 @@ def _resolve_video(
 
     mp4_url = None
 
-    if video.get("owner_id") and video.get("id"):
+    if owner_id and video_id:
         try:
-            embed_files = get_video_embed_urls(video["owner_id"], video["id"])
+            embed_files = get_video_embed_urls(owner_id, video_id)
             mp4_url = _get_best_video_url(embed_files)
         except Exception:
             pass

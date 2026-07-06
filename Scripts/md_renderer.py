@@ -156,6 +156,11 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
         elif isinstance(att, DocAttachment):
             if att.url:
                 lines.append(f"| Документ | | {_url_cell(att.url)} |")
+        elif isinstance(att, AudioAttachment):
+            lines.append(f"| Аудио | | {att.artist} — {att.title} |")
+        elif isinstance(att, StickerAttachment):
+            rel_cell = f"[{att.local_path}]({att.local_path})" if att.local_path else ""
+            lines.append(f"| Стикер | {rel_cell} | {_url_cell(att.original_url)} |")
 
     def _url_cell(url: str) -> str:
         display = url if len(url) <= 80 else "url ссылка"
