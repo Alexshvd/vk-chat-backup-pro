@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from mistune import HTMLRenderer, create_markdown
+from mistune.plugins import plugin_table, plugin_strikethrough
 from flask import Flask, abort, jsonify, render_template, request, send_from_directory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Scripts"))
@@ -20,7 +21,7 @@ export_serve_abs: Optional[Path] = None
 large_root_abs: Optional[Path] = None
 dialogs_dir_abs: Optional[Path] = None
 renderer = HTMLRenderer(escape=False)
-md = create_markdown(renderer=renderer)
+md = create_markdown(renderer=renderer, plugins=[plugin_table, plugin_strikethrough])
 
 
 def _init_paths(cfg_path: str):
