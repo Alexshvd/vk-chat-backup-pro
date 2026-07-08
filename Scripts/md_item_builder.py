@@ -67,7 +67,7 @@ def build_md_items(
                 text, resolved_attachments, json_stem, cid, wall_text
             )
             if wall_text:
-                item.filename = "Статья." + item.filename
+                item.filename = f"Статья.{item.filename}"
         else:
             item.filename = _compute_filename(
                 text, resolved_attachments, json_stem, cid
@@ -89,7 +89,7 @@ def build_md_items(
         base = item.filename[:-3]
         item.filename = f"{base}_part_{i}.md"
         if wall_text:
-            item.filename = "Статья." + item.filename
+            item.filename = f"Статья.{item.filename}"
         item.is_wall_split = True
         result.append(item)
 

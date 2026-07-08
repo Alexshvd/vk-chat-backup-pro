@@ -18,7 +18,8 @@ def load_config(path: str) -> Config:
 
     export_root = raw.get("export_root", "")
     if not export_root:
-        export_root = os.path.join(os.path.dirname(os.path.abspath(path)), "Temp", "ExportMessages")
+        parent = os.path.dirname(os.path.abspath(path))
+        export_root = f"{parent}/Temp/ExportMessages"
 
     min_cid = {int(k): int(v) for k, v in raw.get("min_cid_by_peer_id", {}).items()}
     min_date = {
