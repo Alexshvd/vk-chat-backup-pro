@@ -41,6 +41,8 @@
   .msg-body .loading { color: #999; padding: 20px; text-align: center; }
   .rename-input { border: 1px solid #4a90d9; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; width: 200px; outline: none; }
   .rename-input:focus { box-shadow: 0 0 0 2px rgba(74,144,217,0.3); }
+  .rename-save-btn { background: none; border: 1px solid #27ae60; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 0.8rem; color: #27ae60; line-height: 1; flex-shrink: 0; }
+  .rename-save-btn:hover { background: #e8f8f0; }
   .attachments { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
   .attachments h4 { font-size: 0.85rem; margin: 0 0 6px; color: #555; }
   .attachments ul { list-style: none; padding: 0; margin: 0; }
@@ -253,23 +255,29 @@ function renameMd(cid, btnEl) {
   // Strip .Id{cid}.md suffix for editing
   currentText = currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '');
 
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'rename-input';
-  input.value = currentText;
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = '✓';
+  saveBtn.className = 'rename-save-btn';
+  saveBtn.title = 'Сохранить';
+
   headingEl.textContent = '';
   headingEl.appendChild(input);
+  headingEl.appendChild(saveBtn);
   input.focus();
   input.select();
+
+  const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
 
   const finish = (save) => {
     if (!save) {
       headingEl.textContent = currentText;
+      cleanup();
       return;
     }
     const val = input.value.trim();
     if (!val || val === currentText) {
       headingEl.textContent = currentText;
+      cleanup();
       return;
     }
     const card = header.closest('.msg-card');
@@ -293,14 +301,15 @@ function renameMd(cid, btnEl) {
       .catch(err => {
         headingEl.textContent = currentText;
         showToast('Ошибка: ' + err.message, true);
-      });
+      })
+      .finally(cleanup);
   };
 
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); finish(true); }
     if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   });
-  input.addEventListener('blur', () => finish(true));
+  saveBtn.addEventListener('click', () => finish(true));
 }
 
 // ─── Rename Attachment ──────────────────────────────
@@ -309,23 +318,29 @@ function renameAttachment(cid, oldName, storage, btnEl) {
   const nameEl = li.querySelector('.file-name');
   const currentName = nameEl.textContent.trim();
 
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'rename-input';
-  input.value = currentName;
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = '✓';
+  saveBtn.className = 'rename-save-btn';
+  saveBtn.title = 'Сохранить';
+
   nameEl.textContent = '';
   nameEl.appendChild(input);
+  nameEl.appendChild(saveBtn);
   input.focus();
   input.select();
+
+  const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
 
   const finish = (save) => {
     if (!save) {
       nameEl.textContent = currentName;
+      cleanup();
       return;
     }
     const val = input.value.trim();
     if (!val || val === currentName) {
       nameEl.textContent = currentName;
+      cleanup();
       return;
     }
     const card = document.querySelector(`.msg-card[data-cid="${cid}"]`);
@@ -340,7 +355,6 @@ function renameAttachment(cid, oldName, storage, btnEl) {
       .then(data => {
         if (data.success) {
           nameEl.textContent = val;
-          // Reload content to reflect new paths
           const body = card.querySelector('.msg-body');
           if (body.classList.contains('open')) {
             body.dataset.loaded = 'false';
@@ -356,14 +370,15 @@ function renameAttachment(cid, oldName, storage, btnEl) {
       .catch(err => {
         nameEl.textContent = currentName;
         showToast('Ошибка: ' + err.message, true);
-      });
+      })
+      .finally(cleanup);
   };
 
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); finish(true); }
     if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   });
-  input.addEventListener('blur', () => finish(true));
+  saveBtn.addEventListener('click', () => finish(true));
 }
 
 // ─── Utilities ──────────────────────────────────────
