@@ -255,6 +255,11 @@ function renameMd(cid, btnEl) {
   // Strip .Id{cid}.md suffix for editing
   currentText = currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '');
 
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = currentText;
+
   const saveBtn = document.createElement('button');
   saveBtn.textContent = '✓';
   saveBtn.className = 'rename-save-btn';
@@ -317,6 +322,11 @@ function renameAttachment(cid, oldName, storage, btnEl) {
   const li = btnEl.closest('li');
   const nameEl = li.querySelector('.file-name');
   const currentName = nameEl.textContent.trim();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = currentName;
 
   const saveBtn = document.createElement('button');
   saveBtn.textContent = '✓';
