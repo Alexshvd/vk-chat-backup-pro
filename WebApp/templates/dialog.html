@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VkChatBackup — {{ dialog_name }}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #222; }
+  .container { max-width: 960px; margin: 0 auto; }
+  .header { margin-bottom: 16px; }
+  .header h1 { font-size: 1.3rem; display: inline; }
+  .back-link { color: #555; text-decoration: none; font-size: 0.9rem; margin-right: 12px; }
+  .back-link:hover { text-decoration: underline; }
+  .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+  .btn-delete-batch { background: #e74c3c; color: #fff; }
+  .btn-delete-batch:disabled { background: #ccc; cursor: default; }
+  .msg-card { background: #fff; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+  .msg-header { display: flex; align-items: center; padding: 10px 14px; gap: 8px; cursor: pointer; user-select: none; }
+  .msg-header:hover { background: #fafafa; }
+  .msg-header .checkbox { margin: 0; cursor: pointer; }
+  .msg-header .toggle { width: 18px; text-align: center; color: #888; font-size: 0.8rem; transition: transform 0.15s; flex-shrink: 0; }
+  .msg-header .toggle.open { transform: rotate(90deg); }
+  .msg-header .info { flex: 1; min-width: 0; }
+  .msg-header .heading { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-header .meta { font-size: 0.8rem; color: #888; margin-top: 1px; }
+  .msg-header .actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .msg-header .actions button { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 2px 8px; font-size: 0.8rem; color: #555; }
+  .msg-header .actions button:hover { background: #f0f0f0; }
+  .msg-header .actions .btn-del { color: #e74c3c; border-color: #e74c3c; }
+  .msg-header .actions .btn-del:hover { background: #fde8e8; }
+  .msg-body { display: none; border-top: 1px solid #eee; padding: 14px; }
+  .msg-body.open { display: block; }
+  .msg-body .content { overflow-x: auto; }
+  .msg-body .content img { max-width: 100%; }
+  .msg-body .content video { max-width: 100%; }
+  .msg-body .content table { border-collapse: collapse; }
+  .msg-body .content table td, .msg-body .content table th { border: 1px solid #ddd; padding: 6px 10px; }
+  .msg-body .content table th { background: #f9f9f9; }
+  .msg-body .loading { color: #999; padding: 20px; text-align: center; }
+  .rename-input { border: 1px solid #4a90d9; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; width: 200px; outline: none; }
+  .rename-input:focus { box-shadow: 0 0 0 2px rgba(74,144,217,0.3); }
+  .attachments { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
+  .attachments h4 { font-size: 0.85rem; margin: 0 0 6px; color: #555; }
+  .attachments ul { list-style: none; padding: 0; margin: 0; }
+  .attachments li { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 0.85rem; }
+  .attachments li .file-name { color: #333; }
+  .attachments li .file-size { color: #999; font-size: 0.8rem; }
+  .attachments li .rename-btn { background: none; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; padding: 0 6px; font-size: 0.75rem; }
+  .attachments li .rename-btn:hover { background: #f0f0f0; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #c0392b; }
+  .part-label { font-size: 0.75rem; color: #e67e22; margin-left: 4px; }
+  .stale { opacity: 0.5; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <a href="/" class="back-link">&larr; Диалоги</a>
+    <h1>{{ dialog_name }}</h1>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
+    <span id="selectedCount" style="color:#888;font-size:0.85rem;"></span>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="msg-card" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}">
+      <div class="msg-header">
+        <input type="checkbox" class="checkbox" onchange="updateBatchButton()">
+        <span class="toggle" onclick="toggleMessage(this)">&#9654;</span>
+        <div class="info" onclick="toggleMessage(this.parentNode.querySelector('.toggle'))">
+          <div class="heading">
+            {{ msg.heading }}
+            {% if msg.is_part %}<span class="part-label">(часть)</span>{% endif %}
+          </div>
+          <div class="meta">
+            {{ msg.filename }} &middot; {{ msg.size_str }}
+            {% if msg.has_raw or msg.has_large %} &middot; вложения: {{ msg.attach_size_str }}{% endif %}
+          </div>
+        </div>
+        <div class="actions">
+          <button onclick="event.stopPropagation(); renameMd({{ msg.cid }}, this)" title="Переименовать">&#9998;</button>
+          <button class="btn-del" onclick="event.stopPropagation(); deleteSingle({{ msg.cid }})" title="Удалить">&#128465;</button>
+        </div>
+      </div>
+      <div class="msg-body" data-loaded="false">
+        <div class="loading">Загрузка...</div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:#999;text-align:center;padding:40px;">Нет сообщений в этом диалоге.</p>
+  {% endif %}
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── Toggle / Load content ──────────────────────────
+function toggleMessage(toggleEl) {
+  const header = toggleEl.closest('.msg-header');
+  const card = header.closest('.msg-card');
+  const body = card.querySelector('.msg-body');
+  const isOpen = body.classList.toggle('open');
+  toggleEl.classList.toggle('open', isOpen);
+
+  if (isOpen && body.dataset.loaded !== 'true') {
+    loadContent(card, body);
+  }
+}
+
+function loadContent(card, body) {
+  const cid = card.dataset.cid;
+  const peer = card.dataset.peer;
+  body.querySelector('.loading').textContent = 'Загрузка...';
+
+  fetch(`/dialog/${peer}/${cid}/content`)
+    .then(r => r.json())
+    .then(data => {
+      let html = '<div class="content">';
+      data.parts.forEach((part, i) => {
+        if (data.parts.length > 1) html += `<h4>Часть ${i+1}: ${part.filename}</h4>`;
+        html += part.html;
+      });
+      html += '</div>';
+      body.innerHTML = html;
+      body.dataset.loaded = 'true';
+
+      // Load attachments list
+      fetchAttachments(card, body);
+    })
+    .catch(err => {
+      body.querySelector('.loading').textContent = 'Ошибка загрузки: ' + err.message;
+    });
+}
+
+function fetchAttachments(card, body) {
+  const cid = card.dataset.cid;
+  const peer = card.dataset.peer;
+
+  fetch(`/dialog/${peer}/${cid}/attachments`)
+    .then(r => r.json())
+    .then(data => {
+      const hasRaw = data.raw && data.raw.length;
+      const hasLarge = data.large && data.large.length;
+      if (!hasRaw && !hasLarge) return;
+
+      let html = '<div class="attachments"><h4>Файлы вложений</h4>';
+      if (hasRaw) {
+        html += '<ul>';
+        data.raw.forEach(f => {
+          html += `<li>
+            <span class="file-name">${f.name}</span>
+            <span class="file-size">(${formatSize(f.size)})</span>
+            <button class="rename-btn" onclick="renameAttachment(${cid}, '${f.name}', 'raw', this)">&#9998;</button>
+          </li>`;
+        });
+        html += '</ul>';
+      }
+      if (hasLarge) {
+        if (hasRaw) html += '<br>';
+        html += '<ul>';
+        data.large.forEach(f => {
+          html += `<li>
+            <span class="file-name">${f.name}</span>
+            <span class="file-size">(${formatSize(f.size)})</span>
+            <button class="rename-btn" onclick="renameAttachment(${cid}, '${f.name}', 'large', this)">&#9998;</button>
+          </li>`;
+        });
+        html += '</ul>';
+      }
+      html += '</div>';
+      body.insertAdjacentHTML('beforeend', html);
+    })
+    .catch(() => {});
+}
+
+// ─── Delete ─────────────────────────────────────────
+function deleteSingle(cid) {
+  if (!confirm(`Удалить сообщение Id${cid} и все его вложения?`)) return;
+  const card = document.querySelector(`.msg-card[data-cid="${cid}"]`);
+  const peer = card.dataset.peer;
+  card.classList.add('stale');
+
+  fetch(`/dialog/${peer}/${cid}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        card.remove();
+        showToast(`Сообщение Id${cid} удалено`);
+        updateBatchButton();
+      }
+    })
+    .catch(err => {
+      card.classList.remove('stale');
+      showToast('Ошибка: ' + err.message, true);
+    });
+}
+
+function batchDelete() {
+  const checked = document.querySelectorAll('.msg-card .checkbox:checked');
+  if (!checked.length) return;
+  if (!confirm(`Удалить ${checked.length} сообщений и все их вложения?`)) return;
+
+  const peer = document.querySelector('.msg-card').dataset.peer;
+  const cids = [];
+  checked.forEach(cb => {
+    const card = cb.closest('.msg-card');
+    cids.push(parseInt(card.dataset.cid));
+    card.classList.add('stale');
+  });
+
+  fetch(`/dialog/${peer}/delete-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cids })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        cids.forEach(cid => {
+          const card = document.querySelector(`.msg-card[data-cid="${cid}"]`);
+          if (card) card.remove();
+        });
+        showToast(`Удалено ${cids.length} сообщений`);
+        updateBatchButton();
+      }
+    })
+    .catch(err => {
+      document.querySelectorAll('.msg-card.stale').forEach(c => c.classList.remove('stale'));
+      showToast('Ошибка: ' + err.message, true);
+    });
+}
+
+function updateBatchButton() {
+  const checked = document.querySelectorAll('.msg-card .checkbox:checked').length;
+  const btn = document.getElementById('btnBatchDelete');
+  btn.disabled = checked === 0;
+  document.getElementById('selectedCount').textContent = checked ? `Выбрано: ${checked}` : '';
+}
+
+// ─── Rename MD file ─────────────────────────────────
+function renameMd(cid, btnEl) {
+  const header = btnEl.closest('.msg-header');
+  const headingEl = header.querySelector('.heading');
+  const currentText = headingEl.childNodes[0].textContent.trim() || headingEl.textContent.trim();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = currentText;
+  headingEl.textContent = '';
+  headingEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  const finish = (save) => {
+    if (!save) {
+      headingEl.textContent = currentText;
+      return;
+    }
+    const val = input.value.trim();
+    if (!val || val === currentText) {
+      headingEl.textContent = currentText;
+      return;
+    }
+    const card = header.closest('.msg-card');
+    const peer = card.dataset.peer;
+
+    fetch(`/dialog/${peer}/${cid}/rename`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: val })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          headingEl.textContent = val;
+          showToast(`Файл переименован`);
+        } else {
+          headingEl.textContent = currentText;
+          showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+        }
+      })
+      .catch(err => {
+        headingEl.textContent = currentText;
+        showToast('Ошибка: ' + err.message, true);
+      });
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+// ─── Rename Attachment ──────────────────────────────
+function renameAttachment(cid, oldName, storage, btnEl) {
+  const li = btnEl.closest('li');
+  const nameEl = li.querySelector('.file-name');
+  const currentName = nameEl.textContent.trim();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = currentName;
+  nameEl.textContent = '';
+  nameEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  const finish = (save) => {
+    if (!save) {
+      nameEl.textContent = currentName;
+      return;
+    }
+    const val = input.value.trim();
+    if (!val || val === currentName) {
+      nameEl.textContent = currentName;
+      return;
+    }
+    const card = document.querySelector(`.msg-card[data-cid="${cid}"]`);
+    const peer = card.dataset.peer;
+
+    fetch(`/dialog/${peer}/${cid}/rename-attachment`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name: oldName, new_name: val, storage: storage })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          nameEl.textContent = val;
+          // Reload content to reflect new paths
+          const body = card.querySelector('.msg-body');
+          if (body.classList.contains('open')) {
+            body.dataset.loaded = 'false';
+            body.innerHTML = '<div class="loading">Загрузка...</div>';
+            loadContent(card, body);
+          }
+          showToast(`Файл переименован`);
+        } else {
+          nameEl.textContent = currentName;
+          showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+        }
+      })
+      .catch(err => {
+        nameEl.textContent = currentName;
+        showToast('Ошибка: ' + err.message, true);
+      });
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+// ─── Utilities ──────────────────────────────────────
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
