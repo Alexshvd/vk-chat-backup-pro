@@ -128,6 +128,15 @@ def _format_size(size: int) -> str:
         return f"{size / 1024 / 1024:.1f} MB"
 
 
+def _get_date_from_json(orig_dir: Path, cid: int) -> str:
+    if not orig_dir.is_dir():
+        return ""
+    for f in orig_dir.iterdir():
+        if f.is_file() and f.name.endswith(f"_{cid}.json"):
+            return f.name.rsplit("_", 1)[0].replace("-", " ")
+    return ""
+
+
 def _delete_cid(peer_id: int, cid: int) -> dict:
     dialog_dir = _get_dialog_dir(peer_id)
     md_dir = dialog_dir / "MdFiles"
@@ -212,6 +221,7 @@ def dialog_messages(peer_id: int):
         abort(404)
     md_dir = dialog_dir / "MdFiles"
     raw_dir = dialog_dir / "RawData"
+    orig_dir = dialog_dir / "OriginalMessages"
     messages = []
     if md_dir.is_dir():
         for f in sorted(md_dir.iterdir()):
@@ -228,6 +238,7 @@ def dialog_messages(peer_id: int):
                 "cid": cid,
                 "filename": f.name,
                 "heading": heading,
+                "date_str": _get_date_from_json(orig_dir, cid),
                 "size": size,
                 "size_str": _format_size(size),
                 "attach_size": attach_size,

@@ -76,11 +76,11 @@
         <span class="toggle" onclick="toggleMessage(this)">&#9654;</span>
         <div class="info" onclick="toggleMessage(this.parentNode.querySelector('.toggle'))">
           <div class="heading">
-            {{ msg.heading }}
+            {{ msg.filename }}
             {% if msg.is_part %}<span class="part-label">(часть)</span>{% endif %}
           </div>
           <div class="meta">
-            {{ msg.filename }} &middot; {{ msg.size_str }}
+            {{ msg.date_str }} &middot; {{ msg.size_str }}
             {% if msg.has_raw or msg.has_large %} &middot; вложения: {{ msg.attach_size_str }}{% endif %}
           </div>
         </div>
@@ -249,7 +249,9 @@ function updateBatchButton() {
 function renameMd(cid, btnEl) {
   const header = btnEl.closest('.msg-header');
   const headingEl = header.querySelector('.heading');
-  const currentText = headingEl.childNodes[0].textContent.trim() || headingEl.textContent.trim();
+  let currentText = headingEl.childNodes[0].textContent.trim() || headingEl.textContent.trim();
+  // Strip .Id{cid}.md suffix for editing
+  currentText = currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '');
 
   const input = document.createElement('input');
   input.type = 'text';
