@@ -13,6 +13,7 @@ from author_resolver import AuthorInfo
 from download_media import download_file
 from vk_client import get_video_embed_urls
 from config import Config
+from logger import Logger
 from config_loader import path_rel
 
 
@@ -196,8 +197,8 @@ def _resolve_video(
         try:
             embed_files = get_video_embed_urls(owner_id, video_id)
             mp4_url = _get_best_video_url(embed_files)
-        except Exception:
-            pass
+        except Exception as ex:
+            Logger.LogWarning("Ошибка загрузки видео", ex)
 
     if not mp4_url:
         mp4_url = _get_best_video_url(files)
@@ -211,7 +212,8 @@ def _resolve_video(
                 mp4_local = _download_to_raw(
                     mp4_url, cid, large_raw_data_dir, md_dir, url_to_relpath, force_ext="mp4"
                 )
-            except Exception:
+            except Exception as ex:
+                Logger.LogWarning("Ошибка скачивания видео", ex)
                 mp4_local = ""
 
     return VideoAttachment(

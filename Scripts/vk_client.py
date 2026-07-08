@@ -4,6 +4,8 @@ from typing import Dict
 
 import requests
 
+from logger import Logger
+
 
 def _parse_video_embed(text: str) -> Dict[str, str]:
     idx = text.find('"apiPrefetchCache"')
@@ -38,8 +40,8 @@ def _parse_video_embed(text: str) -> Dict[str, str]:
                                     result = {k: v for k, v in files.items() if k.startswith("mp4_")}
                                     if result:
                                         return result
-                                except json.JSONDecodeError:
-                                    pass
+                                except json.JSONDecodeError as ex:
+                                    Logger.LogWarning("Ошибка парсинга apiPrefetchCache", ex)
                                 break
 
     m = re.search(r'"files":\{(.+?)\}', text, re.DOTALL)
@@ -49,8 +51,8 @@ def _parse_video_embed(text: str) -> Dict[str, str]:
         try:
             files = json.loads(raw)
             return {k: v for k, v in files.items() if k.startswith("mp4_")}
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as ex:
+            Logger.LogWarning("Ошибка парсинга regex fallback", ex)
 
     return {}
 

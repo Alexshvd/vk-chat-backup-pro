@@ -16,6 +16,7 @@ Scripts/
 ├── MdItem.py            # DTO: BaseAttachmentItem + 8 subclasses + MdItem
 ├── md_item_builder.py   # build_md_items(): JSON → MdItem, resolves attachments, downloads files
 ├── md_renderer.py       # render_md_item(): MdItem → Markdown (pure, no I/O)
+├── logger.py            # Logger class with LogWarning()
 ├── download_media.py    # download_file() + DownloadItem + download_all
 ├── requirements.txt     # requests, python-dotenv
 ├── .gitignore           # Ignores Temp/, __pycache__/
@@ -76,6 +77,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 ### export_fwd.py
 - `extract_items_from_data(items: list, output_dir: str)` — writes each item as `{date}_{cid}.json`. No guard for missing cid/date (guaranteed upstream). No dedup (data already deduplicated by caller).
+
+### logger.py
+- `Logger.LogWarning(error_type, exception)` — prints `[Warning] {error_type}.{exception}`
 
 ### download_media.py
 - `download_file(url, filepath, timeout=30)` — downloads a single file
