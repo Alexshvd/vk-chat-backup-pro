@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import mistune
+from mistune import HtmlRenderer, create_markdown
 from flask import Flask, abort, jsonify, render_template, request, send_from_directory
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Scripts"))
@@ -19,7 +19,8 @@ export_root_abs: Optional[Path] = None
 export_serve_abs: Optional[Path] = None
 large_root_abs: Optional[Path] = None
 dialogs_dir_abs: Optional[Path] = None
-md = mistune.create_markdown()
+renderer = HtmlRenderer(escape=False)
+md = create_markdown(renderer=renderer)
 
 
 def _init_paths(cfg_path: str):
