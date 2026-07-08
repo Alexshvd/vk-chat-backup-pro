@@ -296,7 +296,7 @@ function renameMd(cid, btnEl) {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          headingEl.textContent = val;
+          headingEl.textContent = data.renamed[0].new;
           showToast(`Файл переименован`);
         } else {
           headingEl.textContent = currentText;
