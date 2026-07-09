@@ -71,6 +71,8 @@ python run.py --mode web --config config.json
 
 Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos immediately. Step 5 is pure rendering (no I/O).
 
+`main(config)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
+
 ## Module Details
 
 ### Config/config.py
@@ -82,7 +84,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `path_rel(target, start)` — `os.path.relpath()` with `\` → `/`
 
 ### config.json (user-provided, not tracked in git)
-- `export_root` — path to export root (default: `Scripts/Temp/ExportMessages/`)
+- `export_root` — path to export root (default: `{parent_dir}/Temp/ExportMessages`)
 - `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
 - `min_cid_by_peer_id` — per-dialog filter: `{peer_id: min_cid}` (messages with cid <= min_cid are skipped)
 - `min_date_by_peer_id` — per-dialog filter: `{peer_id: "yyyy-mm-dd-hh-mm-ss"}` (messages with date <= filter are skipped)
@@ -91,7 +93,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### ExportMessageToMd/main.py
 - Generator function `main(config: Config)` — yields log messages as it processes
 - Used both by CLI (`run.py --mode cli`) and web (`POST /export/generate`)
-- Can be run standalone: `python ExportMessageToMd/main.py --config config.json`
+- Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
 ### ExportMessageToMd/md_item_builder.py
 - `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers immediately.
