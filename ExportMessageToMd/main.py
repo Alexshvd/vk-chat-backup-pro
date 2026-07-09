@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -31,7 +32,7 @@ def main(config: Config):
     large_root = export_root / "LargeRawData"
 
     sources = sorted(sources_dir.glob("*.json"))
-    print(f"Найдено файлов: {len(sources)}")
+    yield f"Найдено файлов: {len(sources)}"
 
     dialog_by_peer_id: dict[int, dict[int, dict]] = {}
     profiles = {}
@@ -56,11 +57,11 @@ def main(config: Config):
 
     merged = {"profiles": list(profiles.values()), "groups": list(groups.values())}
     authors = load_authors(merged)
-    print(f"Найдено авторов: {len(authors)}")
+    yield f"Найдено авторов: {len(authors)}"
 
     for peer_id, items_dict in dialog_by_peer_id.items():
         items = list(items_dict.values())
-        print(f"\n=== Диалог {peer_id} (сообщений: {len(items)}) ===")
+        yield f"\n=== Диалог {peer_id} (сообщений: {len(items)}) ==="
 
         dialog_dir = dialogs_dir / f"dialog_{peer_id}"
         little_raw_data_dir = dialog_dir / "RawData"
@@ -75,7 +76,7 @@ def main(config: Config):
 
         filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id, config)]
         n = extract_items_from_data(filtered_items, str(original_messages_dir))
-        print(f"  Сохранено сообщений: {n}")
+        yield f"  Сохранено сообщений: {n}"
 
         count = 0
         message_files = sorted(Path(original_messages_dir).glob("*.json"))
@@ -96,16 +97,19 @@ def main(config: Config):
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, "w", encoding="utf-8") as fp:
                     fp.write(md_text)
-                print(f"  Создан {message_index + 1}/{len(message_files)} id={item.cid} (part {md_index + 1}/{len(md_items)}): \"{item.filename}\"")
+                yield f"  Создан {message_index + 1}/{len(message_files)} id={item.cid} (part {md_index + 1}/{len(md_items)}): \"{item.filename}\""
                 count += 1
 
-        print(f"  Создано MD-файлов: {count}")
+        yield f"  Создано MD-файлов: {count}"
 
-    print(f"\nГотово (Затраченое время = {datetime.now() - start_create_time})")
+    yield f"\nГотово (Затраченое время = {datetime.now() - start_create_time})"
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Config"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ExportMessageToMd"))
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", "-c", required=True, help="Path to config.json")
     args = parser.parse_args()
-    main(load_config(args.config))
+    for msg in main(load_config(args.config)):
+        print(msg)

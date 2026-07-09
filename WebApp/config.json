@@ -1,6 +1,0 @@
-{
-    "export_root": "../Scripts/Temp/ExportMessages",
-    "download_short_video": true,
-    "download_long_video": false,
-    "long_video_threshold": 180
-}

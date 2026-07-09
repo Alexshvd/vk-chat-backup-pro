@@ -1,16 +1,16 @@
-import argparse
+import html
 import os
 import re
 import shutil
-import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory, stream_with_context
 from mistune import HTMLRenderer, create_markdown
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Scripts"))
 from config_loader import load_config
+from main import main as run_pipeline
 
 CID_PATTERN = re.compile(r"\.Id(\d+)(?:_part_\d+)?\.md$")
 
@@ -21,11 +21,13 @@ large_root_abs: Optional[Path] = None
 dialogs_dir_abs: Optional[Path] = None
 renderer = HTMLRenderer(escape=False)
 md = create_markdown(renderer=renderer, plugins=['table', 'strikethrough'])
+_config_path = ""
 
 
-def _init_paths(cfg_path: str):
-    global export_root_abs, export_serve_abs, large_root_abs, dialogs_dir_abs
-    config = load_config(cfg_path)
+def init_app(config_path: str):
+    global _config_path, export_root_abs, export_serve_abs, large_root_abs, dialogs_dir_abs
+    _config_path = config_path
+    config = load_config(config_path)
     export_root_abs = Path(config.export_root).resolve()
     export_serve_abs = export_root_abs / "ExportMessages"
     large_root_abs = export_root_abs / "LargeRawData"
@@ -203,7 +205,43 @@ def _get_dialog_name(peer_id: int) -> str:
     return f"dialog_{peer_id}"
 
 
-# ─── Routes ────────────────────────────────────────────────
+# ─── Routes (Export) ─────────────────────────────────────────
+
+@app.route("/export")
+def export_page():
+    sources_dir = export_serve_abs / "Sources"
+    files = []
+    if sources_dir.is_dir():
+        for f in sorted(sources_dir.iterdir()):
+            if f.is_file() and f.suffix == ".json":
+                files.append({
+                    "name": f.name,
+                    "size": f.stat().st_size,
+                    "size_str": _format_size(f.stat().st_size),
+                })
+    return render_template("export.html", files=files)
+
+
+@app.route("/export/generate", methods=["POST"])
+def run_export():
+    config = load_config(_config_path)
+
+    def generate():
+        yield "<!DOCTYPE html>\n<html lang='ru'>\n<head>\n<meta charset='UTF-8'>\n<title>Генерация MD</title>\n<style>"
+        yield "body{font-family:monospace;background:#1e1e1e;color:#d4d4d4;padding:20px;font-size:14px;line-height:1.5}"
+        yield "pre{margin:0}.done{color:#4ec9b0}.err{color:#f44747}</style></head><body><pre>"
+        try:
+            for msg in run_pipeline(config):
+                escaped = html.escape(msg)
+                yield escaped + "\n"
+        except Exception as e:
+            yield f'<span class="err">{html.escape(str(e))}</span>\n'
+        yield '</pre><p class="done"><a href="/export" style="color:#4ec9b0">← Назад к экспорту</a></p></body></html>'
+
+    return Response(stream_with_context(generate()), mimetype="text/html")
+
+
+# ─── Routes (Main) ────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -419,11 +457,3 @@ def serve_export(filename: str):
 @app.route("/large/<path:filename>")
 def serve_large(filename: str):
     return send_from_directory(str(large_root_abs), filename)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", "-c", required=True, help="Path to config.json")
-    args = parser.parse_args()
-    _init_paths(args.config)
-    app.run(debug=True, host="127.0.0.1", port=5000)
