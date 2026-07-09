@@ -370,15 +370,15 @@ def rename_attachment(peer_id: int, cid: int):
     return jsonify({"success": True, "old_rel": old_rel, "new_rel": new_rel})
 
 
-@app.route("/dialog/<int:peer_id>/limits")
-def get_limits(peer_id: int):
+@app.route("/dialog/<int:peer_id>/limits/<int:cid>")
+def get_limits(peer_id: int, cid: int):
     md_dir = _get_dialog_dir(peer_id) / "MdFiles"
-    raw_dir = _get_dialog_dir(peer_id) / "RawData"
-    large_dir = large_root_abs / f"dialog_{peer_id}"
+    raw_dir = _get_dialog_dir(peer_id) / "RawData" / str(cid)
+    large_dir = large_root_abs / f"dialog_{peer_id}" / str(cid)
     return jsonify({
         "md": _max_filename_len(md_dir),
-        "raw": _max_filename_len(raw_dir / "0"),
-        "large": _max_filename_len(large_dir / "0"),
+        "raw": _max_filename_len(raw_dir),
+        "large": _max_filename_len(large_dir),
     })
 
 

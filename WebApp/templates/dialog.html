@@ -120,15 +120,6 @@ let selectedPeer = null;
 let selectedFilename = '';
 let limits = { md: 240, raw: 240, large: 240 };
 
-(function() {
-  const first = document.querySelector('.msg-item');
-  if (first) {
-    fetch(`/dialog/${first.dataset.peer}/limits`)
-      .then(r => r.json())
-      .then(d => { limits = d; });
-  }
-})();
-
 // ─── Selection ──────────────────────────────────────
 function selectMessage(el) {
   document.querySelectorAll('.msg-item.active').forEach(e => e.classList.remove('active'));
@@ -281,93 +272,101 @@ function renameSelected() {
   let currentText = filenameEl.textContent.trim();
   const suffixLen = currentText.length - currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '').length;
   currentText = currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '');
-  const maxMd = limits.md - suffixLen;
 
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'rename-input';
-  input.value = currentText;
+  fetch(`/dialog/${selectedPeer}/limits/${selectedCid}`)
+    .then(r => r.json())
+    .then(d => { limits = d; })
+    .catch(() => {})
+    .finally(() => {
+      const maxMd = limits.md - suffixLen;
 
-  const counter = document.createElement('div');
-  counter.className = 'char-count';
-  counter.textContent = `${currentText.length}/${maxMd}`;
-  input.addEventListener('input', () => {
-    const len = input.value.length;
-    counter.textContent = `${len}/${maxMd}`;
-    if (len > maxMd) {
-      counter.style.color = '#e74c3c';
-      saveBtn.disabled = true;
-    } else {
-      counter.style.color = '';
-      saveBtn.disabled = false;
-    }
-  });
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'rename-input';
+      input.value = currentText;
 
-  const saveBtn = document.createElement('button');
-  saveBtn.textContent = '✓';
-  saveBtn.className = 'rename-save-btn';
-  saveBtn.title = 'Сохранить';
+      const counter = document.createElement('div');
+      counter.className = 'char-count';
+      counter.textContent = `${currentText.length}/${maxMd}`;
 
-  filenameEl.textContent = '';
-  filenameEl.appendChild(input);
-  filenameEl.appendChild(counter);
-  filenameEl.appendChild(saveBtn);
-  input.focus();
-  input.select();
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = '✓';
+      saveBtn.className = 'rename-save-btn';
+      saveBtn.title = 'Сохранить';
 
-  const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
-
-  const finish = (save) => {
-    if (!save) {
-      filenameEl.textContent = currentText;
-      cleanup();
-      return;
-    }
-    const val = input.value.trim();
-    if (!val || val === currentText) {
-      filenameEl.textContent = currentText;
-      cleanup();
-      return;
-    }
-    if (val.length > maxMd) {
-      showToast('Имя слишком длинное', true);
-      return;
-    }
-
-    fetch(`/dialog/${selectedPeer}/${selectedCid}/rename`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: val })
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          const newName = data.renamed[0].new;
-          filenameEl.textContent = newName;
-          selectedFilename = newName;
-          const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
-          if (item) {
-            const fnameEl = item.querySelector('.fname');
-            fnameEl.childNodes[0].textContent = newName;
-          }
-          showToast(`Файл переименован`);
+      input.addEventListener('input', () => {
+        const len = input.value.length;
+        counter.textContent = `${len}/${maxMd}`;
+        if (len > maxMd) {
+          counter.style.color = '#e74c3c';
+          saveBtn.disabled = true;
         } else {
-          filenameEl.textContent = currentText;
-          showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+          counter.style.color = '';
+          saveBtn.disabled = false;
         }
-      })
-      .catch(err => {
-        filenameEl.textContent = currentText;
-        showToast('Ошибка: ' + err.message, true);
-      })
-      .finally(cleanup);
-  };
+      });
 
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-  });
-  saveBtn.addEventListener('click', () => finish(true));
+      filenameEl.textContent = '';
+      filenameEl.appendChild(input);
+      filenameEl.appendChild(counter);
+      filenameEl.appendChild(saveBtn);
+      input.focus();
+      input.select();
+
+      const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
+
+      const finish = (save) => {
+        if (!save) {
+          filenameEl.textContent = currentText;
+          cleanup();
+          return;
+        }
+        const val = input.value.trim();
+        if (!val || val === currentText) {
+          filenameEl.textContent = currentText;
+          cleanup();
+          return;
+        }
+        if (val.length > maxMd) {
+          showToast('Имя слишком длинное', true);
+          return;
+        }
+
+        fetch(`/dialog/${selectedPeer}/${selectedCid}/rename`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: val })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              const newName = data.renamed[0].new;
+              filenameEl.textContent = newName;
+              selectedFilename = newName;
+              const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
+              if (item) {
+                const fnameEl = item.querySelector('.fname');
+                fnameEl.childNodes[0].textContent = newName;
+              }
+              showToast(`Файл переименован`);
+            } else {
+              filenameEl.textContent = currentText;
+              showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+            }
+          })
+          .catch(err => {
+            filenameEl.textContent = currentText;
+            showToast('Ошибка: ' + err.message, true);
+          })
+          .finally(cleanup);
+      };
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      });
+      saveBtn.addEventListener('click', () => finish(true));
+    });
 }
 
 // ─── Rename Attachment ──────────────────────────────
@@ -379,88 +378,96 @@ function renameAttachment(cid, oldName, storage, btnEl) {
   const ext = dotIdx > 0 ? currentName.slice(dotIdx) : '';
   const baseName = ext ? currentName.slice(0, dotIdx) : currentName;
 
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'rename-input';
-  input.value = baseName;
-  const maxAttach = (storage === 'large' ? limits.large : limits.raw) - ext.length;
+  fetch(`/dialog/${selectedPeer}/limits/${cid}`)
+    .then(r => r.json())
+    .then(d => { limits = d; })
+    .catch(() => {})
+    .finally(() => {
+      const maxAttach = (storage === 'large' ? limits.large : limits.raw) - ext.length;
 
-  const counter = document.createElement('div');
-  counter.className = 'char-count';
-  counter.textContent = `${baseName.length}/${maxAttach}`;
-  input.addEventListener('input', () => {
-    const len = input.value.length;
-    counter.textContent = `${len}/${maxAttach}`;
-    if (len > maxAttach) {
-      counter.style.color = '#e74c3c';
-      saveBtn.disabled = true;
-    } else {
-      counter.style.color = '';
-      saveBtn.disabled = false;
-    }
-  });
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'rename-input';
+      input.value = baseName;
 
-  const saveBtn = document.createElement('button');
-  saveBtn.textContent = '✓';
-  saveBtn.className = 'rename-save-btn';
-  saveBtn.title = 'Сохранить';
+      const counter = document.createElement('div');
+      counter.className = 'char-count';
+      counter.textContent = `${baseName.length}/${maxAttach}`;
 
-  nameEl.textContent = '';
-  nameEl.appendChild(input);
-  nameEl.appendChild(counter);
-  nameEl.appendChild(saveBtn);
-  input.focus();
-  input.select();
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = '✓';
+      saveBtn.className = 'rename-save-btn';
+      saveBtn.title = 'Сохранить';
 
-  const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
-
-  const finish = (save) => {
-    if (!save) {
-      nameEl.textContent = currentName;
-      cleanup();
-      return;
-    }
-    const valWithExt = input.value.trim() + ext;
-    if (!input.value.trim() || valWithExt === currentName) {
-      nameEl.textContent = currentName;
-      cleanup();
-      return;
-    }
-    if (input.value.trim().length > maxAttach) {
-      showToast('Имя слишком длинное', true);
-      return;
-    }
-
-    fetch(`/dialog/${selectedPeer}/${cid}/rename-attachment`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_name: oldName, new_name: valWithExt, storage: storage })
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          nameEl.textContent = valWithExt;
-          const body = document.getElementById('contentBody');
-          body.innerHTML = '<div class="loading">Загрузка...</div>';
-          selectMessage(document.querySelector(`.msg-item[data-cid="${cid}"]`) || document.querySelector('.msg-item.active'));
-          showToast(`Файл переименован`);
+      input.addEventListener('input', () => {
+        const len = input.value.length;
+        counter.textContent = `${len}/${maxAttach}`;
+        if (len > maxAttach) {
+          counter.style.color = '#e74c3c';
+          saveBtn.disabled = true;
         } else {
-          nameEl.textContent = currentName;
-          showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+          counter.style.color = '';
+          saveBtn.disabled = false;
         }
-      })
-      .catch(err => {
-        nameEl.textContent = currentName;
-        showToast('Ошибка: ' + err.message, true);
-      })
-      .finally(cleanup);
-  };
+      });
 
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
-    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
-  });
-  saveBtn.addEventListener('click', () => finish(true));
+      nameEl.textContent = '';
+      nameEl.appendChild(input);
+      nameEl.appendChild(counter);
+      nameEl.appendChild(saveBtn);
+      input.focus();
+      input.select();
+
+      const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
+
+      const finish = (save) => {
+        if (!save) {
+          nameEl.textContent = currentName;
+          cleanup();
+          return;
+        }
+        const valWithExt = input.value.trim() + ext;
+        if (!input.value.trim() || valWithExt === currentName) {
+          nameEl.textContent = currentName;
+          cleanup();
+          return;
+        }
+        if (input.value.trim().length > maxAttach) {
+          showToast('Имя слишком длинное', true);
+          return;
+        }
+
+        fetch(`/dialog/${selectedPeer}/${cid}/rename-attachment`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ old_name: oldName, new_name: valWithExt, storage: storage })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              nameEl.textContent = valWithExt;
+              const body = document.getElementById('contentBody');
+              body.innerHTML = '<div class="loading">Загрузка...</div>';
+              selectMessage(document.querySelector(`.msg-item[data-cid="${cid}"]`) || document.querySelector('.msg-item.active'));
+              showToast(`Файл переименован`);
+            } else {
+              nameEl.textContent = currentName;
+              showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+            }
+          })
+          .catch(err => {
+            nameEl.textContent = currentName;
+            showToast('Ошибка: ' + err.message, true);
+          })
+          .finally(cleanup);
+      };
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      });
+      saveBtn.addEventListener('click', () => finish(true));
+    });
 }
 
 // ─── Utilities ──────────────────────────────────────
