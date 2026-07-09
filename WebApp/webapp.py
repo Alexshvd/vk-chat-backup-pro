@@ -323,6 +323,9 @@ def rename_attachment(peer_id: int, cid: int):
     if not old_name or not new_name:
         return jsonify({"success": False, "error": "old_name and new_name are required"}), 400
 
+    if Path(old_name).suffix.lower() != Path(new_name).suffix.lower():
+        return jsonify({"success": False, "error": "Cannot change file extension"}), 400
+
     dialog_dir = _get_dialog_dir(peer_id)
     md_dir = dialog_dir / "MdFiles"
 

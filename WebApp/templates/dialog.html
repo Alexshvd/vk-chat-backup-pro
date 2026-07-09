@@ -341,11 +341,14 @@ function renameAttachment(cid, oldName, storage, btnEl) {
   const li = btnEl.closest('li');
   const nameEl = li.querySelector('.file-name');
   const currentName = nameEl.textContent.trim();
+  const dotIdx = currentName.lastIndexOf('.');
+  const ext = dotIdx > 0 ? currentName.slice(dotIdx) : '';
+  const baseName = ext ? currentName.slice(0, dotIdx) : currentName;
 
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'rename-input';
-  input.value = currentName;
+  input.value = baseName;
 
   const saveBtn = document.createElement('button');
   saveBtn.textContent = '✓';
@@ -366,8 +369,8 @@ function renameAttachment(cid, oldName, storage, btnEl) {
       cleanup();
       return;
     }
-    const val = input.value.trim();
-    if (!val || val === currentName) {
+    const valWithExt = input.value.trim() + ext;
+    if (!input.value.trim() || valWithExt === currentName) {
       nameEl.textContent = currentName;
       cleanup();
       return;
@@ -376,12 +379,12 @@ function renameAttachment(cid, oldName, storage, btnEl) {
     fetch(`/dialog/${selectedPeer}/${cid}/rename-attachment`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ old_name: oldName, new_name: val, storage: storage })
+      body: JSON.stringify({ old_name: oldName, new_name: valWithExt, storage: storage })
     })
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          nameEl.textContent = val;
+          nameEl.textContent = valWithExt;
           const body = document.getElementById('contentBody');
           body.innerHTML = '<div class="loading">Загрузка...</div>';
           selectMessage(document.querySelector(`.msg-item[data-cid="${cid}"]`) || document.querySelector('.msg-item.active'));
