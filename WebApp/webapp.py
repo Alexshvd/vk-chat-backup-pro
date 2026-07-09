@@ -134,7 +134,7 @@ def _get_date_from_json(orig_dir: Path, cid: int) -> str:
     for f in orig_dir.iterdir():
         if f.is_file() and f.name.endswith(f"_{cid}.json"):
             parts = f.name.rsplit("_", 1)[0].split("-")
-        return f"{parts[0]}-{parts[1]}-{parts[2]} {parts[3]}:{parts[4]}:{parts[5]}"
+            return f"{parts[0]}-{parts[1]}-{parts[2]} {parts[3]}:{parts[4]}:{parts[5]}"
     return ""
 
 
