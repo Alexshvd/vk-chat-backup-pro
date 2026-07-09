@@ -157,11 +157,11 @@ function applySort() {
     return sortAsc ? cmp : -cmp;
   });
   items.forEach(item => container.appendChild(item));
+  document.getElementById('sortDirBtn').textContent = sortAsc ? '↓' : '↑';
 }
 
 function toggleSortDir() {
   sortAsc = !sortAsc;
-  document.getElementById('sortDirBtn').textContent = sortAsc ? '↓' : '↑';
   applySort();
 }
 
