@@ -12,9 +12,9 @@
   .header h1 { font-size: 1.3rem; display: inline; }
   .back-link { color: #555; text-decoration: none; font-size: 0.9rem; margin-right: 12px; }
   .back-link:hover { text-decoration: underline; }
-  .dialog-layout { display: flex; gap: 16px; align-items: flex-start; }
-  .col-list { width: 380px; flex-shrink: 0; }
-  .col-content { flex: 1; min-width: 0; }
+  .dialog-layout { display: flex; gap: 16px; height: calc(100vh - 90px); }
+  .col-list { width: 380px; flex-shrink: 0; overflow-y: auto; }
+  .col-content { flex: 1; min-width: 0; overflow-y: auto; }
   .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .btn-delete-batch { background: #e74c3c; color: #fff; }
@@ -28,7 +28,7 @@
   .msg-item .meta { font-size: 0.75rem; color: #888; margin-top: 1px; }
   .msg-item .part-label { font-size: 0.7rem; color: #e67e22; margin-left: 4px; }
   .msg-item.stale { opacity: 0.5; }
-  .content-card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); min-height: 200px; }
+  .content-card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .content-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
   .content-filename { font-weight: 600; font-size: 1rem; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .content-header button { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; padding: 2px 8px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
