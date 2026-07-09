@@ -79,7 +79,7 @@
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
         <span id="selectedCount" style="color:#888;font-size:0.85rem;"></span>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
-          <option value="cid">по Id</option>
+          <option value="cid">по Id (дате)</option>
           <option value="name">по имени файла</option>
         </select>
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
@@ -150,7 +150,7 @@ function applySort() {
 
 function toggleSortDir() {
   sortAsc = !sortAsc;
-  document.getElementById('sortDirBtn').textContent = sortAsc ? '↑' : '↓';
+  document.getElementById('sortDirBtn').textContent = sortAsc ? '↓' : '↑';
   applySort();
 }
 
