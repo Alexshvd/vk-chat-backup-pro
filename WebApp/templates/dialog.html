@@ -78,12 +78,12 @@
     <div class="col-list">
       <div class="toolbar">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
-        <span id="selectedCount" style="color:#888;font-size:0.85rem;width:100%;"></span>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
           <option value="cid">по Id (дате)</option>
           <option value="name">по имени файла</option>
         </select>
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
+        <span id="selectedCount" style="color:#888;font-size:0.85rem;width:100%;"></span>
       </div>
       <div class="col-list-scroll">
       {% for msg in messages %}
