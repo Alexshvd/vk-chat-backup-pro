@@ -215,7 +215,28 @@ def index():
             peer_id = int(entry.name[len("dialog_"):])
             md_dir = entry / "MdFiles"
             count = len([f for f in md_dir.glob("*.md")]) if md_dir.is_dir() else 0
-            dialogs.append({"peer_id": peer_id, "name": _get_dialog_name(peer_id), "count": count})
+
+            last_message_name = ""
+            if md_dir.is_dir():
+                last_cid = 0
+                last_filename = ""
+                for f in md_dir.iterdir():
+                    if f.is_file() and f.name.endswith(".md"):
+                        m = CID_PATTERN.search(f.name)
+                        if m:
+                            cid = int(m.group(1))
+                            if cid > last_cid:
+                                last_cid = cid
+                                last_filename = f.name
+                if last_filename:
+                    last_message_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_filename)
+
+            dialogs.append({
+                "peer_id": peer_id,
+                "name": _get_dialog_name(peer_id),
+                "count": count,
+                "last_message_name": last_message_name,
+            })
     return render_template("index.html", dialogs=dialogs)
 
 

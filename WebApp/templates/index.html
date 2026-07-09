@@ -24,7 +24,12 @@
     {% for d in dialogs %}
       <a href="/dialog/{{ d.peer_id }}" class="card-link">
         <div class="card">
-          <span class="card-title">{{ d.name }}</span>
+          <span class="card-title">
+            <div>Id {{ d.peer_id }}</div>
+            {% if d.last_message_name %}
+            <div style="font-size: 0.85rem; color: #555; font-weight: 400;">Последние сообщение: {{ d.last_message_name }}</div>
+            {% endif %}
+          </span>
           <span class="badge">{{ d.count }} сообщений</span>
         </div>
       </a>
