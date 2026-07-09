@@ -13,7 +13,8 @@
   .back-link { color: #555; text-decoration: none; font-size: 0.9rem; margin-right: 12px; }
   .back-link:hover { text-decoration: underline; }
   .dialog-layout { display: flex; gap: 16px; height: calc(100vh - 90px); }
-  .col-list { width: 380px; flex-shrink: 0; overflow-y: auto; }
+  .col-list { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; }
+  .col-list-scroll { flex: 1; overflow-y: auto; }
   .col-content { flex: 1; min-width: 0; overflow-y: auto; }
   .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
@@ -84,6 +85,7 @@
         </select>
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
       </div>
+      <div class="col-list-scroll">
       {% for msg in messages %}
       <div class="msg-item" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}" onclick="selectMessage(this)">
         <input type="checkbox" class="checkbox" onclick="event.stopPropagation()" onchange="updateBatchButton()">
@@ -99,6 +101,7 @@
         </div>
       </div>
       {% endfor %}
+      </div>
     </div>
 
     <div class="col-content">
