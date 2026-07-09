@@ -319,6 +319,7 @@ function renameSelected() {
     return;
   }
   let currentText = filenameEl.textContent.trim();
+  const fullName = currentText;
   const suffixLen = currentText.length - currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '').length;
   currentText = currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '');
 
@@ -366,13 +367,13 @@ function renameSelected() {
 
       const finish = (save) => {
         if (!save) {
-          filenameEl.textContent = currentText;
+          filenameEl.textContent = fullName;
           cleanup();
           return;
         }
         const val = input.value.trim();
         if (!val || val === currentText) {
-          filenameEl.textContent = currentText;
+          filenameEl.textContent = fullName;
           cleanup();
           return;
         }
@@ -399,12 +400,12 @@ function renameSelected() {
               }
               showToast(`Файл переименован`);
             } else {
-              filenameEl.textContent = currentText;
+              filenameEl.textContent = fullName;
               showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
             }
           })
           .catch(err => {
-            filenameEl.textContent = currentText;
+            filenameEl.textContent = fullName;
             showToast('Ошибка: ' + err.message, true);
           })
           .finally(cleanup);
