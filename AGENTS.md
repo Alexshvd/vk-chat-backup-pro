@@ -20,6 +20,14 @@ Scripts/
 ├── download_media.py    # download_file() + DownloadItem + download_all
 ├── requirements.txt     # requests, python-dotenv
 ├── .gitignore           # Ignores Temp/, __pycache__/
+WebApp/
+├── webapp.py            # Flask-сервер: просмотр, удаление, переименование
+├── config.json          # Пример конфига (git-трекаемый шаблон)
+├── requirements.txt     # flask, mistune
+├── .gitignore
+└── templates/
+    ├── index.html       # Список диалогов
+    └── dialog.html      # Двухколоночный UI: список + просмотр/удаление/rename
 ```
 
 Output directory structure (`EXPORT_ROOT`):
@@ -132,6 +140,44 @@ Two per-dialog filters in `config.json`:
 Applied in two places:
 1. Before `extract_items_from_data()` — filtered items don't get JSON files
 2. When iterating `OriginalMessages/` — existing filtered files are skipped (defense against pre-filter leftovers)
+
+## WebApp
+
+### webapp.py
+- Импортирует `config_loader.load_config()` для получения `export_root`
+- Пути на диске: `{export_root}/ExportMessages/Dialogs/`, `{export_root}/LargeRawData/`
+- `CID_PATTERN`: `\.Id(\d+)(?:_part_\d+)?\.md$`
+- Markdown → HTML: `mistune.HTMLRenderer(escape=False)` + плагины `table`, `strikethrough`
+- Переписывание путей: все относительные пути из `.md` → `/export/...` или `/large/...`
+- `_delete_cid()`: удаляет `*Id{cid}*.md`, `RawData/{cid}/`, `LargeRawData/.../{cid}/`, `*_{cid}.json`
+- `rename_md_file()`: меняет имя `.md`, сохраняя суффикс `.Id{cid}.md`
+- `rename_attachment()`: переименовывает файл вложения + обновляет ссылки внутри `.md`
+
+| Маршрут | Метод | Описание |
+|---|---|---|
+| `/` | GET | Список диалогов |
+| `/dialog/<peer_id>` | GET | Список `.md` файлов |
+| `/dialog/<peer_id>/<cid>/content` | GET | HTML-рендер `.md` |
+| `/dialog/<peer_id>/<cid>` | DELETE | Удаление сообщения |
+| `/dialog/<peer_id>/delete-batch` | POST | Массовое удаление |
+| `/dialog/<peer_id>/<cid>/rename` | PUT | Переименование `.md` |
+| `/dialog/<peer_id>/<cid>/attachments` | GET | Список файлов вложений |
+| `/dialog/<peer_id>/<cid>/rename-attachment` | PUT | Переименование вложения |
+| `/export/<path>` | GET | Статика (Dialogs, Sources) |
+| `/large/<path>` | GET | Статика (LargeRawData) |
+
+### Запуск
+
+```sh
+cd WebApp
+pip install -r requirements.txt
+python webapp.py --config config.json
+```
+
+### Зависимости
+
+- `flask>=3.0.0`
+- `mistune>=3.0.0`
 
 ## Dependencies
 
