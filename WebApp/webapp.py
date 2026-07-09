@@ -252,7 +252,15 @@ def dialog_messages(peer_id: int):
                 "has_raw": (raw_dir / str(cid)).is_dir(),
                 "has_large": (large_root_abs / f"dialog_{peer_id}" / str(cid)).is_dir(),
             })
-    return render_template("dialog.html", peer_id=peer_id, dialog_name=_get_dialog_name(peer_id), messages=messages)
+    last_message_name = ""
+    if messages:
+        last_msg = max(messages, key=lambda m: m["cid"])
+        last_name = last_msg["filename"]
+        last_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_name)
+        last_message_name = last_name
+
+    return render_template("dialog.html", peer_id=peer_id, dialog_name=_get_dialog_name(peer_id),
+                           messages=messages, last_message_name=last_message_name)
 
 
 @app.route("/dialog/<int:peer_id>/<int:cid>/content")
