@@ -83,8 +83,8 @@
       <div class="toolbar">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
+          <option value="name" selected>по имени файла</option>
           <option value="cid">по Id (дате)</option>
-          <option value="name">по имени файла</option>
         </select>
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
         <span id="selectedCount" style="color:#888;font-size:0.85rem;width:100%;"></span>
@@ -135,6 +135,10 @@ let selectedPeer = null;
 let selectedFilename = '';
 let limits = { md: 240, raw: 240, large: 240 };
 let sortAsc = true;
+
+document.addEventListener('DOMContentLoaded', () => {
+  applySort();
+});
 
 // ─── Sort ──────────────────────────────────────────
 function applySort() {

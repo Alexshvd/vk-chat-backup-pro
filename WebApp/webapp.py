@@ -250,7 +250,7 @@ def dialog_messages(peer_id: int):
     orig_dir = dialog_dir / "OriginalMessages"
     messages = []
     if md_dir.is_dir():
-        for f in sorted(md_dir.iterdir()):
+        for f in md_dir.iterdir():
             if not f.is_file() or not f.name.endswith(".md"):
                 continue
             m = CID_PATTERN.search(f.name)
