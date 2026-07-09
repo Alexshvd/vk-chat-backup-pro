@@ -16,7 +16,7 @@
   .col-list { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; }
   .col-list-scroll { flex: 1; overflow-y: auto; }
   .col-content { flex: 1; min-width: 0; overflow-y: auto; }
-  .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+  .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .btn-delete-batch { background: #e74c3c; color: #fff; }
   .btn-delete-batch:disabled { background: #ccc; cursor: default; }
@@ -78,7 +78,7 @@
     <div class="col-list">
       <div class="toolbar">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
-        <span id="selectedCount" style="color:#888;font-size:0.85rem;"></span>
+        <span id="selectedCount" style="color:#888;font-size:0.85rem;width:100%;"></span>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
           <option value="cid">по Id (дате)</option>
           <option value="name">по имени файла</option>
