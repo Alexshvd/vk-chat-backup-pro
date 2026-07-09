@@ -314,6 +314,7 @@ function updateBatchButton() {
 function renameSelected() {
   if (!selectedCid) return;
   const filenameEl = document.getElementById('contentFilename');
+  if (filenameEl.querySelector('input')) return;
   let currentText = filenameEl.textContent.trim();
   const suffixLen = currentText.length - currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '').length;
   currentText = currentText.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '');
@@ -418,6 +419,7 @@ function renameSelected() {
 function renameAttachment(cid, oldName, storage, btnEl) {
   const li = btnEl.closest('li');
   const nameEl = li.querySelector('.file-name');
+  if (nameEl.querySelector('input')) return;
   const currentName = nameEl.textContent.trim();
   const dotIdx = currentName.lastIndexOf('.');
   const ext = dotIdx > 0 ? currentName.slice(dotIdx) : '';
