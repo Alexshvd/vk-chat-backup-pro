@@ -136,7 +136,7 @@ let sortAsc = true;
 // ─── Sort ──────────────────────────────────────────
 function applySort() {
   const key = document.getElementById('sortSelect').value;
-  const container = document.querySelector('.col-list');
+  const container = document.querySelector('.col-list-scroll');
   const items = Array.from(container.querySelectorAll('.msg-item'));
   items.sort((a, b) => {
     let cmp;
