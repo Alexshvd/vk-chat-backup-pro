@@ -47,6 +47,7 @@
   .rename-input:focus { box-shadow: 0 0 0 2px rgba(74,144,217,0.3); }
   .rename-save-btn { background: none; border: 1px solid #27ae60; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 0.8rem; color: #27ae60; line-height: 1; flex-shrink: 0; }
   .rename-save-btn:hover { background: #e8f8f0; }
+  .rename-save-btn:disabled { opacity: 0.4; cursor: default; background: none; }
   .char-count { font-size: 0.75rem; color: #888; margin-top: 2px; }
   .attachments { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
   .attachments h4 { font-size: 0.85rem; margin: 0 0 6px; color: #555; }
@@ -286,13 +287,20 @@ function renameSelected() {
   input.type = 'text';
   input.className = 'rename-input';
   input.value = currentText;
-  input.maxLength = maxMd;
 
   const counter = document.createElement('div');
   counter.className = 'char-count';
   counter.textContent = `${currentText.length}/${maxMd}`;
   input.addEventListener('input', () => {
-    counter.textContent = `${input.value.length}/${maxMd}`;
+    const len = input.value.length;
+    counter.textContent = `${len}/${maxMd}`;
+    if (len > maxMd) {
+      counter.style.color = '#e74c3c';
+      saveBtn.disabled = true;
+    } else {
+      counter.style.color = '';
+      saveBtn.disabled = false;
+    }
   });
 
   const saveBtn = document.createElement('button');
@@ -319,6 +327,10 @@ function renameSelected() {
     if (!val || val === currentText) {
       filenameEl.textContent = currentText;
       cleanup();
+      return;
+    }
+    if (val.length > maxMd) {
+      showToast('Имя слишком длинное', true);
       return;
     }
 
@@ -372,13 +384,20 @@ function renameAttachment(cid, oldName, storage, btnEl) {
   input.className = 'rename-input';
   input.value = baseName;
   const maxAttach = (storage === 'large' ? limits.large : limits.raw) - ext.length;
-  input.maxLength = maxAttach;
 
   const counter = document.createElement('div');
   counter.className = 'char-count';
   counter.textContent = `${baseName.length}/${maxAttach}`;
   input.addEventListener('input', () => {
-    counter.textContent = `${input.value.length}/${maxAttach}`;
+    const len = input.value.length;
+    counter.textContent = `${len}/${maxAttach}`;
+    if (len > maxAttach) {
+      counter.style.color = '#e74c3c';
+      saveBtn.disabled = true;
+    } else {
+      counter.style.color = '';
+      saveBtn.disabled = false;
+    }
   });
 
   const saveBtn = document.createElement('button');
@@ -405,6 +424,10 @@ function renameAttachment(cid, oldName, storage, btnEl) {
     if (!input.value.trim() || valWithExt === currentName) {
       nameEl.textContent = currentName;
       cleanup();
+      return;
+    }
+    if (input.value.trim().length > maxAttach) {
+      showToast('Имя слишком длинное', true);
       return;
     }
 
