@@ -36,6 +36,10 @@ def _get_dialog_dir(peer_id: int) -> Path:
     return dialogs_dir_abs / f"dialog_{peer_id}"
 
 
+def _max_filename_len(directory: Path) -> int:
+    return 254 - len(str(directory)) - 1
+
+
 def _rewrite_md_links(md_text: str, md_file_abs: Path) -> str:
     md_dir = md_file_abs.parent
 
@@ -301,6 +305,8 @@ def rename_md_file(peer_id: int, cid: int):
             continue
         suffix = m.group(0)
         new_filename = f"{new_name}{suffix}"
+        if len(new_filename) > _max_filename_len(md_dir):
+            return jsonify({"success": False, "error": f"Filename too long (max {_max_filename_len(md_dir) - len(suffix)} chars for name)"}), 400
         new_path = f.parent / new_filename
         if new_path.exists():
             return jsonify({"success": False, "error": f"File {new_filename} already exists"}), 409
@@ -336,6 +342,10 @@ def rename_attachment(peer_id: int, cid: int):
     else:
         return jsonify({"success": False, "error": "invalid storage type"}), 400
 
+    max_len = _max_filename_len(file_dir)
+    if len(new_name) > max_len:
+        return jsonify({"success": False, "error": f"Filename too long (max {max_len} chars)"}), 400
+
     old_path = file_dir / old_name
     new_path = file_dir / new_name
     if not old_path.is_file():
@@ -358,6 +368,18 @@ def rename_attachment(peer_id: int, cid: int):
             mf.write_text(updated, encoding="utf-8")
 
     return jsonify({"success": True, "old_rel": old_rel, "new_rel": new_rel})
+
+
+@app.route("/dialog/<int:peer_id>/limits")
+def get_limits(peer_id: int):
+    md_dir = _get_dialog_dir(peer_id) / "MdFiles"
+    raw_dir = _get_dialog_dir(peer_id) / "RawData"
+    large_dir = large_root_abs / f"dialog_{peer_id}"
+    return jsonify({
+        "md": _max_filename_len(md_dir),
+        "raw": _max_filename_len(raw_dir / "0"),
+        "large": _max_filename_len(large_dir / "0"),
+    })
 
 
 @app.route("/export/<path:filename>")
