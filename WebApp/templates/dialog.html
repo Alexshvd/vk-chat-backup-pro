@@ -49,6 +49,9 @@
   .rename-save-btn:hover { background: #e8f8f0; }
   .rename-save-btn:disabled { opacity: 0.4; cursor: default; background: none; }
   .char-count { font-size: 0.75rem; color: #888; margin-top: 2px; }
+  .sort-select { padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; background: #fff; color: #555; cursor: pointer; }
+  .sort-dir-btn { padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 0.8rem; background: #fff; color: #555; }
+  .sort-dir-btn:hover { background: #f0f0f0; }
   .attachments { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
   .attachments h4 { font-size: 0.85rem; margin: 0 0 6px; color: #555; }
   .attachments ul { list-style: none; padding: 0; margin: 0; }
@@ -75,6 +78,11 @@
       <div class="toolbar">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
         <span id="selectedCount" style="color:#888;font-size:0.85rem;"></span>
+        <select class="sort-select" id="sortSelect" onchange="applySort()">
+          <option value="cid">по Id</option>
+          <option value="name">по имени файла</option>
+        </select>
+        <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
       </div>
       {% for msg in messages %}
       <div class="msg-item" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}" onclick="selectMessage(this)">
@@ -119,6 +127,32 @@ let selectedCid = null;
 let selectedPeer = null;
 let selectedFilename = '';
 let limits = { md: 240, raw: 240, large: 240 };
+let sortAsc = true;
+
+// ─── Sort ──────────────────────────────────────────
+function applySort() {
+  const key = document.getElementById('sortSelect').value;
+  const container = document.querySelector('.col-list');
+  const items = Array.from(container.querySelectorAll('.msg-item'));
+  items.sort((a, b) => {
+    let cmp;
+    if (key === 'cid') {
+      cmp = parseInt(a.dataset.cid) - parseInt(b.dataset.cid);
+    } else {
+      const nameA = a.querySelector('.fname').childNodes[0].textContent.trim().toLowerCase();
+      const nameB = b.querySelector('.fname').childNodes[0].textContent.trim().toLowerCase();
+      cmp = nameA.localeCompare(nameB, 'ru');
+    }
+    return sortAsc ? cmp : -cmp;
+  });
+  items.forEach(item => container.appendChild(item));
+}
+
+function toggleSortDir() {
+  sortAsc = !sortAsc;
+  document.getElementById('sortDirBtn').textContent = sortAsc ? '↑' : '↓';
+  applySort();
+}
 
 // ─── Selection ──────────────────────────────────────
 function selectMessage(el) {
