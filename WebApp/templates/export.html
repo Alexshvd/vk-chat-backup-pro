@@ -22,6 +22,7 @@
   .btn-generate { display: block; width: 100%; padding: 12px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; margin-top: 16px; }
   .btn-generate:hover { background: #357abd; }
   .btn-generate:disabled { background: #ccc; cursor: default; }
+  .peer-group { background: #f9f9f9; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -69,7 +70,7 @@
     <h3>3. Экспорт в MD</h3>
     {% if files_by_peer_id %}
       {% for peer_id, file_list in files_by_peer_id.items() %}
-      <div style="margin-bottom: 12px;">
+      <div class="peer-group">
         <h4 style="margin: 0 0 6px; font-size: 0.95rem; color: #444;">peer_id: {{ peer_id }}</h4>
         <ul class="file-list">
           {% for f in file_list %}
