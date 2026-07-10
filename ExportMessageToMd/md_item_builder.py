@@ -54,6 +54,7 @@ def build_md_items(
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
     others = [a for a in resolved_attachments if not isinstance(a, WallAttachment)]
     json_stem = Path(json_filename).stem
+    md_dir_abs_len = len(os.path.abspath(md_dir))
 
     if len(walls) < 2:
         item = _make_item(
@@ -65,13 +66,15 @@ def build_md_items(
         if len(walls) == 1 and not text:
             wall_text = walls[0].text
             item.filename = _compute_filename(
-                text, resolved_attachments, json_stem, cid, wall_text
+                text, resolved_attachments, json_stem, cid,
+                md_dir_abs_len, extra_suffix_len=8 if wall_text else 0,
+                text_override=wall_text,
             )
             if wall_text:
                 item.filename = f"Статья.{item.filename}"
         else:
             item.filename = _compute_filename(
-                text, resolved_attachments, json_stem, cid
+                text, resolved_attachments, json_stem, cid, md_dir_abs_len,
             )
 
         return [item]
@@ -85,7 +88,9 @@ def build_md_items(
         )
         item.heading = _compute_heading(text, cid)
         item.filename = _compute_filename(
-            text, others + [wall], json_stem, cid, wall_text
+            text, others + [wall], json_stem, cid, md_dir_abs_len,
+            extra_suffix_len=len(f"_part_{i}") + (8 if wall_text else 0),
+            text_override=wall_text,
         )
         base = item.filename[:-3]
         item.filename = f"{base}_part_{i}.md"
@@ -332,24 +337,38 @@ def _compute_heading(text: str, cid: int) -> str:
     return f"Сообщение (id {cid})"
 
 
+def _calc_max_text_len(md_dir_abs_len: int, cid: int, extra_suffix_len: int) -> int:
+    max_filename = 254 - md_dir_abs_len - 1
+    suffix = f".Id{cid}.md"
+    max_text = max_filename - len(suffix) - extra_suffix_len
+    return max(max_text, 10)
+
+
 def _compute_filename(
     text: str,
     attachments: List[BaseAttachmentItem],
     json_stem: str,
     cid: int,
+    md_dir_abs_len: int,
+    extra_suffix_len: int = 0,
     text_override: str = "",
 ) -> str:
     source_text = text_override if text_override else text
     if source_text:
         first = _first_sentence(source_text)
-        if len(first) > 60:
-            first = first[:60] + "..."
+        max_text = _calc_max_text_len(md_dir_abs_len, cid, extra_suffix_len)
+        if len(first) > max_text:
+            first = first[:max_text] + "..."
         name = f"{first}.Id{cid}.md"
     else:
         prefix = _get_attachment_types(attachments)
         date_part = json_stem.rsplit("_", 1)[0] if "_" in json_stem else json_stem
         name = f"{prefix}.{date_part}.Id{cid}.md"
-    return _clean_filename(name)
+    name = _clean_filename(name)
+    full_len = md_dir_abs_len + 1 + len(name)
+    if full_len > 254:
+        Logger.LogWarning(f"Путь к MD-файлу превышает 254 символа ({full_len} символов): {name}")
+    return name
 
 
 def _first_sentence(text: str) -> str:
