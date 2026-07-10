@@ -33,7 +33,12 @@
   <h1>Экспорт сообщений</h1>
 
   <div class="card">
-    <h3>Файлы в Sources/</h3>
+    <h3>1. Как получить messages.json</h3>
+    <div class="empty">Инструкция будет добавлена позже.</div>
+  </div>
+
+  <div class="card">
+    <h3>2. Подготовка</h3>
     <p style="font-size:0.85rem; color:#888; margin: 4px 0 12px;">
       {{ sources_path }}
       {% if status == 'created' %}
@@ -69,11 +74,14 @@
     {% endif %}
   </div>
 
-  <form action="/export/generate" method="POST" id="generateForm">
-    <button type="submit" class="btn-generate" id="btnGenerate" {% if not files %}disabled{% endif %}>
-      Сформировать MD
-    </button>
-  </form>
+  <div class="card">
+    <h3>3. Экспорт в MD</h3>
+    <form action="/export/generate" method="POST" id="generateForm">
+      <button type="submit" class="btn-generate" id="btnGenerate" {% if not files %}disabled{% endif %}>
+        Сформировать MD
+      </button>
+    </form>
+  </div>
 </div>
 
 <script>
