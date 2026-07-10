@@ -34,10 +34,20 @@
 
   <div class="card">
     <h3>Файлы в Sources/</h3>
-    <p style="font-size:0.85rem; color:#888; margin: 4px 0 12px;">{{ sources_path }}</p>
+    <p style="font-size:0.85rem; color:#888; margin: 4px 0 12px;">
+      {{ sources_path }}
+      {% if status == 'created' %}
+        <span style="color: green; margin-left: 8px;">Директория создана</span>
+      {% elif status == 'already' %}
+        <span style="color: #d4a017; margin-left: 8px;">Директория уже создана</span>
+      {% endif %}
+    </p>
+    {% if not sources_dir_exists %}
+    <p style="color: #d4a017; font-size: 0.85rem; margin: 0 0 8px;">Требуется создать директорию</p>
     <form action="/export/create-sources" method="POST" style="margin: 0 0 12px;">
       <button type="submit" style="padding: 6px 14px; font-size: 0.85rem; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Создать директорию</button>
     </form>
+    {% endif %}
     {% if files %}
     <ul class="file-list">
       {% for f in files %}

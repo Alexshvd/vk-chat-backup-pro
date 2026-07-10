@@ -210,8 +210,9 @@ def _get_dialog_name(peer_id: int) -> str:
 @app.route("/export")
 def export_page():
     sources_dir = export_serve_abs / "Sources"
+    sources_dir_exists = sources_dir.is_dir()
     files = []
-    if sources_dir.is_dir():
+    if sources_dir_exists:
         for f in sorted(sources_dir.iterdir()):
             if f.is_file() and f.suffix == ".json":
                 files.append({
@@ -219,14 +220,18 @@ def export_page():
                     "size": f.stat().st_size,
                     "size_str": _format_size(f.stat().st_size),
                 })
-    return render_template("export.html", files=files, sources_path=str(sources_dir))
+    status = request.args.get("status")
+    return render_template("export.html", files=files, sources_path=str(sources_dir),
+                           sources_dir_exists=sources_dir_exists, status=status)
 
 
 @app.route("/export/create-sources", methods=["POST"])
 def create_sources():
     sources_dir = export_serve_abs / "Sources"
+    already = sources_dir.is_dir()
     sources_dir.mkdir(parents=True, exist_ok=True)
-    return redirect(url_for("export_page"))
+    status = "already" if already else "created"
+    return redirect(url_for("export_page", status=status))
 
 
 @app.route("/export/generate", methods=["POST"])
