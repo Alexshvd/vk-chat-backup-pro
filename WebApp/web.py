@@ -101,15 +101,6 @@ def _find_md_files(md_dir: Path, cid: int) -> list[Path]:
     return sorted(result)
 
 
-def _extract_heading(md_file: Path) -> str:
-    try:
-        first_line = md_file.read_text(encoding="utf-8").split("\n", 1)[0]
-        if first_line.startswith("# "):
-            return first_line[2:].strip()
-    except Exception:
-        pass
-    return md_file.stem
-
 
 def _get_attachment_size(md_dir: Path, raw_dir: Path, large_dir_root: Path, peer_id: int, cid: int) -> int:
     total = 0
@@ -200,7 +191,7 @@ def _get_dialog_name(peer_id: int) -> str:
         return f"dialog_{peer_id}"
     for f in sorted(md_dir.iterdir()):
         if f.is_file() and f.name.endswith(".md"):
-            heading = _extract_heading(f)
+            heading = f.name
             if heading:
                 return f"{heading} ({peer_id})"
     return f"dialog_{peer_id}"
@@ -364,7 +355,7 @@ def dialog_messages(peer_id: int):
             if not m:
                 continue
             cid = int(m.group(1))
-            heading = _extract_heading(f)
+            heading = f.name
             size = f.stat().st_size
             attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
             messages.append({
