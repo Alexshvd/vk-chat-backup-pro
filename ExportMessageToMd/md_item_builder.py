@@ -354,6 +354,7 @@ def _compute_filename(
     text_override: str = "",
 ) -> str:
     source_text = text_override if text_override else text
+    source_text = _strip_leading_tags(source_text)
     if source_text:
         first = _first_sentence(source_text)
         max_text = _calc_max_text_len(md_dir_abs_len, cid, extra_suffix_len)
@@ -369,6 +370,10 @@ def _compute_filename(
     if full_len > 254:
         Logger.LogWarning(f"Путь к MD-файлу превышает 254 символа ({full_len} символов): {name}")
     return name
+
+
+def _strip_leading_tags(text: str) -> str:
+    return re.sub(r'^(\s*#\w+[,\s]*)+', '', text).strip()
 
 
 def _first_sentence(text: str) -> str:
