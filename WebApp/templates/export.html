@@ -63,6 +63,10 @@
       <input type="file" name="file" id="fileInput" accept=".json" style="display: none;" onchange="document.getElementById('uploadForm').submit();">
     </form>
     {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>3. Экспорт в MD</h3>
     {% if files %}
     <ul class="file-list">
       {% for f in files %}
@@ -70,12 +74,8 @@
       {% endfor %}
     </ul>
     {% else %}
-    <div class="empty">Нет JSON-файлов в Sources/. Поместите файлы в указанную выше директорию.</div>
+    <div class="empty">Нет JSON-файлов в Sources/.</div>
     {% endif %}
-  </div>
-
-  <div class="card">
-    <h3>3. Экспорт в MD</h3>
     <form action="/export/generate" method="POST" id="generateForm">
       <button type="submit" class="btn-generate" id="btnGenerate" {% if not files %}disabled{% endif %}>
         Сформировать MD
