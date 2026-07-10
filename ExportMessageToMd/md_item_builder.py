@@ -364,6 +364,11 @@ def _compute_filename(
     else:
         prefix = _get_attachment_types(attachments)
         date_part = json_stem.rsplit("_", 1)[0] if "_" in json_stem else json_stem
+        suffix = f".Id{cid}.md"
+        max_date_len = 254 - md_dir_abs_len - 1 - len(prefix) - 1 - len(suffix) - extra_suffix_len
+        max_date_len = max(max_date_len, 10)
+        if len(date_part) > max_date_len:
+            date_part = date_part[:max_date_len] + "..."
         name = f"{prefix}.{date_part}.Id{cid}.md"
     name = _clean_filename(name)
     full_len = md_dir_abs_len + 1 + len(name)
