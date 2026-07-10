@@ -219,7 +219,7 @@ def export_page():
                     "size": f.stat().st_size,
                     "size_str": _format_size(f.stat().st_size),
                 })
-    return render_template("export.html", files=files)
+    return render_template("export.html", files=files, sources_path=str(sources_dir))
 
 
 @app.route("/export/generate", methods=["POST"])

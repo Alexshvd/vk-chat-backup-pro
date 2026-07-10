@@ -34,6 +34,7 @@
 
   <div class="card">
     <h3>Файлы в Sources/</h3>
+    <p style="font-size:0.85rem; color:#888; margin: 4px 0 12px;">{{ sources_path }}</p>
     {% if files %}
     <ul class="file-list">
       {% for f in files %}
@@ -41,7 +42,7 @@
       {% endfor %}
     </ul>
     {% else %}
-    <div class="empty">Нет JSON-файлов в Sources/. Поместите файлы в <code>ExportMessages/Sources/</code>.</div>
+    <div class="empty">Нет JSON-файлов в Sources/. Поместите файлы в указанную выше директорию.</div>
     {% endif %}
   </div>
 
