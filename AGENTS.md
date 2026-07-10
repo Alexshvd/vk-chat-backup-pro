@@ -98,11 +98,12 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### ExportMessageToMd/md_item_builder.py
 - `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers immediately.
 - **Filename rules**:
-  - With text: `{first_sentence}.Id{cid}.md` (max 60 chars + `...`)
+  - With text: `{first_sentence}.Id{cid}.md`
   - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
   - `Статья.` prefix if only wall/post without text
   - Multiple wall/post → `_part_N` suffix
   - Filename cleaned: emojis removed, `—`→`-`, special chars `\/*?:"<>|` → `_`
+- **Max path length (254 chars)**: `_compute_filename(md_dir_abs_len, extra_suffix_len)` truncates text dynamically: `max_text = 254 - len(os.path.abspath(md_dir)) - 1 - len(".Id{cid}.md") - extra_suffix_len` (min 10). `extra_suffix_len` accounts for `"Статья."` (8) and `_part_N` suffix. `Logger.LogWarning` if final path exceeds 254. `_compute_heading()` remains hardcoded at 60 (display-only, not filename).
 
 ### All other ExportMessageToMd/*.py
 - Same as before, unchanged logic.
@@ -116,7 +117,10 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | Маршрут | Метод | Описание |
 |---|---|---|
 | `/` | GET | Список диалогов |
-| `/export` | GET | Страница экспорта (список Sources, кнопка генерации) |
+| `/export` | GET | Страница экспорта (список Sources по peer_id, фильтры, кнопка генерации) |
+| `/export/create-sources` | POST | Создание директории Sources |
+| `/export/upload` | POST | Загрузка файла в Sources |
+| `/export/save-filters` | POST | Сохранение фильтров min_cid/min_date в config.json |
 | `/export/generate` | POST | Потоковая генерация MD (chunked HTML) |
 | `/dialog/<peer_id>` | GET | Список `.md` файлов |
 | `/dialog/<peer_id>/limits/<cid>` | GET | Макс. длины имён файлов |
@@ -130,8 +134,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/large/<path>` | GET | Статика (LargeRawData) |
 
 ### export.html
-- Список `.json` файлов из `Sources/` (имя, размер)
-- Кнопка "Сформировать MD" → `POST /export/generate`
+- **Блок 1**: Инструкция как получить messages.json
+- **Блок 2**: Путь к Sources, статус директории (создана/не создана), кнопка создания (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
+- **Блок 3**: Список `.json` файлов из `Sources/`, сгруппированных по `peer_id`, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`
 - После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог
 
 ### dialog.html & index.html
