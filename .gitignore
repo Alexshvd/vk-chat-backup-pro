@@ -19,8 +19,7 @@ env/
 
 # Project-specific
 .env
-Temp/ExportMessages/
-Temp/messages.json
+Temp/
 
 # Other
 PromptsBetweenCommit.md
