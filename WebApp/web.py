@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from flask import Flask, Response, abort, jsonify, render_template, request, send_from_directory, stream_with_context
+from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, stream_with_context, url_for
 from mistune import HTMLRenderer, create_markdown
 
 from config_loader import load_config
@@ -220,6 +220,13 @@ def export_page():
                     "size_str": _format_size(f.stat().st_size),
                 })
     return render_template("export.html", files=files, sources_path=str(sources_dir))
+
+
+@app.route("/export/create-sources", methods=["POST"])
+def create_sources():
+    sources_dir = export_serve_abs / "Sources"
+    sources_dir.mkdir(parents=True, exist_ok=True)
+    return redirect(url_for("export_page"))
 
 
 @app.route("/export/generate", methods=["POST"])
