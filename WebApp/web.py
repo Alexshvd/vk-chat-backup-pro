@@ -234,6 +234,18 @@ def create_sources():
     return redirect(url_for("export_page", status=status))
 
 
+@app.route("/export/upload", methods=["POST"])
+def upload_to_sources():
+    sources_dir = export_serve_abs / "Sources"
+    sources_dir.mkdir(parents=True, exist_ok=True)
+    file = request.files.get("file")
+    if file and file.filename:
+        dest = sources_dir / file.filename
+        file.save(str(dest))
+        return redirect(url_for("export_page", status="uploaded"))
+    return redirect(url_for("export_page", status="upload_error"))
+
+
 @app.route("/export/generate", methods=["POST"])
 def run_export():
     config = load_config(_config_path)

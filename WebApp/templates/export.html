@@ -40,6 +40,10 @@
         <span style="color: green; margin-left: 8px;">Директория создана</span>
       {% elif status == 'already' %}
         <span style="color: #d4a017; margin-left: 8px;">Директория уже создана</span>
+      {% elif status == 'uploaded' %}
+        <span style="color: green; margin-left: 8px;">Файл перемещён</span>
+      {% elif status == 'upload_error' %}
+        <span style="color: red; margin-left: 8px;">Ошибка загрузки</span>
       {% endif %}
     </p>
     {% if not sources_dir_exists %}
@@ -48,6 +52,12 @@
     <form action="/export/create-sources" method="POST" style="margin: 0 0 12px;">
       <button type="submit" style="padding: 6px 14px; font-size: 0.85rem; color: #fff; border: none; border-radius: 4px; {% if sources_dir_exists %}background: #ccc; cursor: default;{% else %}background: #6c757d; cursor: pointer;{% endif %}" {% if sources_dir_exists %}disabled{% endif %}>Создать директорию</button>
     </form>
+    {% if sources_dir_exists %}
+    <form action="/export/upload" method="POST" enctype="multipart/form-data" id="uploadForm" style="margin: 0 0 12px;">
+      <label for="fileInput" style="padding: 6px 14px; font-size: 0.85rem; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">Переместить файл в Sources</label>
+      <input type="file" name="file" id="fileInput" accept=".json" style="display: none;" onchange="document.getElementById('uploadForm').submit();">
+    </form>
+    {% endif %}
     {% if files %}
     <ul class="file-list">
       {% for f in files %}
