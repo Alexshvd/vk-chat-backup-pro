@@ -227,8 +227,20 @@ def export_page():
                     "size": f.stat().st_size,
                     "size_str": _format_size(f.stat().st_size),
                 })
+
+    config = load_config(_config_path)
+    filters = {}
+    for peer_id in files_by_peer_id:
+        min_cid = config.min_cid_by_peer_id.get(peer_id)
+        min_date_ts = config.min_date_by_peer_id.get(peer_id)
+        min_date_str = ""
+        if min_date_ts:
+            min_date_str = datetime.fromtimestamp(min_date_ts).strftime("%Y-%m-%d-%H-%M-%S")
+        filters[peer_id] = {"min_cid": min_cid if min_cid is not None else "", "min_date": min_date_str}
+
     status = request.args.get("status")
     return render_template("export.html", files_by_peer_id=files_by_peer_id,
+                           filters=filters,
                            sources_path=str(sources_dir),
                            sources_dir_exists=sources_dir_exists, status=status)
 
@@ -252,6 +264,31 @@ def upload_to_sources():
         file.save(str(dest))
         return redirect(url_for("export_page", status="uploaded"))
     return redirect(url_for("export_page", status="upload_error"))
+
+
+@app.route("/export/save-filters", methods=["POST"])
+def save_filters():
+    data = request.get_json()
+    filters = data.get("filters", {})
+
+    with open(_config_path, encoding="utf-8") as f:
+        raw = _json.load(f)
+
+    raw["min_cid_by_peer_id"] = {}
+    raw["min_date_by_peer_id"] = {}
+
+    for peer_id_str, item in filters.items():
+        cid = item.get("min_cid", "")
+        date = item.get("min_date", "")
+        if cid != "":
+            raw["min_cid_by_peer_id"][peer_id_str] = int(cid)
+        if date:
+            raw["min_date_by_peer_id"][peer_id_str] = date
+
+    with open(_config_path, "w", encoding="utf-8") as f:
+        _json.dump(raw, f, ensure_ascii=False, indent=2)
+
+    return jsonify({"ok": True})
 
 
 @app.route("/export/generate", methods=["POST"])

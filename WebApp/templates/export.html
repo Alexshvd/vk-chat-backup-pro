@@ -77,6 +77,15 @@
           <li><span class="file-name">{{ f.name }}</span><span class="file-size">{{ f.size_str }}</span></li>
           {% endfor %}
         </ul>
+        <div style="margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 0.85rem; color: #666;">Min CID:
+            <input type="number" data-peer="{{ peer_id }}" data-field="min_cid" value="{{ filters[peer_id].min_cid }}" style="width: 100px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px;">
+          </label>
+          <label style="font-size: 0.85rem; color: #666;">Min Date:
+            <input type="text" data-peer="{{ peer_id }}" data-field="min_date" value="{{ filters[peer_id].min_date }}" placeholder="yyyy-mm-dd-hh-mm-ss" style="width: 180px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px;">
+          </label>
+          <button type="button" onclick="saveFilters(this)" style="padding: 4px 10px; font-size: 0.8rem; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Сохранить фильтры</button>
+        </div>
       </div>
       {% endfor %}
     {% else %}
@@ -91,10 +100,45 @@
 </div>
 
 <script>
-document.getElementById('generateForm').addEventListener('submit', function() {
+function collectFilters() {
+  var filters = {};
+  document.querySelectorAll('input[data-peer]').forEach(function(inp) {
+    var pid = inp.dataset.peer;
+    var field = inp.dataset.field;
+    filters[pid] = filters[pid] || {};
+    filters[pid][field] = inp.value;
+  });
+  return filters;
+}
+
+function saveFilters(btn) {
+  btn.textContent = 'Сохранение...';
+  btn.disabled = true;
+  fetch('/export/save-filters', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({filters: collectFilters()})
+  }).then(function(r) { return r.json(); }).then(function() {
+    btn.textContent = 'Сохранено';
+    btn.style.background = '#28a745';
+    setTimeout(function() { btn.textContent = 'Сохранить фильтры'; btn.style.background = '#6c757d'; btn.disabled = false; }, 1500);
+  });
+}
+
+document.getElementById('generateForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var form = this;
   var btn = document.getElementById('btnGenerate');
   btn.disabled = true;
-  btn.textContent = 'Генерация...';
+  btn.textContent = 'Сохранение фильтров...';
+  fetch('/export/save-filters', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({filters: collectFilters()})
+  }).then(function(r) { return r.json(); }).then(function() {
+    btn.textContent = 'Генерация...';
+    form.submit();
+  });
 });
 </script>
 </body>
