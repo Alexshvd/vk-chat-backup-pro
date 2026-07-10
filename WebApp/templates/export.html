@@ -67,17 +67,22 @@
 
   <div class="card">
     <h3>3. Экспорт в MD</h3>
-    {% if files %}
-    <ul class="file-list">
-      {% for f in files %}
-      <li><span class="file-name">{{ f.name }}</span><span class="file-size">{{ f.size_str }}</span></li>
+    {% if files_by_peer_id %}
+      {% for peer_id, file_list in files_by_peer_id.items() %}
+      <div style="margin-bottom: 12px;">
+        <h4 style="margin: 0 0 6px; font-size: 0.95rem; color: #444;">peer_id: {{ peer_id }}</h4>
+        <ul class="file-list">
+          {% for f in file_list %}
+          <li><span class="file-name">{{ f.name }}</span><span class="file-size">{{ f.size_str }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
       {% endfor %}
-    </ul>
     {% else %}
     <div class="empty">Нет JSON-файлов в Sources/.</div>
     {% endif %}
     <form action="/export/generate" method="POST" id="generateForm">
-      <button type="submit" class="btn-generate" id="btnGenerate" {% if not files %}disabled{% endif %}>
+      <button type="submit" class="btn-generate" id="btnGenerate" {% if not files_by_peer_id %}disabled{% endif %}>
         Сформировать MD
       </button>
     </form>

@@ -1,4 +1,5 @@
 import html
+import json as _json
 import os
 import re
 import shutil
@@ -211,17 +212,24 @@ def _get_dialog_name(peer_id: int) -> str:
 def export_page():
     sources_dir = export_serve_abs / "Sources"
     sources_dir_exists = sources_dir.is_dir()
-    files = []
+    files_by_peer_id = {}
     if sources_dir_exists:
         for f in sorted(sources_dir.iterdir()):
             if f.is_file() and f.suffix == ".json":
-                files.append({
+                try:
+                    with open(f, encoding="utf-8") as fp:
+                        data = _json.load(fp)
+                    peer_id = data.get("peer_id", 0)
+                except Exception:
+                    peer_id = 0
+                files_by_peer_id.setdefault(peer_id, []).append({
                     "name": f.name,
                     "size": f.stat().st_size,
                     "size_str": _format_size(f.stat().st_size),
                 })
     status = request.args.get("status")
-    return render_template("export.html", files=files, sources_path=str(sources_dir),
+    return render_template("export.html", files_by_peer_id=files_by_peer_id,
+                           sources_path=str(sources_dir),
                            sources_dir_exists=sources_dir_exists, status=status)
 
 
