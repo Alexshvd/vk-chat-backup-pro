@@ -88,8 +88,7 @@ def main(config: Config):
             md_items = build_md_items(
                 item_data, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),
-                authors, config,
-                url_to_relpath=url_to_relpath,
+                authors, config
             )
             for md_index, item in enumerate(md_items):
                 md_text = render_md_item(item)
