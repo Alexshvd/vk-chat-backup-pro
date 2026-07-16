@@ -11,6 +11,7 @@ from flask import Flask, Response, abort, jsonify, redirect, render_template, re
 from mistune import HTMLRenderer, create_markdown
 
 from config_loader import load_config
+from logger import Logger
 from main import main as run_pipeline
 
 CID_PATTERN = re.compile(r"\.Id(\d+)(?:_part_\d+)?\.md$")
@@ -134,6 +135,23 @@ def _get_date_from_json(orig_dir: Path, cid: int) -> str:
             parts = f.name.rsplit("_", 1)[0].split("-")
             return f"{parts[0]}-{parts[1]}-{parts[2]} {parts[3]}:{parts[4]}:{parts[5]}"
     return ""
+
+
+def _build_message_date_str_by_cid(orig_dir: Path) -> dict[int, str]:
+    result: dict[int, str] = {}
+    if not orig_dir.is_dir():
+        return result
+    for f in orig_dir.glob("*.json"):
+        name = f.name
+        date_part, _, cid_part = name.rpartition("_")
+        cid_str = cid_part.replace(".json", "")
+        try:
+            cid_val = int(cid_str)
+            parts = date_part.split("-")
+            result[cid_val] = f"{parts[0]}-{parts[1]}-{parts[2]} {parts[3]}:{parts[4]}:{parts[5]}"
+        except (ValueError, IndexError):
+            Logger.LogWarning(f"Не удалось распарсить имя файла JSON: {name}")
+    return result
 
 
 def _delete_cid(peer_id: int, cid: int) -> dict:
@@ -346,6 +364,7 @@ def dialog_messages(peer_id: int):
     md_dir = dialog_dir / "MdFiles"
     raw_dir = dialog_dir / "RawData"
     orig_dir = dialog_dir / "OriginalMessages"
+    message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir)
     messages = []
     if md_dir.is_dir():
         for f in md_dir.iterdir():
@@ -362,7 +381,7 @@ def dialog_messages(peer_id: int):
                 "cid": cid,
                 "filename": f.name,
                 "heading": heading,
-                "date_str": _get_date_from_json(orig_dir, cid),
+                "date_str": message_date_str_by_cid.get(cid, ""),
                 "size": size,
                 "size_str": _format_size(size),
                 "attach_size": attach_size,
