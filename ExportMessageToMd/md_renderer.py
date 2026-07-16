@@ -203,6 +203,7 @@ def _render_video(att: VideoAttachment) -> list:
         lines.append(f"**Видео:** {att.title}")
 
     if att.preview_local_path:
+        lines.append("")
         lines.append(f"![]({att.preview_local_path})")
 
     if att.mp4_local_path:
