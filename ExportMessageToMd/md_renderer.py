@@ -179,9 +179,10 @@ def _render_attachment(att):
     if isinstance(att, WallAttachment):
         return _render_wall(att)
     if isinstance(att, DocAttachment):
-        url = att.url
         title = att.title
-        return [f"**Документ:** [{title}]({url})"]
+        if att.local_path:
+            return [f"**Документ:** [{title}]({att.local_path})"]
+        return [f"**Документ:** [{title}]({att.url})"]
     if isinstance(att, AudioAttachment):
         return [f"**Аудио:** {att.artist} — {att.title}"]
     if isinstance(att, StickerAttachment):

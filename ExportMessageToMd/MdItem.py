@@ -36,6 +36,7 @@ class LinkAttachment(BaseAttachmentItem):
 class DocAttachment(BaseAttachmentItem):
     url: str = ""
     title: str = ""
+    local_path: str = ""
 
 
 @dataclass

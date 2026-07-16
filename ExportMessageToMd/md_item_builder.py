@@ -148,7 +148,7 @@ def _resolve_attachment(
     if t in ("wall", "post"):
         return _resolve_wall(att.get(t, {}), cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
     if t == "doc":
-        return _resolve_doc(att.get("doc", {}))
+        return _resolve_doc(att.get("doc", {}), cid, little_raw_data_dir, md_dir, url_to_relpath)
     if t == "audio":
         return _resolve_audio(att.get("audio", {}))
     if t == "sticker":
@@ -240,10 +240,16 @@ def _resolve_link(link: dict) -> LinkAttachment:
     )
 
 
-def _resolve_doc(doc: dict) -> DocAttachment:
+def _resolve_doc(
+    doc: dict, cid: int, little_raw_data_dir: str, md_dir: str,
+    url_to_relpath: Dict[str, str],
+) -> DocAttachment:
+    url = doc.get("url", "")
+    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath) if url else ""
     return DocAttachment(
-        url=doc.get("url", ""),
+        url=url,
         title=doc.get("title", "документ"),
+        local_path=local_path,
     )
 
 
