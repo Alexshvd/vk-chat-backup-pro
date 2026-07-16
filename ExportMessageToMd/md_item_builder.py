@@ -378,7 +378,7 @@ def _compute_filename(
 
 
 def _strip_leading_tags(text: str) -> str:
-    return re.sub(r'^(\s*#\w+[,\s]*)+', '', text).strip()
+    return re.sub(r'^(\s*[#@][\w@]+[,\s]*)+', '', text).strip()
 
 
 def _first_sentence(text: str) -> str:
