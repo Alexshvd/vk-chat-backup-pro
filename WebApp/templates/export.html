@@ -23,6 +23,18 @@
   .btn-generate:hover { background: #357abd; }
   .btn-generate:disabled { background: #ccc; cursor: default; }
   .peer-group { background: #f9f9f9; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+  .vk-instruction { display: flex; gap: 20px; align-items: flex-start; }
+  .vk-instruction .vk-left { flex: 1; min-width: 0; }
+  .vk-instruction .vk-right { flex: 1; min-width: 0; position: relative; }
+  .vk-instruction ol { margin: 0 0 16px; padding-left: 20px; font-size: 0.9rem; line-height: 1.6; }
+  .vk-instruction .vk-fields label { display: block; margin-bottom: 10px; font-size: 0.85rem; color: #555; }
+  .vk-instruction .vk-fields input { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; margin-top: 4px; }
+  .vk-instruction .vk-fields input::placeholder { color: #bbb; }
+  .vk-code-container { position: relative; }
+  .vk-code-container pre { background: #1e1e1e; color: #d4d4d4; border-radius: 6px; padding: 14px; font-size: 0.78rem; line-height: 1.5; overflow-x: auto; margin: 0; max-height: 500px; overflow-y: auto; }
+  .vk-code-container .btn-copy { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: 0.75rem; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  .vk-code-container .btn-copy:hover { background: #777; }
+  @media (max-width: 700px) { .vk-instruction { flex-direction: column; } }
 </style>
 </head>
 <body>
@@ -35,7 +47,33 @@
 
   <div class="card">
     <h3>1. Как получить messages.json</h3>
-    <div class="empty">Инструкция будет добавлена позже.</div>
+    <div class="vk-instruction">
+      <div class="vk-left">
+        <ol>
+          <li>Откройте <a href="https://vk.com" target="_blank">vk.com</a> и войдите в аккаунт</li>
+          <li>Откройте консоль браузера (<kbd>F12</kbd> → Console, или <kbd>Ctrl+Shift+J</kbd>)</li>
+          <li>Настройте параметры ниже</li>
+          <li>Скопируйте скрипт и вставьте в консоль, нажмите <kbd>Enter</kbd></li>
+        </ol>
+        <div class="vk-fields">
+          <label>Peer ID
+            <input type="number" id="vkPeerId" value="143527706" oninput="updateVkScript()">
+          </label>
+          <label>From Date <span style="color:#999;">(необязательно)</span>
+            <input type="text" id="vkFromDate" placeholder="yyyy-mm-dd" oninput="updateVkScript()">
+          </label>
+          <label>From Message ID <span style="color:#999;">(необязательно)</span>
+            <input type="number" id="vkFromMessageId" placeholder="необязательно" oninput="updateVkScript()">
+          </label>
+        </div>
+      </div>
+      <div class="vk-right">
+        <div class="vk-code-container">
+          <button class="btn-copy" onclick="copyVkScript()">Скопировать</button>
+          <pre><code id="vkScript"></code></pre>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -140,6 +178,111 @@ document.getElementById('generateForm').addEventListener('submit', function(e) {
     form.submit();
   });
 });
+
+function updateVkScript() {
+  var peerId = document.getElementById('vkPeerId').value || '0';
+  var fromDateStr = document.getElementById('vkFromDate').value.trim();
+  var fromMsgIdStr = document.getElementById('vkFromMessageId').value.trim();
+
+  var fromDateLine;
+  if (fromDateStr) {
+    var parts = fromDateStr.split('-');
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10) - 1;
+    var d = parseInt(parts[2], 10);
+    fromDateLine = 'let fromDate = new Date(' + y + ', ' + m + ', ' + d + ');';
+  } else {
+    fromDateLine = 'let fromDate = null;';
+  }
+
+  var fromMsgLine = fromMsgIdStr
+    ? 'let fromMessageId = ' + fromMsgIdStr + ';'
+    : 'let fromMessageId = null;';
+
+  var script = 'async function getHistory(peerId, fromDate, fromMessageId) {\n'
+    + '  debugLog("getting history started...")\n'
+    + '  const limit = 200;\n'
+    + '  \n'
+    + '  let items = [];\n'
+    + '  let groups = new Map();\n'
+    + '  let profiles = new Map();\n'
+    + '  let test = true;\n'
+    + '  \n'
+    + '  while (true) {\n'
+    + '    let response = await window.vkApi.api("messages.getHistory", {\n'
+    + '      peer_id: peerId,\n'
+    + '      offset: items.length,\n'
+    + '      count: limit,\n'
+    + '      extended: 1,\n'
+    + '      v: "5.199"\n'
+    + '    });\n'
+    + '    \n'
+    + '    if(!response) break;\n'
+    + '    if(!response.items?.length) break;\n'
+    + '    \n'
+    + '    let filteredItems = response.items.filter(i => \n'
+    + '        (fromMessageId == null || i.id > fromMessageId) \n'
+    + '        && (fromDate == null || i.date > fromDate)\n'
+    + '    );\n'
+    + '    items.push(...filteredItems);\n'
+    + '    if(response.groups) response.groups.forEach(i => groups.set(i.id, i));\n'
+    + '    if(response.profiles) response.profiles.forEach(i => profiles.set(i.id, i));\n'
+    + '    \n'
+    + '    console.log(`Loaded ${items.length}/${response.count}`);\n'
+    + '    \n'
+    + '    let isAnyItemFiltered = filteredItems.length != response.items.length;\n'
+    + '    if(isAnyItemFiltered) break;\n'
+    + '    if(items.length >= response.count) break;\n'
+    + '    \n'
+    + '    if(!test) break;\n'
+    + '    test = false;\n'
+    + '    \n'
+    + '    await new Promise(r => setTimeout(r, 350)); // 0.35s\n'
+    + '  }\n'
+    + '  return { peer_id: peerId, items: items, groups: Array.from(groups.values()), profiles: Array.from(profiles.values()) };\n'
+    + '}\n'
+    + '\n'
+    + 'function saveToFile(data, filename)\n'
+    + '{\n'
+    + '    let blob = new Blob([JSON.stringify(data, null, 0)], {type: \'application/json\'});\n'
+    + '    \n'
+    + '    let a = document.createElement(\'a\');\n'
+    + '    a.href = URL.createObjectURL(blob);\n'
+    + '    a.download = filename;\n'
+    + '    a.click();\n'
+    + '    URL.revokeObjectURL(a.href);\n'
+    + '}\n'
+    + '\n'
+    + '\n'
+    + 'let peerId = ' + peerId + ';\n'
+    + fromDateLine + '\n'
+    + fromMsgLine + '\n'
+    + '\n'
+    + 'let fromDateUnixTimestamp = fromDate != null ? Math.floor(fromDate.getTime() / 1000) : null;\n'
+    + 'let data = await getHistory(peerId, fromDateUnixTimestamp, fromMessageId);\n'
+    + '\n'
+    + 'let currentDate = Date.now();\n'
+    + 'let filename = `messages_peerId_${peerId}_${currentDate}.json`;\n'
+    + 'data.currentDate = currentDate;\n'
+    + 'saveToFile(data, filename);';
+
+  document.getElementById('vkScript').textContent = script;
+}
+
+function copyVkScript() {
+  var text = document.getElementById('vkScript').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.querySelector('.vk-code-container .btn-copy');
+    btn.textContent = 'Скопировано';
+    btn.style.background = '#28a745';
+    setTimeout(function() {
+      btn.textContent = 'Скопировать';
+      btn.style.background = '#555';
+    }, 1500);
+  });
+}
+
+updateVkScript();
 </script>
 </body>
 </html>
