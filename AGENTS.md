@@ -18,7 +18,7 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │
 ├── ExportMessageToMd/
 │   ├── main.py               # Generator: parse sources → extract → build → render → write
-│   ├── MdItem.py             # DTO: BaseAttachmentItem + 8 subclasses + MdItem
+│   ├── MdItem.py             # DTO: BaseAttachmentItem + 8 subclasses (DocAttachment has local_path) + MdItem
 │   ├── md_item_builder.py    # build_md_items(): JSON → MdItem, resolves attachments
 │   ├── md_renderer.py        # render_md_item(): MdItem → Markdown (pure, no I/O)
 │   ├── export_fwd.py         # extract_items_from_data(items, output_dir)
@@ -69,7 +69,7 @@ python run.py --mode web --config config.json
 4. **main.py** → per dialog: `build_md_items(json, config, ...)` → `list[MdItem]` with resolved attachments and downloaded files
 5. **main.py** → per dialog: `render_md_item(item)` → Markdown → write `.md` file
 
-Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos immediately. Step 5 is pure rendering (no I/O).
+Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos/docs immediately. Step 5 is pure rendering (no I/O).
 
 `main(config)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
 
@@ -96,22 +96,24 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
 ### ExportMessageToMd/md_item_builder.py
-- `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers immediately.
+- `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately.
 - **Filename rules**:
   - With text: `{first_sentence}.Id{cid}.md`
   - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
   - `Статья.` prefix if only wall/post without text
   - Multiple wall/post → `_part_N` suffix
-  - Filename cleaned: emojis removed, `—`→`-`, special chars `\/*?:"<>|` → `_`
+  - Filename cleaned: emojis removed, `—`→`-`, `@mention` prefixes stripped (same as `#hashtag`), special chars `\/*?:"<>|` → `_`
 - **Max path length (254 chars)**: `_compute_filename(md_dir_abs_len, extra_suffix_len)` truncates text dynamically: `max_text = 254 - len(os.path.abspath(md_dir)) - 1 - len(".Id{cid}.md") - extra_suffix_len` (min 10). `extra_suffix_len` accounts for `"Статья."` (8) and `_part_N` suffix. `Logger.LogWarning` if final path exceeds 254. `_compute_heading()` remains hardcoded at 60 (display-only, not filename).
 
-### All other ExportMessageToMd/*.py
-- Same as before, unchanged logic.
+### ExportMessageToMd/md_renderer.py
+- `_render_video()` — blank line before preview image to separate it from title
+- `_render_attachment(DocAttachment)` — uses `local_path` if available, falls back to URL
 
 ## WebApp
 
 ### web.py
 - Flask app factory pattern: `init_app(config_path)` → `_init_paths()` → sets all path globals
+- `_build_message_date_str_by_cid(orig_dir)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
 - Routes: all existing + new export routes
 
 | Маршрут | Метод | Описание |
