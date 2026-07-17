@@ -56,12 +56,13 @@
         <ol>
           <li>Откройте сайт VK в браузере и войдите в аккаунт (vk.com, vk.ru). Откройте интересующий диалог</li>
           <li>Откройте консоль браузера (<span title="ПКМ (правая кнопка мыши) → «Просмотреть элемент» → вкладка Console">ПКМ → Исследовать элемент → Console</span>, <kbd>F12</kbd> → Console или <kbd>Ctrl+Shift+J</kbd>)</li>
-          <li>Настройте параметры ниже</li>
+          <li>Настройте параметры ниже. Peer ID обязателен — скопируйте его из адресной строки (например <code>vk.ru/im/convo/123456789</code>, число в конце пути)</li>
           <li>Скопируйте скрипт и вставьте в консоль, нажмите <kbd>Enter</kbd></li>
         </ol>
         <div class="vk-fields">
-          <label>Peer ID
-            <input type="number" id="vkPeerId" value="143527706" oninput="updateVkScript()">
+          <label>Peer ID <span style="color:#999;">(обязательный)</span>
+            <input type="number" id="vkPeerId" value="123456789" oninput="updateVkScript()">
+            <span style="font-size: 0.78rem; color: #999;">Адрес страницы диалога: vk.ru/im/convo/<b>ваш_peer_id</b></span>
           </label>
           <label>From Date <span style="color:#999;">(необязательно)</span>
             <input type="text" id="vkFromDate" placeholder="yyyy-mm-dd" oninput="updateVkScript()">
