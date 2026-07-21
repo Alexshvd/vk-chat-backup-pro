@@ -34,6 +34,7 @@
   .vk-code-container pre { background: #1e1e1e; color: #d4d4d4; border-radius: 6px; padding: 14px; font-size: 0.78rem; line-height: 1.5; overflow-x: auto; margin: 0; max-height: 500px; overflow-y: auto; }
   .vk-code-container .btn-copy { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: 0.75rem; background: #555; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
   .vk-code-container .btn-copy:hover { background: #777; }
+  .vk-fields input.invalid { border-color: #e74c3c; background: #fdf2f2; }
   @media (max-width: 700px) { .vk-instruction { flex-direction: column; } }
 </style>
 </head>
@@ -64,6 +65,7 @@
               </label>
               <label>From Date <span style="color:#999;">(необязательно)</span>
                 <input type="text" id="vkFromDate" placeholder="yyyy-mm-dd" oninput="updateVkScript()">
+                <span class="vk-date-error" style="font-size: 0.78rem; color: #e74c3c; display: none;"></span>
               </label>
               <label>From Message ID <span style="color:#999;">(необязательно)</span>
                 <input type="number" id="vkFromMessageId" placeholder="необязательно" oninput="updateVkScript()">
@@ -195,13 +197,44 @@ document.getElementById('generateForm').addEventListener('submit', function(e) {
   });
 });
 
+function validateFromDate(str) {
+  var el = document.getElementById('vkFromDate');
+  var errEl = el.parentNode.querySelector('.vk-date-error');
+  if (!str) {
+    el.classList.remove('invalid');
+    errEl.style.display = 'none';
+    return true;
+  }
+  var match = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) {
+    el.classList.add('invalid');
+    errEl.textContent = 'Формат: yyyy-mm-dd';
+    errEl.style.display = '';
+    return false;
+  }
+  var y = parseInt(match[1], 10);
+  var m = parseInt(match[2], 10);
+  var d = parseInt(match[3], 10);
+  if (m < 1 || m > 12 || d < 1 || d > 31) {
+    el.classList.add('invalid');
+    errEl.textContent = 'Некорректная дата';
+    errEl.style.display = '';
+    return false;
+  }
+  el.classList.remove('invalid');
+  errEl.style.display = 'none';
+  return true;
+}
+
 function updateVkScript() {
   var peerId = document.getElementById('vkPeerId').value || '0';
   var fromDateStr = document.getElementById('vkFromDate').value.trim();
   var fromMsgIdStr = document.getElementById('vkFromMessageId').value.trim();
 
+  var fromDateValid = validateFromDate(fromDateStr);
+
   var fromDateLine;
-  if (fromDateStr) {
+  if (fromDateStr && fromDateValid) {
     var parts = fromDateStr.split('-');
     var y = parseInt(parts[0], 10);
     var m = parseInt(parts[1], 10) - 1;
