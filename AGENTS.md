@@ -39,16 +39,24 @@ Output directory structure (`EXPORT_ROOT`):
 ```
 {EXPORT_ROOT}/
 ├── ExportMessages/
-│   ├── Sources/                      # Input: one or more messages.json files
+│   ├── Sources/                              # Input: one or more messages.json files
 │   │   └── messages.json
 │   └── Dialogs/
-│       ├── AutorImages/              # Shared author avatars
+│       ├── AutorImages/                      # Shared author avatars
+│       │   └── photo_12345.jpg
 │       └── dialog_{peer_id}/
-│           ├── RawData/              # Small attachments (images, previews, stickers)
-│           ├── OriginalMessages/     # Individual message JSON files {date}_{cid}.json
-│           └── MdFiles/              # Rendered Markdown files
-└── LargeRawData/                     # Large files (videos)
-    └── dialog_{peer_id}/{cid}/
+│           ├── RawData/                      # Small attachments, grouped by CID
+│           │   └── {cid}/
+│           │       ├── 1.jpg
+│           │       └── 2.webp
+│           ├── OriginalMessages/             # Individual message JSON files {date}_{cid}.json
+│           │   └── 2026-01-15_1234.json
+│           └── MdFiles/                      # Rendered Markdown files
+│               └── Привет.Id1234.md
+└── LargeRawData/                             # Large files (videos), kept separate
+    └── dialog_{peer_id}/                     # because the rest is intended for git repo
+        └── {cid}/
+            └── 1.mp4
 ```
 
 ## Launch
@@ -114,7 +122,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### web.py
 - Flask app factory pattern: `init_app(config_path)` → `_init_paths()` → sets all path globals
 - `_build_message_date_str_by_cid(orig_dir)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
-- Routes: all existing + new export routes
+- `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)` for displaying the MD output directory
 
 | Маршрут | Метод | Описание |
 |---|---|---|
@@ -136,10 +144,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/large/<path>` | GET | Статика (LargeRawData) |
 
 ### export.html
-- **Блок 1**: Инструкция как получить messages.json
-- **Блок 2**: Путь к Sources, статус директории (создана/не создана), кнопка создания (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
-- **Блок 3**: Список `.json` файлов из `Sources/`, сгруппированных по `peer_id`, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`
-- После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог
+- **Блок 1 «Как получить messages.json»**: Пошаговая инструкция (открыть VK, открыть консоль, настроить параметры, запустить скрипт). Поля ввода `peerId` (обязательный), `fromDate` (yyyy-mm-dd, опционально), `fromMessageId` (опционально). Динамически генерируемый скрипт для консоли браузера с кнопкой копирования. Валидация даты.
+- **Блок 2 «Подключение messages.json»**: Путь к Sources, описание назначения, кнопка создания директории (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
+- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id`, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
 
 ### dialog.html & index.html
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
