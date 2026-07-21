@@ -98,9 +98,13 @@
   </div>
 
   <div class="card">
-    <h3>2. Подготовка</h3>
+    <h3>2. Подключение messages.json</h3>
+    <p style="font-size:0.85rem; color:#555; margin: 0 0 12px;">
+      Переместите скачанный JSON-файл в папку Sources — директорию для хранения сообщений, путь к которой указан в конфиге.
+      Переместить файл можно вручную или с помощью кнопки ниже.
+    </p>
     <p style="font-size:0.85rem; color:#888; margin: 4px 0 12px;">
-      {{ sources_path }}
+      Текущая директория сообщений: <code style="font-size:0.85rem;">{{ sources_path }}</code>
       {% if status == 'created' %}
         <span style="color: green; margin-left: 8px;">Директория создана</span>
       {% elif status == 'already' %}
