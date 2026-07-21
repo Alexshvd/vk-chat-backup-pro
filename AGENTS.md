@@ -131,7 +131,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/export/create-sources` | POST | Создание директории Sources |
 | `/export/upload` | POST | Загрузка файла в Sources |
 | `/export/save-filters` | POST | Сохранение фильтров min_cid/min_date в config.json |
-| `/export/generate` | POST | Потоковая генерация MD (chunked HTML) |
+| `/export/generate` | POST | Потоковая генерация MD (chunked HTML), читает `peer_ids` из формы |
 | `/dialog/<peer_id>` | GET | Список `.md` файлов |
 | `/dialog/<peer_id>/limits/<cid>` | GET | Макс. длины имён файлов |
 | `/dialog/<peer_id>/<cid>/content` | GET | HTML-рендер `.md` |
@@ -146,7 +146,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### export.html
 - **Блок 1 «Как получить messages.json»**: Пошаговая инструкция (открыть VK, открыть консоль, настроить параметры, запустить скрипт). Поля ввода `peerId` (обязательный), `fromDate` (yyyy-mm-dd, опционально), `fromMessageId` (опционально). Динамически генерируемый скрипт для консоли браузера с кнопкой копирования. Валидация даты.
 - **Блок 2 «Подключение messages.json»**: Путь к Sources, описание назначения, кнопка создания директории (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
-- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id`, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
+- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id` с чекбоксами выбора диалогов (включая «Выбрать все»), поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
 
 ### dialog.html & index.html
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
