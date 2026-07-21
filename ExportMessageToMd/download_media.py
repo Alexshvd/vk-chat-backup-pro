@@ -3,6 +3,8 @@ from pathlib import Path
 
 import requests
 
+from logger import Logger
+
 
 @dataclass
 class DownloadItem:
@@ -10,12 +12,17 @@ class DownloadItem:
     relpath: str
 
 
-def download_file(url: str, filepath: str, timeout: int = 30) -> None:
+def download_file(url: str, filepath: str, timeout: int = 30) -> bool:
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    resp = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
-    resp.raise_for_status()
-    filepath.write_bytes(resp.content)
+    try:
+        resp = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        filepath.write_bytes(resp.content)
+        return True
+    except Exception as e:
+        Logger.LogWarning(f"Ошибка скачивания {url}: {e}")
+        return False
 
 
 def download_all(queue: dict[int, list[DownloadItem]], md_dir: str) -> None:
@@ -24,6 +31,9 @@ def download_all(queue: dict[int, list[DownloadItem]], md_dir: str) -> None:
         for item in items:
             filepath = Path(md_dir) / item.relpath
             filepath.parent.mkdir(parents=True, exist_ok=True)
-            resp = requests.get(item.url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-            resp.raise_for_status()
-            filepath.write_bytes(resp.content)
+            try:
+                resp = requests.get(item.url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+                resp.raise_for_status()
+                filepath.write_bytes(resp.content)
+            except Exception as e:
+                Logger.LogWarning(f"Ошибка скачивания {item.url}: {e}")

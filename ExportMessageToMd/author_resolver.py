@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 from download_media import download_file
 from config_loader import path_rel
+from logger import Logger
 
 
 @dataclass
@@ -90,7 +91,7 @@ def ensure_author_avatars(
             continue
 
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        download_file(info.photo_url, str(filepath))
-        relpath = path_rel(str(filepath), md_dir)
-        url_to_relpath[info.photo_url] = relpath
-        info.photo_local = relpath
+        if download_file(info.photo_url, str(filepath)):
+            relpath = path_rel(str(filepath), md_dir)
+            url_to_relpath[info.photo_url] = relpath
+            info.photo_local = relpath
