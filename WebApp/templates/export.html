@@ -168,7 +168,7 @@
         <h4 style="margin: 0 0 6px; font-size: 0.95rem; color: #444;">peer_id: {{ peer_id }}</h4>
         <ul class="file-list">
           {% for f in file_list %}
-          <li><span class="file-name">{{ f.name }}</span><span class="file-size">{{ f.size_str }}</span></li>
+          <li><span class="file-name">Название файла: {{ f.name }}</span><span class="file-size">{{ f.size_str }}</span></li>
           {% endfor %}
         </ul>
         <div style="margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
