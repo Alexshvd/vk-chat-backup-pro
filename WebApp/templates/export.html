@@ -104,7 +104,7 @@
       Переместить файл можно вручную или с помощью кнопки ниже.
     </p>
     <p style="font-size:0.85rem; color:#888; margin: 4px 0 12px;">
-      Текущая директория сообщений: <code style="font-size:0.85rem;">{{ sources_path }}</code>
+      Текущая директория сообщений: {{ sources_path }}
       {% if status == 'created' %}
         <span style="color: green; margin-left: 8px;">Директория создана</span>
       {% elif status == 'already' %}
