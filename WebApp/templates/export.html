@@ -162,6 +162,7 @@
         └── {cid}/
             └── 1.mp4</code></pre>
     </details>
+    <form action="/export/generate" method="POST" id="generateForm">
     {% if files_by_peer_id %}
     <div style="margin-bottom: 12px; font-size: 0.85rem;">
       <label style="color: #555; cursor: pointer;">
@@ -193,7 +194,6 @@
     {% else %}
     <div class="empty">Нет JSON-файлов в Sources/.</div>
     {% endif %}
-    <form action="/export/generate" method="POST" id="generateForm">
       <button type="submit" class="btn-generate" id="btnGenerate" {% if not files_by_peer_id %}disabled{% endif %}>
         Сформировать MD
       </button>
