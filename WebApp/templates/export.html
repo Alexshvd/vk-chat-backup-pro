@@ -141,15 +141,26 @@
     </p>
     <details style="margin: 0 0 12px; font-size: 0.85rem; color: #666;">
       <summary style="cursor: pointer; font-weight: 500;">Структура сконвертированных файлов</summary>
-      <pre style="background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 0.78rem; margin: 8px 0 0; overflow-x: auto;"><code>Dialogs/
-├── AutorImages/                  # Аватары авторов
-└── dialog_{peer_id}/
-    ├── RawData/                  # Малые вложения (картинки, превью, стикеры)
-    ├── OriginalMessages/         # Исходные JSON-файлы сообщений
-    └── MdFiles/                  # Сконвертированные Markdown-файлы
-
-LargeRawData/                     # Большие файлы (видео) — вынесены отдельно,
-└── dialog_{peer_id}/{cid}/       # т.к. остальная часть предполагается для git-репозитория</code></pre>
+      <pre style="background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 0.78rem; margin: 8px 0 0; overflow-x: auto;"><code>{export_root}/
+├── ExportMessages/
+│   ├── Sources/                              # Исходные JSON-файлы сообщений
+│   │   └── messages.json
+│   └── Dialogs/
+│       ├── AutorImages/                      # Аватары авторов
+│       │   └── photo_12345.jpg
+│       └── dialog_{peer_id}/
+│           ├── RawData/                      # Малые вложения, сгруппированные по CID
+│           │   └── {cid}/
+│           │       ├── 1.jpg
+│           │       └── 2.webp
+│           ├── OriginalMessages/             # Исходные JSON-файлы по одному сообщению
+│           │   └── 2026-01-15_1234.json
+│           └── MdFiles/                      # Сконвертированные Markdown-файлы
+│               └── Привет.Id1234.md
+└── LargeRawData/                             # Большие файлы (видео) — вынесены отдельно,
+    └── dialog_{peer_id}/                     # т.к. остальная часть предполагается для использования в git-репозитории
+        └── {cid}/
+            └── 1.mp4</code></pre>
     </details>
     {% if files_by_peer_id %}
       {% for peer_id, file_list in files_by_peer_id.items() %}
