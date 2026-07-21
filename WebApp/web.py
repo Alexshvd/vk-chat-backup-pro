@@ -251,6 +251,7 @@ def export_page():
     return render_template("export.html", files_by_peer_id=files_by_peer_id,
                            filters=filters,
                            sources_path=str(sources_dir),
+                           dialogs_path=str(dialogs_dir_abs),
                            sources_dir_exists=sources_dir_exists, status=status)
 
 

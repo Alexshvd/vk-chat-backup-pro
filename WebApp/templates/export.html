@@ -131,6 +131,26 @@
 
   <div class="card">
     <h3>3. Экспорт в MD</h3>
+    <p style="font-size:0.85rem; color:#555; margin: 0 0 12px;">
+      Конвертирует сообщения из JSON в Markdown с сохранением текстов, изображений, видео и вложений.
+      Можно отфильтровать сообщения по
+      <abbr title="Conversation Message ID — порядковый номер сообщения в диалоге">Min CID</abbr> и Min Date.
+    </p>
+    <p style="font-size:0.85rem; color:#888; margin: 0 0 12px;">
+      Директория MD-файлов: {{ dialogs_path }}
+    </p>
+    <details style="margin: 0 0 12px; font-size: 0.85rem; color: #666;">
+      <summary style="cursor: pointer; font-weight: 500;">Структура сконвертированных файлов</summary>
+      <pre style="background: #f9f9f9; border-radius: 6px; padding: 10px; font-size: 0.78rem; margin: 8px 0 0; overflow-x: auto;"><code>Dialogs/
+├── AutorImages/                  # Аватары авторов
+└── dialog_{peer_id}/
+    ├── RawData/                  # Малые вложения (картинки, превью, стикеры)
+    ├── OriginalMessages/         # Исходные JSON-файлы сообщений
+    └── MdFiles/                  # Сконвертированные Markdown-файлы
+
+LargeRawData/                     # Большие файлы (видео) — вынесены отдельно,
+└── dialog_{peer_id}/{cid}/       # т.к. остальная часть предполагается для git-репозитория</code></pre>
+    </details>
     {% if files_by_peer_id %}
       {% for peer_id, file_list in files_by_peer_id.items() %}
       <div class="peer-group">
