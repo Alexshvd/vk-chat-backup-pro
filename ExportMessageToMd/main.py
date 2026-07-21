@@ -3,6 +3,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from config import Config
 from config_loader import load_config
@@ -22,7 +23,7 @@ def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
     return False
 
 
-def main(config: Config):
+def main(config: Config, peer_ids: Optional[set[int]] = None):
     start_create_time = datetime.now()
 
     export_root = Path(config.export_root)
@@ -58,6 +59,10 @@ def main(config: Config):
     merged = {"profiles": list(profiles.values()), "groups": list(groups.values())}
     authors = load_authors(merged)
     yield f"Найдено авторов: {len(authors)}"
+
+    if peer_ids is not None:
+        dialog_by_peer_id = {k: v for k, v in dialog_by_peer_id.items() if k in peer_ids}
+        yield f"Фильтрация по peer_id: отобрано {len(dialog_by_peer_id)} диалогов"
 
     for peer_id, items_dict in dialog_by_peer_id.items():
         items = list(items_dict.values())

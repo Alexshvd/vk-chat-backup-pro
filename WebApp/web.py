@@ -304,13 +304,15 @@ def save_filters():
 @app.route("/export/generate", methods=["POST"])
 def run_export():
     config = load_config(_config_path)
+    selected = request.form.getlist("peer_ids")
+    peer_ids = {int(p) for p in selected} if selected else None
 
     def generate():
         yield "<!DOCTYPE html>\n<html lang='ru'>\n<head>\n<meta charset='UTF-8'>\n<title>Генерация MD</title>\n<style>"
         yield "body{font-family:monospace;background:#1e1e1e;color:#d4d4d4;padding:20px;font-size:14px;line-height:1.5}"
         yield "pre{margin:0}.done{color:#4ec9b0}.err{color:#f44747}</style></head><body><pre>"
         try:
-            for msg in run_pipeline(config):
+            for msg in run_pipeline(config, peer_ids=peer_ids):
                 escaped = html.escape(msg)
                 yield escaped + "\n"
         except Exception as e:

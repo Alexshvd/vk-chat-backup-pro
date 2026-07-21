@@ -163,9 +163,17 @@
             └── 1.mp4</code></pre>
     </details>
     {% if files_by_peer_id %}
+    <div style="margin-bottom: 12px; font-size: 0.85rem;">
+      <label style="color: #555; cursor: pointer;">
+        <input type="checkbox" id="selectAll" checked onchange="toggleAll(this)"> Выбрать все
+      </label>
+    </div>
       {% for peer_id, file_list in files_by_peer_id.items() %}
       <div class="peer-group">
-        <h4 style="margin: 0 0 6px; font-size: 0.95rem; color: #444;">peer_id: {{ peer_id }}</h4>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <input type="checkbox" name="peer_ids" value="{{ peer_id }}" checked style="cursor: pointer;">
+          <h4 style="margin: 0; font-size: 0.95rem; color: #444;">peer_id: {{ peer_id }}</h4>
+        </div>
         <ul class="file-list">
           {% for f in file_list %}
           <li><span class="file-name">Название файла: {{ f.name }}</span><span class="file-size">{{ f.size_str }}</span></li>
@@ -194,6 +202,12 @@
 </div>
 
 <script>
+function toggleAll(master) {
+  document.querySelectorAll('input[name="peer_ids"]').forEach(function(cb) {
+    cb.checked = master.checked;
+  });
+}
+
 function collectFilters() {
   var filters = {};
   document.querySelectorAll('input[data-peer]').forEach(function(inp) {
