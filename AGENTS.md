@@ -23,7 +23,7 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │   ├── md_renderer.py        # render_md_item(): MdItem → Markdown (pure, no I/O)
 │   ├── export_fwd.py         # extract_items_from_data(items, output_dir)
 │   ├── author_resolver.py    # AuthorInfo + load_authors() + ensure_author_avatars()
-│   ├── download_media.py     # download_file()
+│   ├── download_media.py     # download_file() → bool, download_all() — with error handling
 │   ├── vk_client.py          # get_video_embed_urls()
 │   └── logger.py             # Logger.LogWarning()
 │
@@ -79,7 +79,7 @@ python run.py --mode web --config config.json
 
 Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos/docs immediately. Step 5 is pure rendering (no I/O).
 
-`main(config)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
+`main(config, peer_ids=None)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
 
 ## Module Details
 
@@ -99,7 +99,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - If peer_id not in dict — filter disabled for that dialog
 
 ### ExportMessageToMd/main.py
-- Generator function `main(config: Config)` — yields log messages as it processes
+- Generator function `main(config: Config, peer_ids: Optional[set[int]] = None)` — yields log messages as it processes. `peer_ids` filters which dialogs to export (None = all)
 - Used both by CLI (`run.py --mode cli`) and web (`POST /export/generate`)
 - Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
