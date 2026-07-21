@@ -11,7 +11,9 @@ sys.path.insert(0, str(root / "Config"))
 def cli(args):
     from main import main as run_pipeline
     from config_loader import load_config
-    for msg in run_pipeline(load_config(args.config)):
+    from Loggers.print_logger import PrintLogger
+    logger = PrintLogger()
+    for msg in run_pipeline(load_config(args.config), peer_ids=None, logger=logger):
         print(msg)
 
 

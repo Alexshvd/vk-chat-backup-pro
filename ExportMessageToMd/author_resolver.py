@@ -1,11 +1,10 @@
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
 from download_media import download_file
 from config_loader import path_rel
-from logger import Logger
+from Loggers.base_logger import BaseLogger
 
 
 @dataclass
@@ -71,6 +70,7 @@ def ensure_author_avatars(
     authors_dir: str,
     url_to_relpath: dict[str, str],
     md_dir: str,
+    logger: BaseLogger,
 ) -> None:
     for author_id, info in authors.items():
         if not info.photo_url:
@@ -91,7 +91,7 @@ def ensure_author_avatars(
             continue
 
         filepath.parent.mkdir(parents=True, exist_ok=True)
-        if download_file(info.photo_url, str(filepath)):
+        if download_file(info.photo_url, str(filepath), logger=logger):
             relpath = path_rel(str(filepath), md_dir)
             url_to_relpath[info.photo_url] = relpath
             info.photo_local = relpath

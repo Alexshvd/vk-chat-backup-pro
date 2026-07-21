@@ -11,6 +11,7 @@ from export_fwd import extract_items_from_data
 from md_renderer import render_md_item
 from md_item_builder import build_md_items
 from author_resolver import load_authors, ensure_author_avatars
+from Loggers.base_logger import BaseLogger
 
 
 def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
@@ -23,7 +24,7 @@ def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
     return False
 
 
-def main(config: Config, peer_ids: Optional[set[int]] = None):
+def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
     start_create_time = datetime.now()
 
     export_root = Path(config.export_root)
@@ -77,7 +78,7 @@ def main(config: Config, peer_ids: Optional[set[int]] = None):
         dialog_dir.mkdir(parents=True, exist_ok=True)
 
         url_to_relpath: dict[str, str] = {}
-        ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir))
+        ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir), logger)
 
         filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id, config)]
         n = extract_items_from_data(filtered_items, str(original_messages_dir))
@@ -93,7 +94,7 @@ def main(config: Config, peer_ids: Optional[set[int]] = None):
             md_items = build_md_items(
                 item_data, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),
-                authors, config
+                authors, config, url_to_relpath, logger,
             )
             for md_index, item in enumerate(md_items):
                 md_text = render_md_item(item)
@@ -112,8 +113,10 @@ def main(config: Config, peer_ids: Optional[set[int]] = None):
 if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Config"))
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ExportMessageToMd"))
+    from Loggers.print_logger import PrintLogger
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", "-c", required=True, help="Path to config.json")
     args = parser.parse_args()
-    for msg in main(load_config(args.config)):
+    logger = PrintLogger()
+    for msg in main(load_config(args.config), peer_ids=None, logger=logger):
         print(msg)

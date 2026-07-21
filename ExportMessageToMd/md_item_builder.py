@@ -13,7 +13,7 @@ from author_resolver import AuthorInfo
 from download_media import download_file
 from vk_client import get_video_embed_urls
 from config import Config
-from logger import Logger
+from Loggers.base_logger import BaseLogger
 from config_loader import path_rel
 
 
@@ -25,11 +25,9 @@ def build_md_items(
     large_raw_data_dir: str,
     authors: dict[int, AuthorInfo],
     config: Config,
-    url_to_relpath: Optional[Dict[str, str]] = None,
+    url_to_relpath: Dict[str, str],
+    logger: BaseLogger,
 ) -> List[MdItem]:
-    if url_to_relpath is None:
-        url_to_relpath = {}
-
     cid = fwd.get("conversation_message_id")
     if cid is None:
         return []
@@ -41,14 +39,14 @@ def build_md_items(
 
     raw_attachments = fwd.get("attachments", [])
     resolved_attachments = [
-        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
+        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config, logger)
         for a in raw_attachments
     ]
 
     resolved_forwarded = []
     for child in fwd.get("fwd_messages", []):
         resolved_forwarded.extend(
-            build_md_items(child, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)
+            build_md_items(child, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)
         )
 
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
@@ -68,13 +66,13 @@ def build_md_items(
             item.filename = _compute_filename(
                 text, resolved_attachments, json_stem, cid,
                 md_dir_abs_len, extra_suffix_len=8 if wall_text else 0,
-                text_override=wall_text,
+                text_override=wall_text, logger=logger,
             )
             if wall_text:
                 item.filename = f"Статья.{item.filename}"
         else:
             item.filename = _compute_filename(
-                text, resolved_attachments, json_stem, cid, md_dir_abs_len,
+                text, resolved_attachments, json_stem, cid, md_dir_abs_len, logger=logger,
             )
 
         return [item]
@@ -90,7 +88,7 @@ def build_md_items(
         item.filename = _compute_filename(
             text, others + [wall], json_stem, cid, md_dir_abs_len,
             extra_suffix_len=len(f"_part_{i}") + (8 if wall_text else 0),
-            text_override=wall_text,
+            text_override=wall_text, logger=logger,
         )
         base = item.filename[:-3]
         item.filename = f"{base}_part_{i}.md"
@@ -133,38 +131,40 @@ def _resolve_attachment(
     url_to_relpath: Dict[str, str],
     authors: dict[int, AuthorInfo],
     config: Config,
+    logger: BaseLogger,
 ) -> BaseAttachmentItem:
     t = att.get("type")
     if t == "photo":
-        return _resolve_photo(att.get("photo", {}), cid, little_raw_data_dir, md_dir, url_to_relpath)
+        return _resolve_photo(att.get("photo", {}), cid, little_raw_data_dir, md_dir, url_to_relpath, logger)
     if t in ("video", "short_video"):
         return _resolve_video(
             att.get("video", {}), cid, little_raw_data_dir, large_raw_data_dir, md_dir,
-            url_to_relpath, config,
+            url_to_relpath, config, logger,
             is_short=(t == "short_video"),
         )
     if t == "link":
         return _resolve_link(att.get("link", {}))
     if t in ("wall", "post"):
-        return _resolve_wall(att.get(t, {}), cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
+        return _resolve_wall(att.get(t, {}), cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config, logger)
     if t == "doc":
-        return _resolve_doc(att.get("doc", {}), cid, little_raw_data_dir, md_dir, url_to_relpath)
+        return _resolve_doc(att.get("doc", {}), cid, little_raw_data_dir, md_dir, url_to_relpath, logger)
     if t == "audio":
         return _resolve_audio(att.get("audio", {}))
     if t == "sticker":
-        return _resolve_sticker(att.get("sticker", {}), cid, little_raw_data_dir, md_dir, url_to_relpath)
+        return _resolve_sticker(att.get("sticker", {}), cid, little_raw_data_dir, md_dir, url_to_relpath, logger)
     return BaseAttachmentItem()
 
 
 def _resolve_photo(
-    photo: dict, cid: int, little_raw_data_dir: str, md_dir: str, url_to_relpath: Dict[str, str],
+    photo: dict, cid: int, little_raw_data_dir: str, md_dir: str,
+    url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> PhotoAttachment:
     sizes = photo.get("sizes", [])
     if not sizes:
         return PhotoAttachment(original_url="")
     biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
     url = biggest.get("url", "")
-    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath) if url else ""
+    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath, logger) if url else ""
     return PhotoAttachment(original_url=url, local_path=local_path)
 
 
@@ -173,6 +173,7 @@ def _resolve_video(
     little_raw_data_dir: str, large_raw_data_dir: str, md_dir: str,
     url_to_relpath: Dict[str, str],
     config: Config,
+    logger: BaseLogger,
     is_short: bool,
 ) -> VideoAttachment:
     title = video.get("title", "")
@@ -192,7 +193,7 @@ def _resolve_video(
         )
 
     preview_local = (
-        _download_to_raw(preview_url, cid, little_raw_data_dir, md_dir, url_to_relpath)
+        _download_to_raw(preview_url, cid, little_raw_data_dir, md_dir, url_to_relpath, logger)
         if preview_url else ""
     )
 
@@ -200,10 +201,10 @@ def _resolve_video(
 
     if owner_id and video_id:
         try:
-            embed_files = get_video_embed_urls(owner_id, video_id)
+            embed_files = get_video_embed_urls(owner_id, video_id, logger)
             mp4_url = _get_best_video_url(embed_files)
         except Exception as ex:
-            Logger.LogWarning("Ошибка загрузки видео", ex)
+            logger.LogWarning("Ошибка загрузки видео", ex)
 
     if not mp4_url:
         mp4_url = _get_best_video_url(files)
@@ -215,10 +216,10 @@ def _resolve_video(
         else:
             try:
                 mp4_local = _download_to_raw(
-                    mp4_url, cid, large_raw_data_dir, md_dir, url_to_relpath, force_ext="mp4"
+                    mp4_url, cid, large_raw_data_dir, md_dir, url_to_relpath, logger, force_ext="mp4"
                 )
             except Exception as ex:
-                Logger.LogWarning("Ошибка скачивания видео", ex)
+                logger.LogWarning("Ошибка скачивания видео", ex)
                 mp4_local = ""
 
     return VideoAttachment(
@@ -242,10 +243,10 @@ def _resolve_link(link: dict) -> LinkAttachment:
 
 def _resolve_doc(
     doc: dict, cid: int, little_raw_data_dir: str, md_dir: str,
-    url_to_relpath: Dict[str, str],
+    url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> DocAttachment:
     url = doc.get("url", "")
-    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath) if url else ""
+    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath, logger) if url else ""
     return DocAttachment(
         url=url,
         title=doc.get("title", "документ"),
@@ -261,11 +262,12 @@ def _resolve_audio(audio: dict) -> AudioAttachment:
 
 
 def _resolve_sticker(
-    sticker: dict, cid: int, little_raw_data_dir: str, md_dir: str, url_to_relpath: Dict[str, str],
+    sticker: dict, cid: int, little_raw_data_dir: str, md_dir: str,
+    url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> StickerAttachment:
     imgs = sticker.get("images", [])
     url = imgs[-1].get("url", "") if imgs else ""
-    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath) if url else ""
+    local_path = _download_to_raw(url, cid, little_raw_data_dir, md_dir, url_to_relpath, logger) if url else ""
     return StickerAttachment(original_url=url, local_path=local_path)
 
 
@@ -275,10 +277,11 @@ def _resolve_wall(
     url_to_relpath: Dict[str, str],
     authors: dict[int, AuthorInfo],
     config: Config,
+    logger: BaseLogger,
 ) -> WallAttachment:
     owner_id = data.get("owner_id")
     children = [
-        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config)
+        _resolve_attachment(a, cid, md_dir, little_raw_data_dir, large_raw_data_dir, url_to_relpath, authors, config, logger)
         for a in data.get("attachments", [])
     ]
     author = authors.get(owner_id) if owner_id is not None else None
@@ -293,7 +296,8 @@ def _resolve_wall(
 
 def _download_to_raw(
     url: str, cid: int, storage_dir: str,
-    md_dir: str, url_to_relpath: Dict[str, str], force_ext: str = "",
+    md_dir: str, url_to_relpath: Dict[str, str], logger: BaseLogger,
+    force_ext: str = "",
 ) -> str:
     if url in url_to_relpath:
         return url_to_relpath[url]
@@ -307,7 +311,7 @@ def _download_to_raw(
         n += 1
 
     filepath = raw_dir / f"{n}.{ext}"
-    download_file(url, str(filepath))
+    download_file(url, str(filepath), logger=logger)
     relpath = path_rel(str(filepath), md_dir)
     url_to_relpath[url] = relpath
     return relpath
@@ -356,6 +360,7 @@ def _compute_filename(
     json_stem: str,
     cid: int,
     md_dir_abs_len: int,
+    logger: BaseLogger,
     extra_suffix_len: int = 0,
     text_override: str = "",
 ) -> str:
@@ -379,7 +384,7 @@ def _compute_filename(
     name = _clean_filename(name)
     full_len = md_dir_abs_len + 1 + len(name)
     if full_len > 254:
-        Logger.LogWarning(f"Путь к MD-файлу превышает 254 символа ({full_len} символов): {name}")
+        logger.LogWarning(f"Путь к MD-файлу превышает 254 символа ({full_len} символов): {name}")
     return name
 
 

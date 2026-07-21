@@ -11,7 +11,8 @@ from flask import Flask, Response, abort, jsonify, redirect, render_template, re
 from mistune import HTMLRenderer, create_markdown
 
 from config_loader import load_config
-from logger import Logger
+from Loggers.print_logger import PrintLogger
+from Loggers.buffer_logger import BufferLogger
 from main import main as run_pipeline
 
 CID_PATTERN = re.compile(r"\.Id(\d+)(?:_part_\d+)?\.md$")
@@ -137,7 +138,7 @@ def _get_date_from_json(orig_dir: Path, cid: int) -> str:
     return ""
 
 
-def _build_message_date_str_by_cid(orig_dir: Path) -> dict[int, str]:
+def _build_message_date_str_by_cid(orig_dir: Path, logger: "BaseLogger") -> dict[int, str]:
     result: dict[int, str] = {}
     if not orig_dir.is_dir():
         return result
@@ -150,7 +151,7 @@ def _build_message_date_str_by_cid(orig_dir: Path) -> dict[int, str]:
             parts = date_part.split("-")
             result[cid_val] = f"{parts[0]}-{parts[1]}-{parts[2]} {parts[3]}:{parts[4]}:{parts[5]}"
         except (ValueError, IndexError):
-            Logger.LogWarning(f"Не удалось распарсить имя файла JSON: {name}")
+            logger.LogWarning(f"Не удалось распарсить имя файла JSON: {name}")
     return result
 
 
@@ -308,13 +309,17 @@ def run_export():
     peer_ids = {int(p) for p in selected} if selected else None
 
     def generate():
+        buf_logger = BufferLogger()
         yield "<!DOCTYPE html>\n<html lang='ru'>\n<head>\n<meta charset='UTF-8'>\n<title>Генерация MD</title>\n<style>"
         yield "body{font-family:monospace;background:#1e1e1e;color:#d4d4d4;padding:20px;font-size:14px;line-height:1.5}"
         yield "pre{margin:0}.done{color:#4ec9b0}.err{color:#f44747}</style></head><body><pre>"
         try:
-            for msg in run_pipeline(config, peer_ids=peer_ids):
-                escaped = html.escape(msg)
-                yield escaped + "\n"
+            for msg in run_pipeline(config, peer_ids, logger=buf_logger):
+                for w in buf_logger.ConsumeMessages():
+                    yield f'<span style="color:#cca700">{html.escape(w)}</span>\n'
+                yield html.escape(msg) + "\n"
+            for w in buf_logger.ConsumeMessages():
+                yield f'<span style="color:#cca700">{html.escape(w)}</span>\n'
         except Exception as e:
             yield f'<span class="err">{html.escape(str(e))}</span>\n'
         yield '</pre><p class="done"><a href="/export" style="color:#4ec9b0">← Назад к экспорту</a></p></body></html>'
@@ -367,7 +372,7 @@ def dialog_messages(peer_id: int):
     md_dir = dialog_dir / "MdFiles"
     raw_dir = dialog_dir / "RawData"
     orig_dir = dialog_dir / "OriginalMessages"
-    message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir)
+    message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
     messages = []
     if md_dir.is_dir():
         for f in md_dir.iterdir():

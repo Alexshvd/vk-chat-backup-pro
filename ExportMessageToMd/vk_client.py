@@ -4,10 +4,10 @@ from typing import Dict
 
 import requests
 
-from logger import Logger
+from Loggers.base_logger import BaseLogger
 
 
-def _parse_video_embed(text: str) -> Dict[str, str]:
+def _parse_video_embed(text: str, logger: BaseLogger) -> Dict[str, str]:
     idx = text.find('"apiPrefetchCache"')
     if idx >= 0:
         files_pos = text.find('"files"', idx)
@@ -41,7 +41,7 @@ def _parse_video_embed(text: str) -> Dict[str, str]:
                                     if result:
                                         return result
                                 except json.JSONDecodeError as ex:
-                                    Logger.LogWarning("Ошибка парсинга apiPrefetchCache", ex)
+                                    logger.LogWarning("Ошибка парсинга apiPrefetchCache", ex)
                                 break
 
     m = re.search(r'"files":\{(.+?)\}', text, re.DOTALL)
@@ -52,12 +52,12 @@ def _parse_video_embed(text: str) -> Dict[str, str]:
             files = json.loads(raw)
             return {k: v for k, v in files.items() if k.startswith("mp4_")}
         except json.JSONDecodeError as ex:
-            Logger.LogWarning("Ошибка парсинга regex fallback", ex)
+            logger.LogWarning("Ошибка парсинга regex fallback", ex)
 
     return {}
 
 
-def get_video_embed_urls(owner_id: int, video_id: int) -> Dict[str, str]:
+def get_video_embed_urls(owner_id: int, video_id: int, logger: BaseLogger) -> Dict[str, str]:
     resp = requests.get(
         "https://vk.com/video_ext.php",
         params={"oid": owner_id, "id": video_id},
@@ -65,4 +65,4 @@ def get_video_embed_urls(owner_id: int, video_id: int) -> Dict[str, str]:
         headers={"User-Agent": "Mozilla/5.0"},
     )
     resp.raise_for_status()
-    return _parse_video_embed(resp.text)
+    return _parse_video_embed(resp.text, logger)

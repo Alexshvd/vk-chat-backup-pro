@@ -25,7 +25,12 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │   ├── author_resolver.py    # AuthorInfo + load_authors() + ensure_author_avatars()
 │   ├── download_media.py     # download_file() → bool, download_all() — with error handling
 │   ├── vk_client.py          # get_video_embed_urls()
-│   └── logger.py             # Logger.LogWarning()
+│   └── Loggers/
+│       ├── __init__.py       # Export all logger classes
+│       ├── base_logger.py    # BaseLogger — ABC with LogWarning()
+│       ├── print_logger.py   # PrintLogger — prints to console
+│       ├── buffer_logger.py  # BufferLogger — accumulates logs, ConsumeMessages()
+│       └── aggregation_logger.py  # AggregationLogger — delegates to multiple loggers
 │
 └── WebApp/
     ├── web.py                # Flask app: просмотр, удаление, переименование, экспорт
@@ -99,12 +104,12 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - If peer_id not in dict — filter disabled for that dialog
 
 ### ExportMessageToMd/main.py
-- Generator function `main(config: Config, peer_ids: Optional[set[int]] = None)` — yields log messages as it processes. `peer_ids` filters which dialogs to export (None = all)
+- Generator function `main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger)` — yields log messages as it processes. `peer_ids` filters which dialogs to export (None = all). `logger` receives warnings during execution.
 - Used both by CLI (`run.py --mode cli`) and web (`POST /export/generate`)
 - Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
 ### ExportMessageToMd/md_item_builder.py
-- `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately.
+- `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately.
 - **Filename rules**:
   - With text: `{first_sentence}.Id{cid}.md`
   - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
@@ -121,7 +126,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 ### web.py
 - Flask app factory pattern: `init_app(config_path)` → `_init_paths()` → sets all path globals
-- `_build_message_date_str_by_cid(orig_dir)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
+- `_build_message_date_str_by_cid(orig_dir, logger)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
 - `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)` for displaying the MD output directory
 
 | Маршрут | Метод | Описание |
@@ -175,3 +180,14 @@ Two per-dialog filters in `config.json`:
 Applied in two places:
 1. Before `extract_items_from_data()` — filtered items don't get JSON files
 2. When iterating `OriginalMessages/` — existing filtered files are skipped (defense against pre-filter leftovers)
+
+## Logging
+
+All logging goes through `BaseLogger` interface with 3 implementations:
+- `PrintLogger` — prints to console (CLI mode)
+- `BufferLogger` — accumulates warnings, `ConsumeMessages()` drains them (web streaming)
+- `AggregationLogger` — delegates to multiple loggers
+
+Logger instance is passed as required parameter to all functions that may emit warnings: `main()`, `build_md_items()`, `download_file()`, `get_video_embed_urls()`, `ensure_author_avatars()`, etc.
+
+In web export (`/export/generate`), `BufferLogger` is used and drained after each pipeline yield, displaying warnings in yellow (`#cca700`) among the white log text.
