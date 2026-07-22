@@ -111,10 +111,13 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
             if _is_msg_filtered(item_data, peer_id, config):
                 continue
             cid = item_data.get("conversation_message_id")
+            is_overwrite = False
             if cid in existing_md_by_cid:
                 if not config.overwrite_existing_md:
+                    yield f"  Уже существует ({message_index + 1}/{len(message_files)} id={cid}): \"{existing_md_by_cid[cid]}\""
                     continue
                 (md_dir / existing_md_by_cid[cid]).unlink(missing_ok=True)
+                is_overwrite = True
             shutil.rmtree(little_raw_data_dir / str(cid), ignore_errors=True)
             shutil.rmtree(large_raw_data_dir / str(cid), ignore_errors=True)
             md_items = build_md_items(
@@ -128,7 +131,8 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file_path, "w", encoding="utf-8") as fp:
                     fp.write(md_text)
-                yield f"  Создан {message_index + 1}/{len(message_files)} id={item.cid} (part {md_index + 1}/{len(md_items)}): \"{item.filename}\""
+                action = "Перезаписан" if is_overwrite else "Создан"
+                yield f"  {action} {message_index + 1}/{len(message_files)} id={item.cid} (part {md_index + 1}/{len(md_items)}): \"{item.filename}\""
                 count += 1
 
         yield f"  Создано MD-файлов: {count}"
