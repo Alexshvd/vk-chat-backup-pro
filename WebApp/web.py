@@ -269,6 +269,7 @@ def export_page():
     status = request.args.get("status")
     return render_template("export.html", files_by_peer_id=files_by_peer_id,
                            filters=filters, orig_counts=orig_counts,
+                           overwrite_existing_md=config.overwrite_existing_md,
                            sources_path=str(sources_dir),
                            dialogs_path=str(dialogs_dir_abs),
                            sources_dir_exists=sources_dir_exists, status=status)
@@ -305,6 +306,7 @@ def save_filters():
 
     raw["min_cid_by_peer_id"] = {}
     raw["min_date_by_peer_id"] = {}
+    raw["overwrite_existing_md"] = filters.pop("_overwrite_existing_md", False)
 
     for peer_id_str, item in filters.items():
         cid = item.get("min_cid", "")
