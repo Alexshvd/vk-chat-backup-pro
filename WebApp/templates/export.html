@@ -189,6 +189,11 @@
           {% else %}
             <span style="color: #999;">Сообщения ещё не извлечены</span>
           {% endif %}
+          {% if max_cid_by_peer_id.get(peer_id, 0) > 0 %}
+            <div style="margin-top: 4px;">
+              Максимальный конвертированный CID: <b>{{ max_cid_by_peer_id[peer_id] }}</b>
+            </div>
+          {% endif %}
         </div>
         <div style="margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
           <label style="font-size: 0.85rem; color: #666;">Min CID:

@@ -249,12 +249,24 @@ def export_page():
                         files_by_peer_id[pid] = []
 
     orig_counts = {}
+    max_cid_by_peer_id = {}
     if dialogs_dir_abs.is_dir():
         for entry in dialogs_dir_abs.iterdir():
             if entry.is_dir() and entry.name.startswith("dialog_"):
                 pid = int(entry.name[len("dialog_"):])
                 orig_dir = entry / "OriginalMessages"
                 orig_counts[pid] = len(list(orig_dir.glob("*.json"))) if orig_dir.is_dir() else 0
+                md_dir = entry / "MdFiles"
+                max_cid = 0
+                if md_dir.is_dir():
+                    for f in md_dir.iterdir():
+                        if f.is_file() and f.name.endswith(".md"):
+                            m = CID_PATTERN.search(f.name)
+                            if m:
+                                cid_val = int(m.group(1))
+                                if cid_val > max_cid:
+                                    max_cid = cid_val
+                max_cid_by_peer_id[pid] = max_cid
 
     config = load_config(_config_path)
     filters = {}
@@ -269,6 +281,7 @@ def export_page():
     status = request.args.get("status")
     return render_template("export.html", files_by_peer_id=files_by_peer_id,
                            filters=filters, orig_counts=orig_counts,
+                           max_cid_by_peer_id=max_cid_by_peer_id,
                            overwrite_existing_md=config.overwrite_existing_md,
                            sources_path=str(sources_dir),
                            dialogs_path=str(dialogs_dir_abs),
