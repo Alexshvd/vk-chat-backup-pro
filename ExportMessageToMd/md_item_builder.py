@@ -253,12 +253,10 @@ def _resolve_doc(
     url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> DocAttachment:
     url = doc.get("url", "")
-    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger, force_ext=doc.get("ext", "")) if url else ""
-    return DocAttachment(
-        url=url,
-        title=doc.get("title", "документ"),
-        local_path=local_path,
-    )
+    title = doc.get("title", "документ")
+    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger,
+                                   force_ext=doc.get("ext", ""), force_name=title) if url else ""
+    return DocAttachment(url=url, title=title, local_path=local_path)
 
 
 def _resolve_audio(audio: dict) -> AudioAttachment:
@@ -303,7 +301,7 @@ def _resolve_wall(
 def _download_to_raw(
     url: str, target_dir: str,
     md_dir: str, url_to_relpath: Dict[str, str], logger: BaseLogger,
-    force_ext: str = "",
+    force_ext: str = "", force_name: str = "",
 ) -> str:
     if url in url_to_relpath:
         return url_to_relpath[url]
@@ -312,11 +310,26 @@ def _download_to_raw(
     raw_dir = Path(target_dir)
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    n = 1
-    while (raw_dir / f"{n}.{ext}").exists():
-        n += 1
+    if force_name:
+        name = _clean_filename(force_name)
+        if name == "message.md":
+            name = "документ"
+        if not Path(name).suffix:
+            name = f"{name}.{ext}"
+        filepath = raw_dir / name
+        if filepath.exists():
+            stem = filepath.stem
+            suffix = filepath.suffix
+            n = 1
+            while (raw_dir / f"{stem}_{n}{suffix}").exists():
+                n += 1
+            filepath = raw_dir / f"{stem}_{n}{suffix}"
+    else:
+        n = 1
+        while (raw_dir / f"{n}.{ext}").exists():
+            n += 1
+        filepath = raw_dir / f"{n}.{ext}"
 
-    filepath = raw_dir / f"{n}.{ext}"
     success = download_file(url, str(filepath), logger=logger)
     if not success:
         return ""
