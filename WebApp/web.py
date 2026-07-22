@@ -195,11 +195,11 @@ def _list_attachments(peer_id: int, cid: int) -> dict:
 
     files = {"raw": [], "large": []}
     if raw_dir.is_dir():
-        for f in sorted(raw_dir.iterdir()):
+        for f in sorted(raw_dir.rglob("*")):
             if f.is_file():
                 files["raw"].append({"name": f.name, "size": f.stat().st_size, "path": str(f)})
     if large_dir.is_dir():
-        for f in sorted(large_dir.iterdir()):
+        for f in sorted(large_dir.rglob("*")):
             if f.is_file():
                 files["large"].append({"name": f.name, "size": f.stat().st_size, "path": str(f)})
     return files
@@ -538,10 +538,11 @@ def rename_attachment(peer_id: int, cid: int):
     if len(new_name) > max_len:
         return jsonify({"success": False, "error": f"Filename too long (max {max_len} chars)"}), 400
 
-    old_path = file_dir / old_name
-    new_path = file_dir / new_name
-    if not old_path.is_file():
+    matches = list(file_dir.rglob(old_name))
+    if not matches or not matches[0].is_file():
         return jsonify({"success": False, "error": f"File not found: {old_name}"}), 404
+    old_path = matches[0]
+    new_path = old_path.parent / new_name
     if new_path.exists():
         return jsonify({"success": False, "error": f"File {new_name} already exists"}), 409
 

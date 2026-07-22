@@ -114,6 +114,8 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
             if _is_msg_filtered(item_data, peer_id, config):
                 continue
             cid = item_data.get("conversation_message_id")
+            if cid is None:
+                continue
             is_overwrite = False
             if cid in existing_md_by_cid:
                 if not config.overwrite_existing_md:
@@ -124,7 +126,7 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
             shutil.rmtree(little_raw_data_dir / str(cid), ignore_errors=True)
             shutil.rmtree(large_raw_data_dir / str(cid), ignore_errors=True)
             md_items = build_md_items(
-                item_data, message_file.name, str(md_dir),
+                item_data, cid, cid, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),
                 authors, config, url_to_relpath, logger,
             )
