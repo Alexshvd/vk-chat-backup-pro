@@ -13,6 +13,7 @@ from mistune import HTMLRenderer, create_markdown
 from config_loader import load_config
 from Loggers.print_logger import PrintLogger
 from Loggers.buffer_logger import BufferLogger
+from Loggers.aggregation_logger import AggregationLogger
 from main import main as run_pipeline
 
 CID_PATTERN = re.compile(r"\.Id(\d+)(?:_part_\d+)?\.md$")
@@ -310,17 +311,20 @@ def run_export():
 
     def generate():
         buf_logger = BufferLogger()
+        aggregation_logger = AggregationLogger([buf_logger, PrintLogger()])
         yield "<!DOCTYPE html>\n<html lang='ru'>\n<head>\n<meta charset='UTF-8'>\n<title>Генерация MD</title>\n<style>"
         yield "body{font-family:monospace;background:#1e1e1e;color:#d4d4d4;padding:20px;font-size:14px;line-height:1.5}"
         yield "pre{margin:0}.done{color:#4ec9b0}.err{color:#f44747}</style></head><body><pre>"
         try:
-            for msg in run_pipeline(config, peer_ids, logger=buf_logger):
+            for msg in run_pipeline(config, peer_ids, logger=aggregation_logger):
+                yield html.escape(msg) + "\n"
                 for w in buf_logger.ConsumeMessages():
                     yield f'<span style="color:#cca700">{html.escape(w)}</span>\n'
-                yield html.escape(msg) + "\n"
             for w in buf_logger.ConsumeMessages():
                 yield f'<span style="color:#cca700">{html.escape(w)}</span>\n'
         except Exception as e:
+            for w in buf_logger.ConsumeMessages():
+                yield f'<span style="color:#cca700">{html.escape(w)}</span>\n'
             yield f'<span class="err">{html.escape(str(e))}</span>\n'
         yield '</pre><p class="done"><a href="/export" style="color:#4ec9b0">← Назад к экспорту</a></p></body></html>'
 
