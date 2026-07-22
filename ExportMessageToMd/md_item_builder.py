@@ -253,7 +253,7 @@ def _resolve_doc(
     url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> DocAttachment:
     url = doc.get("url", "")
-    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger) if url else ""
+    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger, force_ext=doc.get("ext", "")) if url else ""
     return DocAttachment(
         url=url,
         title=doc.get("title", "документ"),
@@ -317,7 +317,9 @@ def _download_to_raw(
         n += 1
 
     filepath = raw_dir / f"{n}.{ext}"
-    download_file(url, str(filepath), logger=logger)
+    success = download_file(url, str(filepath), logger=logger)
+    if not success:
+        return ""
     relpath = path_rel(str(filepath), md_dir)
     url_to_relpath[url] = relpath
     return relpath
