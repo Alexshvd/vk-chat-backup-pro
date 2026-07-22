@@ -1,5 +1,7 @@
 import argparse
 import json
+import re
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -95,11 +97,26 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
 
         count = 0
         message_files = sorted(Path(original_messages_dir).glob("*.json"))
+
+        existing_md_by_cid: dict[int, str] = {}
+        if md_dir.is_dir():
+            for md_file in md_dir.glob("*.Id*.md"):
+                m = re.search(r'\.Id(\d+)\.md$', md_file.name)
+                if m:
+                    existing_md_by_cid[int(m.group(1))] = md_file.name
+
         for message_index, message_file in enumerate(message_files):
             with open(message_file, encoding="utf-8") as fp:
                 item_data = json.load(fp)
             if _is_msg_filtered(item_data, peer_id, config):
                 continue
+            cid = item_data.get("conversation_message_id")
+            if cid in existing_md_by_cid:
+                if not config.overwrite_existing_md:
+                    continue
+                (md_dir / existing_md_by_cid[cid]).unlink(missing_ok=True)
+            shutil.rmtree(little_raw_data_dir / str(cid), ignore_errors=True)
+            shutil.rmtree(large_raw_data_dir / str(cid), ignore_errors=True)
             md_items = build_md_items(
                 item_data, message_file.name, str(md_dir),
                 str(little_raw_data_dir), str(large_raw_data_dir),

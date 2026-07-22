@@ -32,6 +32,7 @@ def load_config(path: str) -> Config:
         download_short_video=raw.get("download_short_video", True),
         download_long_video=raw.get("download_long_video", False),
         long_video_threshold=raw.get("long_video_threshold", 180),
+        overwrite_existing_md=raw.get("overwrite_existing_md", False),
         min_cid_by_peer_id=min_cid,
         min_date_by_peer_id=min_date,
     )

@@ -89,7 +89,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ## Module Details
 
 ### Config/config.py
-- `Config` dataclass with fields: `export_root`, `download_short_video`, `download_long_video`, `long_video_threshold`, `min_cid_by_peer_id`, `min_date_by_peer_id`
+- `Config` dataclass with fields: `export_root`, `download_short_video`, `download_long_video`, `long_video_threshold`, `overwrite_existing_md`, `min_cid_by_peer_id`, `min_date_by_peer_id`
 - Pure data container, no logic
 
 ### Config/config_loader.py
@@ -99,6 +99,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### config.json (user-provided, not tracked in git)
 - `export_root` — path to export root (default: `{parent_dir}/Temp/ExportMessages`)
 - `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
+- `overwrite_existing_md` — if `true`, re-converts messages with existing MD files (deletes old MD + RawData + LargeRawData first); if `false` (default), skips already converted messages
 - `min_cid_by_peer_id` — per-dialog filter: `{peer_id: min_cid}` (messages with cid <= min_cid are skipped)
 - `min_date_by_peer_id` — per-dialog filter: `{peer_id: "yyyy-mm-dd-hh-mm-ss"}` (messages with date <= filter are skipped)
 - If peer_id not in dict — filter disabled for that dialog
