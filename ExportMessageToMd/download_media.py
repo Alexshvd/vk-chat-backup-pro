@@ -12,7 +12,7 @@ class DownloadItem:
     relpath: str
 
 
-def download_file(url: str, filepath: str, timeout: int, logger: BaseLogger) -> bool:
+def download_file(url: str, filepath: str, logger: BaseLogger, timeout: int = 30) -> bool:
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
     try:
