@@ -76,7 +76,7 @@ python run.py --mode web --config config.json
 
 ## Data Flow
 
-1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups
+1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups. Also scans `Dialogs/` for peer_ids not in Sources but with existing `OriginalMessages/*.json`.
 2. **main.py** → `load_authors(merged_data)` → `dict[int, AuthorInfo]`
 3. **main.py** → per dialog: `extract_items_from_data(filtered_items)` → `{date}_{cid}.json`
 4. **main.py** → per dialog: `build_md_items(json, config, ...)` → `list[MdItem]` with resolved attachments and downloaded files
@@ -84,7 +84,7 @@ python run.py --mode web --config config.json
 
 Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos/docs immediately. Step 5 is pure rendering (no I/O).
 
-`main(config, peer_ids=None)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
+`main(config, peer_ids, logger)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
 
 ## Module Details
 
@@ -127,12 +127,12 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### web.py
 - Flask app factory pattern: `init_app(config_path)` → `_init_paths()` → sets all path globals
 - `_build_message_date_str_by_cid(orig_dir, logger)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
-- `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)` for displaying the MD output directory
+- `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)`, `orig_counts=dict` (count of OriginalMessages per peer_id) for displaying the MD output directory
 
 | Маршрут | Метод | Описание |
 |---|---|---|
 | `/` | GET | Список диалогов |
-| `/export` | GET | Страница экспорта (список Sources по peer_id, фильтры, кнопка генерации) |
+| `/export` | GET | Страница экспорта (список Sources по peer_id + диалоги с OriginalMessages без Sources, фильтры, кнопка генерации) |
 | `/export/create-sources` | POST | Создание директории Sources |
 | `/export/upload` | POST | Загрузка файла в Sources |
 | `/export/save-filters` | POST | Сохранение фильтров min_cid/min_date в config.json |
@@ -151,7 +151,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### export.html
 - **Блок 1 «Как получить messages.json»**: Пошаговая инструкция (открыть VK, открыть консоль, настроить параметры, запустить скрипт). Поля ввода `peerId` (обязательный), `fromDate` (yyyy-mm-dd, опционально), `fromMessageId` (опционально). Динамически генерируемый скрипт для консоли браузера с кнопкой копирования. Валидация даты.
 - **Блок 2 «Подключение messages.json»**: Путь к Sources, описание назначения, кнопка создания директории (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
-- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id` с чекбоксами выбора диалогов (включая «Выбрать все»), поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
+- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id`, а также диалоги с уже извлечёнными OriginalMessages (без исходных файлов в Sources), с чекбоксами выбора диалогов, количеством извлечённых сообщений для каждого peer_id, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
 
 ### dialog.html & index.html
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
