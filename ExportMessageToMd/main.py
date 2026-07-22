@@ -92,8 +92,11 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir), logger)
 
         filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id, config)]
-        n = extract_items_from_data(filtered_items, str(original_messages_dir))
-        yield f"  Сохранено сообщений: {n}"
+        created, overwritten, skipped = extract_items_from_data(
+            filtered_items, str(original_messages_dir),
+            overwrite_existing_original_message_json=config.overwrite_existing_original_message_json,
+        )
+        yield f"  Сообщений: {created} создано, {overwritten} перезаписано, {skipped} пропущено"
 
         count = 0
         message_files = sorted(Path(original_messages_dir).glob("*.json"))

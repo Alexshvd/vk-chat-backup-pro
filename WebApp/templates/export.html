@@ -211,7 +211,11 @@
     {% endif %}
       <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 0.85rem; color: #555; cursor: pointer;">
         <input type="checkbox" id="overwriteExistingMd" {% if overwrite_existing_md %}checked{% endif %}>
-        Перезаписать существующие файлы
+        Перезаписать существующие MD-файлы
+      </label>
+      <label style="display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font-size: 0.85rem; color: #555; cursor: pointer;">
+        <input type="checkbox" id="overwriteExistingOriginalMessageJson" {% if overwrite_existing_original_message_json %}checked{% endif %}>
+        Перезаписать существующие JSON-файлы сообщений
       </label>
       <button type="submit" class="btn-generate" id="btnGenerate" {% if not files_by_peer_id %}disabled{% endif %}>
         Сформировать MD
@@ -236,6 +240,7 @@ function collectFilters() {
     filters[pid][field] = inp.value;
   });
   filters["_overwrite_existing_md"] = document.getElementById('overwriteExistingMd').checked;
+  filters["_overwrite_existing_original_message_json"] = document.getElementById('overwriteExistingOriginalMessageJson').checked;
   return filters;
 }
 

@@ -24,21 +24,27 @@ def extract_forwarded(messages_json_path: str, output_dir: str) -> int:
     return count
 
 
-def extract_items_from_data(items: list, output_dir: str) -> int:
+def extract_items_from_data(items: list, output_dir: str, overwrite_existing_original_message_json: bool = False):
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    count = 0
+    created = overwritten = skipped = 0
     for msg in items:
         ts = msg.get("date")
         cid = msg.get("conversation_message_id")
         name = f"{_fmt_date(ts)}_{cid}.json"
         file_path = out / name
+        if file_path.exists():
+            if not overwrite_existing_original_message_json:
+                skipped += 1
+                continue
+            overwritten += 1
+        else:
+            created += 1
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(msg, f, ensure_ascii=False, indent=2)
-        count += 1
 
-    return count
+    return created, overwritten, skipped
 
 
 def _fmt_date(ts: int) -> str:

@@ -283,6 +283,7 @@ def export_page():
                            filters=filters, orig_counts=orig_counts,
                            max_cid_by_peer_id=max_cid_by_peer_id,
                            overwrite_existing_md=config.overwrite_existing_md,
+                           overwrite_existing_original_message_json=config.overwrite_existing_original_message_json,
                            sources_path=str(sources_dir),
                            dialogs_path=str(dialogs_dir_abs),
                            sources_dir_exists=sources_dir_exists, status=status)
@@ -320,6 +321,7 @@ def save_filters():
     raw["min_cid_by_peer_id"] = {}
     raw["min_date_by_peer_id"] = {}
     raw["overwrite_existing_md"] = filters.pop("_overwrite_existing_md", False)
+    raw["overwrite_existing_original_message_json"] = filters.pop("_overwrite_existing_original_message_json", False)
 
     for peer_id_str, item in filters.items():
         cid = item.get("min_cid", "")
