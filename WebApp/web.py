@@ -239,6 +239,23 @@ def export_page():
                     "size_str": _format_size(f.stat().st_size),
                 })
 
+    if dialogs_dir_abs.is_dir():
+        for entry in dialogs_dir_abs.iterdir():
+            if entry.is_dir() and entry.name.startswith("dialog_"):
+                pid = int(entry.name[len("dialog_"):])
+                if pid not in files_by_peer_id:
+                    orig_dir = entry / "OriginalMessages"
+                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
+                        files_by_peer_id[pid] = []
+
+    orig_counts = {}
+    if dialogs_dir_abs.is_dir():
+        for entry in dialogs_dir_abs.iterdir():
+            if entry.is_dir() and entry.name.startswith("dialog_"):
+                pid = int(entry.name[len("dialog_"):])
+                orig_dir = entry / "OriginalMessages"
+                orig_counts[pid] = len(list(orig_dir.glob("*.json"))) if orig_dir.is_dir() else 0
+
     config = load_config(_config_path)
     filters = {}
     for peer_id in files_by_peer_id:
@@ -251,7 +268,7 @@ def export_page():
 
     status = request.args.get("status")
     return render_template("export.html", files_by_peer_id=files_by_peer_id,
-                           filters=filters,
+                           filters=filters, orig_counts=orig_counts,
                            sources_path=str(sources_dir),
                            dialogs_path=str(dialogs_dir_abs),
                            sources_dir_exists=sources_dir_exists, status=status)

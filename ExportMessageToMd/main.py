@@ -57,6 +57,15 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         for g in data.get("groups", []):
             groups.setdefault(g["id"], g)
 
+    if dialogs_dir.is_dir():
+        for entry in dialogs_dir.iterdir():
+            if entry.is_dir() and entry.name.startswith("dialog_"):
+                pid = int(entry.name[len("dialog_"):])
+                if pid not in dialog_by_peer_id:
+                    orig_dir = entry / "OriginalMessages"
+                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
+                        dialog_by_peer_id[pid] = {}
+
     merged = {"profiles": list(profiles.values()), "groups": list(groups.values())}
     authors = load_authors(merged)
     yield f"Найдено авторов: {len(authors)}"
