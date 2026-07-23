@@ -75,6 +75,7 @@ def _build_md_message_lines(item: MdItem, tag: str, level: int) -> list:
 
             for att in attachments:
                 lines.extend(_render_attachment(att))
+                lines.append("")
 
             if forwarded:
                 lines.append("")
@@ -108,6 +109,7 @@ def _build_md_wall_message_lines(item: MdItem, tag: str, level: int) -> list:
 
     for att in others:
         lines.extend(_render_attachment(att))
+        lines.append("")
     for wall in walls:
         lines.extend(_render_wall(wall))
 
@@ -266,5 +268,6 @@ def _render_wall(att: WallAttachment) -> list:
             lines.append("")
         for child in children:
             lines.extend(_render_attachment(child))
+            lines.append("")
 
     return lines
