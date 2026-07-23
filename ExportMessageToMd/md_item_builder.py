@@ -32,8 +32,8 @@ def build_md_items(
     logger: BaseLogger,
 ) -> List[MdItem]:
     if cid == root_cid:
-        cid_raw_dir = little_raw_data_dir
-        cid_large_dir = large_raw_data_dir
+        cid_raw_dir = str(Path(little_raw_data_dir) / str(cid))
+        cid_large_dir = str(Path(large_raw_data_dir) / str(cid))
     else:
         cid_raw_dir = str(Path(little_raw_data_dir) / str(root_cid) / str(cid))
         cid_large_dir = str(Path(large_raw_data_dir) / str(root_cid) / str(cid))
