@@ -50,17 +50,22 @@ Output directory structure (`EXPORT_ROOT`):
 │       ├── AutorImages/                      # Shared author avatars
 │       │   └── photo_12345.jpg
 │       └── dialog_{peer_id}/
-│           ├── RawData/                      # Small attachments, grouped by CID
-│           │   └── {cid}/
-│           │       ├── 1.jpg
-│           │       └── 2.webp
+│           ├── RawData/                      # Small attachments, nested by root CID
+│           │   └── {root_cid}/              # Root message's attachments + forwarded subdirs
+│           │       ├── 1.jpg                # Root message's direct attachments
+│           │       ├── 2.webp
+│           │       ├── {fwd_cid}/           # Forwarded message's attachments
+│           │       │   ├── Лабораторная_работа_14.docx
+│           │       │   └── VIM.docx
+│           │       └── {fwd_cid}/
+│           │           └── ...
 │           ├── OriginalMessages/             # Individual message JSON files {date}_{cid}.json
 │           │   └── 2026-01-15_1234.json
 │           └── MdFiles/                      # Rendered Markdown files
 │               └── Привет.Id1234.md
 └── LargeRawData/                             # Large files (videos), kept separate
     └── dialog_{peer_id}/                     # because the rest is intended for git repo
-        └── {cid}/
+        └── {root_cid}/                       # Nested structure same as RawData
             └── 1.mp4
 ```
 
@@ -79,7 +84,7 @@ python run.py --mode web --config config.json
 1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups. Also scans `Dialogs/` for peer_ids not in Sources but with existing `OriginalMessages/*.json`.
 2. **main.py** → `load_authors(merged_data)` → `dict[int, AuthorInfo]`
 3. **main.py** → per dialog: `extract_items_from_data(filtered_items)` → `{date}_{cid}.json`
-4. **main.py** → per dialog: `build_md_items(json, config, ...)` → `list[MdItem]` with resolved attachments and downloaded files
+4. **main.py** → per dialog: `build_md_items(json, cid, root_cid, config, ...)` → `list[MdItem]` with resolved attachments and downloaded files. `cid` = current message's `conversation_message_id`, `root_cid` = original message's cid (passed through to forwarded messages for nested directory structure).
 5. **main.py** → per dialog: `render_md_item(item)` → Markdown → write `.md` file
 
 Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos/docs immediately. Step 5 is pure rendering (no I/O).
@@ -111,7 +116,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
 ### ExportMessageToMd/md_item_builder.py
-- `build_md_items(fwd, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately.
+- `build_md_items(fwd, cid, root_cid, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately. `cid` and `root_cid` are passed from caller (main.py). Forwarded messages use `root_cid` for nested directory structure: `RawData/{root_cid}/{fwd_cid}/`.
 - **Filename rules**:
   - With text: `{first_sentence}.Id{cid}.md`
   - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
@@ -123,6 +128,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### ExportMessageToMd/md_renderer.py
 - `_render_video()` — blank line before preview image to separate it from title
 - `_render_attachment(DocAttachment)` — uses `local_path` if available, falls back to URL
+- `_walk_attachment(DocAttachment)` — sources table shows `local_path` as clickable link
 
 ## WebApp
 
@@ -130,6 +136,8 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Flask app factory pattern: `init_app(config_path)` → `_init_paths()` → sets all path globals
 - `_build_message_date_str_by_cid(orig_dir, logger)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
 - `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)`, `orig_counts=dict` (count of OriginalMessages per peer_id) for displaying the MD output directory
+- `_list_attachments` uses `rglob("*")` to recursively find files in nested `RawData/{root_cid}/{fwd_cid}/` dirs
+- `_delete_cid` uses `shutil.rmtree(cid_raw)` to remove entire subtree including forwarded message subdirs
 
 | Маршрут | Метод | Описание |
 |---|---|---|
