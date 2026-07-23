@@ -8,6 +8,7 @@ from MdItem import (
     BaseAttachmentItem, MdItem,
     PhotoAttachment, VideoAttachment, LinkAttachment,
     DocAttachment, AudioAttachment, StickerAttachment, WallAttachment,
+    NoDownloadResult, ErrorDownloadResult, SuccessDownloadResult,
 )
 from author_resolver import AuthorInfo
 from download_media import download_file
@@ -169,11 +170,16 @@ def _resolve_photo(
 ) -> PhotoAttachment:
     sizes = photo.get("sizes", [])
     if not sizes:
-        return PhotoAttachment(original_url="")
-    biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
-    url = biggest.get("url", "")
-    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger) if url else ""
-    return PhotoAttachment(original_url=url, local_path=local_path)
+        url = ""
+    else:
+        biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
+        url = biggest.get("url", "")
+    if not url:
+        download_result = NoDownloadResult()
+    else:
+        path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger)
+        download_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
+    return PhotoAttachment(original_url=url, download_result=download_result)
 
 
 def _resolve_video(
@@ -199,10 +205,11 @@ def _resolve_video(
             f"oid={owner_id}&id={video_id}"
         )
 
-    preview_local = (
-        _download_to_raw(preview_url, cid_raw_dir, md_dir, url_to_relpath, logger)
-        if preview_url else ""
-    )
+    if preview_url:
+        path = _download_to_raw(preview_url, cid_raw_dir, md_dir, url_to_relpath, logger)
+        preview_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
+    else:
+        preview_result = NoDownloadResult()
 
     mp4_url = None
 
@@ -216,28 +223,30 @@ def _resolve_video(
     if not mp4_url:
         mp4_url = _get_best_video_url(files)
 
-    mp4_local = ""
     if mp4_url and _should_download_video(duration, config):
         if mp4_url in url_to_relpath:
-            mp4_local = url_to_relpath[mp4_url]
+            mp4_result = SuccessDownloadResult(url_to_relpath[mp4_url])
         else:
             try:
-                mp4_local = _download_to_raw(
+                path = _download_to_raw(
                     mp4_url, cid_large_dir, md_dir, url_to_relpath, logger, force_ext="mp4"
                 )
+                mp4_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
             except Exception as ex:
                 logger.LogWarning("Ошибка скачивания видео", ex)
-                mp4_local = ""
+                mp4_result = ErrorDownloadResult()
+    else:
+        mp4_result = NoDownloadResult()
 
     return VideoAttachment(
         is_short=is_short,
         title=title,
         player_url=player,
         duration=duration,
-        mp4_local_path=mp4_local,
         mp4_url=mp4_url or "",
-        preview_local_path=preview_local,
+        mp4_download_result=mp4_result,
         preview_url=preview_url,
+        preview_download_result=preview_result,
     )
 
 
@@ -254,9 +263,13 @@ def _resolve_doc(
 ) -> DocAttachment:
     url = doc.get("url", "")
     title = doc.get("title", "документ").replace(" ", "_")
-    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger,
-                                   force_ext=doc.get("ext", ""), force_name=title) if url else ""
-    return DocAttachment(url=url, title=title, local_path=local_path)
+    if not url:
+        download_result = NoDownloadResult()
+    else:
+        path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger,
+                                force_ext=doc.get("ext", ""), force_name=title)
+        download_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
+    return DocAttachment(url=url, title=title, download_result=download_result)
 
 
 def _resolve_audio(audio: dict) -> AudioAttachment:
@@ -272,8 +285,12 @@ def _resolve_sticker(
 ) -> StickerAttachment:
     imgs = sticker.get("images", [])
     url = imgs[-1].get("url", "") if imgs else ""
-    local_path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger) if url else ""
-    return StickerAttachment(original_url=url, local_path=local_path)
+    if not url:
+        download_result = NoDownloadResult()
+    else:
+        path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger)
+        download_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
+    return StickerAttachment(original_url=url, download_result=download_result)
 
 
 def _resolve_wall(

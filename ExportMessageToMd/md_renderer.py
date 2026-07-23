@@ -5,6 +5,7 @@ from MdItem import (
     MdItem,
     PhotoAttachment, VideoAttachment, LinkAttachment,
     DocAttachment, AudioAttachment, StickerAttachment, WallAttachment,
+    BaseDownloadResult, NoDownloadResult, ErrorDownloadResult, SuccessDownloadResult,
 )
 
 
@@ -114,6 +115,17 @@ def _render_message_with_wall(item: MdItem, tag: str, level: int) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _rel_cell(result: BaseDownloadResult) -> str:
+    if isinstance(result, SuccessDownloadResult):
+        return f"[{result.local_path}]({result.local_path})"
+    elif isinstance(result, ErrorDownloadResult):
+        return "Ошибка скачивания"
+    elif isinstance(result, NoDownloadResult):
+        return ""
+    else:
+        raise TypeError(f"Неизвестный тип результата скачивания: {type(result)}")
+
+
 def _append_sources_table(lines: list, item: MdItem) -> None:
     lines.append("## Источники")
     lines.append("")
@@ -133,35 +145,29 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
 
     def _walk_attachment(att):
         if isinstance(att, PhotoAttachment):
-            rel_cell = f"[{att.local_path}]({att.local_path})" if att.local_path else ""
-            lines.append(f"| Фото | {rel_cell} | {_url_cell(att.original_url)} |")
+            lines.append(f"| Фото | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
         elif isinstance(att, VideoAttachment):
             if att.player_url:
-                rel_cell = f"[{att.mp4_local_path}]({att.mp4_local_path})" if att.mp4_local_path else ""
-                lines.append(f"| Видео | {rel_cell} | {_url_cell(att.player_url)} |")
+                lines.append(f"| Видео | {_rel_cell(att.mp4_download_result)} | {_url_cell(att.player_url)} |")
             if att.preview_url:
-                rel_cell = f"[{att.preview_local_path}]({att.preview_local_path})" if att.preview_local_path else ""
-                lines.append(f"| Превью | {rel_cell} | {_url_cell(att.preview_url)} |")
+                lines.append(f"| Превью | {_rel_cell(att.preview_download_result)} | {_url_cell(att.preview_url)} |")
         elif isinstance(att, LinkAttachment):
             if att.url:
                 lines.append(f"| Ссылка | | {_url_cell(att.url)} |")
         elif isinstance(att, WallAttachment):
             if att.author and att.author.photo_url:
-                rel_cell = f"[{att.author.photo_local}]({att.author.photo_local})" if att.author.photo_local else ""
-                lines.append(f"| Аватар автора поста | {rel_cell} | {_url_cell(att.author.photo_url)} |")
+                lines.append(f"| Аватар автора поста | | {_url_cell(att.author.photo_url)} |")
             post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
             lines.append(f"| Ссылка на пост | | {_url_cell(post_url)} |")
             for child in att.children:
                 _walk_attachment(child)
         elif isinstance(att, DocAttachment):
             if att.url:
-                rel_cell = f"[{att.local_path}]({att.local_path})" if att.local_path else ""
-                lines.append(f"| Документ | {rel_cell} | {_url_cell(att.url)} |")
+                lines.append(f"| Документ | {_rel_cell(att.download_result)} | {_url_cell(att.url)} |")
         elif isinstance(att, AudioAttachment):
             lines.append(f"| Аудио | | {att.artist} — {att.title} |")
         elif isinstance(att, StickerAttachment):
-            rel_cell = f"[{att.local_path}]({att.local_path})" if att.local_path else ""
-            lines.append(f"| Стикер | {rel_cell} | {_url_cell(att.original_url)} |")
+            lines.append(f"| Стикер | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
 
     def _url_cell(url: str) -> str:
         display = url if len(url) <= 80 else "url ссылка"
@@ -181,20 +187,26 @@ def _render_attachment(att):
         return _render_wall(att)
     if isinstance(att, DocAttachment):
         title = att.title
-        if att.local_path:
-            return [f"**Документ:** [{title}]({att.local_path})"]
-        return [f"**Документ:** [{title}]({att.url})"]
+        if isinstance(att.download_result, SuccessDownloadResult):
+            return [f"**Документ:** [{title}]({att.download_result.local_path})"]
+        if att.url:
+            return [f"**Документ:** [{title}]({att.url})"]
+        return [f"**Документ:** {title}"]
     if isinstance(att, AudioAttachment):
         return [f"**Аудио:** {att.artist} — {att.title}"]
     if isinstance(att, StickerAttachment):
-        return [f"**Стикер:** ![]({att.local_path})"]
+        if isinstance(att.download_result, SuccessDownloadResult):
+            return [f"**Стикер:** ![]({att.download_result.local_path})"]
+        return [f"**Стикер:**"]
     return [f"**{type(att).__name__}**"]
 
 
 def _render_photo(att: PhotoAttachment) -> str:
     if not att.original_url:
         return "**Фото:** нет данных"
-    return f"**Фото:** ![]({att.local_path})"
+    if isinstance(att.download_result, SuccessDownloadResult):
+        return f"**Фото:** ![]({att.download_result.local_path})"
+    return f"**Фото:** [ссылка]({att.original_url})"
 
 
 def _render_video(att: VideoAttachment) -> list:
@@ -204,12 +216,12 @@ def _render_video(att: VideoAttachment) -> list:
     else:
         lines.append(f"**Видео:** {att.title}")
 
-    if att.preview_local_path:
+    if isinstance(att.preview_download_result, SuccessDownloadResult):
         lines.append("")
-        lines.append(f"![]({att.preview_local_path})")
+        lines.append(f"![]({att.preview_download_result.local_path})")
 
-    if att.mp4_local_path:
-        lines.append(f"\n<video src=\"{att.mp4_local_path}\" controls></video>")
+    if isinstance(att.mp4_download_result, SuccessDownloadResult):
+        lines.append(f"\n<video src=\"{att.mp4_download_result.local_path}\" controls></video>")
 
     if att.player_url:
         lines.append("")

@@ -4,6 +4,25 @@ from typing import Any, List, Optional
 from author_resolver import AuthorInfo
 
 
+class BaseDownloadResult:
+    pass
+
+
+@dataclass
+class NoDownloadResult(BaseDownloadResult):
+    pass
+
+
+@dataclass
+class ErrorDownloadResult(BaseDownloadResult):
+    pass
+
+
+@dataclass
+class SuccessDownloadResult(BaseDownloadResult):
+    local_path: str
+
+
 class BaseAttachmentItem:
     pass
 
@@ -11,7 +30,7 @@ class BaseAttachmentItem:
 @dataclass
 class PhotoAttachment(BaseAttachmentItem):
     original_url: str
-    local_path: str = ""
+    download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 
 @dataclass
@@ -20,10 +39,10 @@ class VideoAttachment(BaseAttachmentItem):
     title: str = ""
     player_url: str = ""
     duration: int = 0
-    mp4_local_path: str = ""
     mp4_url: str = ""
-    preview_local_path: str = ""
+    mp4_download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
     preview_url: str = ""
+    preview_download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 
 @dataclass
@@ -36,7 +55,7 @@ class LinkAttachment(BaseAttachmentItem):
 class DocAttachment(BaseAttachmentItem):
     url: str = ""
     title: str = ""
-    local_path: str = ""
+    download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 
 @dataclass
@@ -48,7 +67,7 @@ class AudioAttachment(BaseAttachmentItem):
 @dataclass
 class StickerAttachment(BaseAttachmentItem):
     original_url: str = ""
-    local_path: str = ""
+    download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 
 @dataclass
