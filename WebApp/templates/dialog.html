@@ -65,6 +65,11 @@
   .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
   .toast.show { opacity: 1; }
   .toast.error { background: #c0392b; }
+  .attach-group { margin-bottom: 10px; }
+  .attach-group-header { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: #f0f4f8; border-radius: 4px; margin-bottom: 4px; font-size: 0.8rem; }
+  .attach-group-header .folder-path { font-weight: 600; color: #333; word-break: break-all; flex: 1; font-family: monospace; font-size: 0.78rem; }
+  .attach-group-header button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 8px; font-size: 0.75rem; color: #555; flex-shrink: 0; white-space: nowrap; }
+  .attach-group-header button:hover { background: #e0e0e0; }
 </style>
 </head>
 <body>
@@ -211,32 +216,61 @@ function fetchAttachments(bodyEl) {
 
       let html = '<div class="attachments"><h4>Файлы вложений</h4>';
       if (hasRaw) {
-        html += '<ul>';
-        data.raw.forEach(f => {
-          html += `<li>
-            <span class="file-name">${f.name}</span>
-            <span class="file-size">(${formatSize(f.size)})</span>
-            <button class="rename-btn" onclick="renameAttachment(${selectedCid}, '${f.name}', 'raw', this)">&#9998;</button>
-          </li>`;
-        });
-        html += '</ul>';
+        const groups = groupByFolder(data.raw);
+        groups.forEach(g => { html += renderGroup(g, 'raw'); });
       }
       if (hasLarge) {
-        if (hasRaw) html += '<br>';
-        html += '<ul>';
-        data.large.forEach(f => {
-          html += `<li>
-            <span class="file-name">${f.name}</span>
-            <span class="file-size">(${formatSize(f.size)})</span>
-            <button class="rename-btn" onclick="renameAttachment(${selectedCid}, '${f.name}', 'large', this)">&#9998;</button>
-          </li>`;
-        });
-        html += '</ul>';
+        const groups = groupByFolder(data.large);
+        groups.forEach(g => { html += renderGroup(g, 'large'); });
       }
       html += '</div>';
       bodyEl.insertAdjacentHTML('beforeend', html);
     })
     .catch(() => {});
+}
+
+function groupByFolder(files) {
+  const map = {};
+  files.forEach(f => {
+    const folder = f.path.replace(/[\\\/][^\\\/]+$/, '').replace(/\\/g, '/');
+    if (!map[folder]) map[folder] = [];
+    map[folder].push(f);
+  });
+  return Object.entries(map).map(([folder, files]) => ({ folder, files }));
+}
+
+function renderGroup(group, storage) {
+  let html = '<div class="attach-group">';
+  html += '<div class="attach-group-header">';
+  html += `<span class="folder-path">${group.folder}</span>`;
+  html += `<button onclick="copyFolder('${group.folder.replace(/'/g, "\\'")}')" title="Копировать путь">&#128203; Путь</button>`;
+  html += `<button onclick="openFolder('${group.folder.replace(/'/g, "\\'")}')" title="Открыть в проводнике">&#128194; Открыть</button>`;
+  html += '</div>';
+  html += '<ul>';
+  group.files.forEach(f => {
+    html += `<li>
+      <span class="file-name">${f.name}</span>
+      <span class="file-size">(${formatSize(f.size)})</span>
+      <button class="rename-btn" onclick="renameAttachment(${selectedCid}, '${f.name}', '${storage}', this)">&#9998;</button>
+    </li>`;
+  });
+  html += '</ul></div>';
+  return html;
+}
+
+function copyFolder(path) {
+  navigator.clipboard.writeText(path).then(() => showToast('Путь скопирован'));
+}
+
+function openFolder(path) {
+  fetch(`/dialog/${selectedPeer}/${selectedCid}/open-folder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path })
+  })
+  .then(r => r.json())
+  .then(d => { if (!d.success) showToast(d.error || 'Ошибка', true); })
+  .catch(e => showToast('Ошибка: ' + e.message, true));
 }
 
 // ─── Delete ─────────────────────────────────────────

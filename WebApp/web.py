@@ -3,6 +3,7 @@ import json as _json
 import os
 import re
 import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -510,6 +511,23 @@ def rename_md_file(peer_id: int, cid: int):
 @app.route("/dialog/<int:peer_id>/<int:cid>/attachments")
 def list_attachments(peer_id: int, cid: int):
     return jsonify(_list_attachments(peer_id, cid))
+
+
+@app.route("/dialog/<int:peer_id>/<int:cid>/open-folder", methods=["POST"])
+def open_folder(peer_id: int, cid: int):
+    data = request.get_json(force=True)
+    folder_path = data.get("path", "")
+    if not folder_path:
+        return jsonify({"success": False, "error": "path is required"}), 400
+    folder = Path(folder_path).resolve()
+    if not folder.is_dir():
+        return jsonify({"success": False, "error": "folder not found"}), 404
+    try:
+        folder.relative_to(export_root_abs)
+    except ValueError:
+        return jsonify({"success": False, "error": "access denied"}), 403
+    subprocess.Popen(["explorer", str(folder)])
+    return jsonify({"success": True})
 
 
 @app.route("/dialog/<int:peer_id>/<int:cid>/rename-attachment", methods=["PUT"])
