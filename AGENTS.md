@@ -18,7 +18,7 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │
 ├── ExportMessageToMd/
 │   ├── main.py               # Generator: parse sources → extract → build → render → write
-│   ├── MdItem.py             # DTO: BaseAttachmentItem + 8 subclasses (DocAttachment has local_path) + MdItem
+│   ├── MdItem.py             # DTO: BaseDownloadResult + 3 subclasses (NoDownload/Error/Success) + BaseAttachmentItem + 7 subclasses + MdItem
 │   ├── md_item_builder.py    # build_md_items(): JSON → MdItem, resolves attachments
 │   ├── md_renderer.py        # render_md_item(): MdItem → Markdown (pure, no I/O)
 │   ├── export_fwd.py         # extract_items_from_data(items, output_dir)
@@ -126,9 +126,17 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - **Max path length (254 chars)**: `_compute_filename(md_dir_abs_len, extra_suffix_len)` truncates text dynamically: `max_text = 254 - len(os.path.abspath(md_dir)) - 1 - len(".Id{cid}.md") - extra_suffix_len` (min 10). `extra_suffix_len` accounts for `"Статья."` (8) and `_part_N` suffix. `Logger.LogWarning` if final path exceeds 254. `_compute_heading()` remains hardcoded at 60 (display-only, not filename).
 
 ### ExportMessageToMd/md_renderer.py
-- `_render_video()` — blank line before preview image to separate it from title
-- `_render_attachment(DocAttachment)` — uses `local_path` if available, falls back to URL
-- `_walk_attachment(DocAttachment)` — sources table shows `local_path` as clickable link
+- `render_md_item(item)` — public entry point, `level = 1` inside, appends Sources table, returns full MD string
+- `_build_md_lines(item, level)` — private recursive dispatcher, returns `list[str]` without Sources
+- `_build_md_message_lines(item, tag, level)` — renders regular message to `list[str]`, calls `_build_md_lines(child, level + 2)` for forwarded messages
+- `_build_md_wall_message_lines(item, tag, level)` — renders wall-split message to `list[str]`, no Sources
+- `_rel_cell(result)` — maps `BaseDownloadResult` to Sources table cell: `SuccessDownloadResult` → link, `ErrorDownloadResult` → "Ошибка скачивания", `NoDownloadResult` → empty. Raises `TypeError` for unknown types.
+- `_append_sources_table(lines, item)` — builds one consolidated Sources table with `seen` set for deduplication. JSON file row added once before `_walk()`. `_walk()` recursively processes forwarded messages via `_add_row()`.
+
+### ExportMessageToMd/MdItem.py
+- **Download result pattern**: `BaseDownloadResult` → `NoDownloadResult` (no URL) | `ErrorDownloadResult` (download failed) | `SuccessDownloadResult(local_path: str)`
+- `PhotoAttachment`, `DocAttachment`, `StickerAttachment` — field `download_result: BaseDownloadResult` (default `NoDownloadResult`)
+- `VideoAttachment` — two fields: `mp4_download_result` + `preview_download_result`
 
 ## WebApp
 
@@ -154,6 +162,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/dialog/<peer_id>/delete-batch` | POST | Массовое удаление |
 | `/dialog/<peer_id>/<cid>/rename` | PUT | Переименование `.md` |
 | `/dialog/<peer_id>/<cid>/attachments` | GET | Список файлов вложений |
+| `/dialog/<peer_id>/<cid>/open-folder` | POST | Открытие папки в проводнике |
 | `/dialog/<peer_id>/<cid>/rename-attachment` | PUT | Переименование вложения |
 | `/export/<path>` | GET | Статика (Dialogs, Sources) |
 | `/large/<path>` | GET | Статика (LargeRawData) |
@@ -165,7 +174,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 ### dialog.html & index.html
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
-- Остальное без изменений
+- **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в проводнике через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
 
 ## Зависимости
 
