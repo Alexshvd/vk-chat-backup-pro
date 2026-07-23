@@ -9,13 +9,18 @@ from MdItem import (
 )
 
 
-def render_md_item(item: MdItem, level: int = 1) -> str:
+def render_md_item(item: MdItem) -> str:
+    level = 1
+    lines = _build_md_lines(item, level)
+    _append_sources_table(lines, item)
+    return "\n".join(lines) + "\n"
+
+
+def _build_md_lines(item: MdItem, level: int) -> list:
     tag = "#" * min(level, 6)
-
     if item.is_wall_split:
-        return _render_message_with_wall(item, tag, level)
-
-    return _render_message(item, tag, level)
+        return _build_md_wall_message_lines(item, tag, level)
+    return _build_md_message_lines(item, tag, level)
 
 
 def _fmt_date(ts: int) -> str:
@@ -42,7 +47,7 @@ def _render_author_line(item: MdItem) -> str:
     return _render_author_compact(item.from_id, item.author, item.date)
 
 
-def _render_message(item: MdItem, tag: str, level: int) -> str:
+def _build_md_message_lines(item: MdItem, tag: str, level: int) -> list:
     lines = [
         f"{tag} {item.heading}",
         "",
@@ -76,17 +81,14 @@ def _render_message(item: MdItem, tag: str, level: int) -> str:
                 lines.append(f"{tag} Пересланные сообщения")
                 lines.append("")
                 for child in forwarded:
-                    child_text = render_md_item(child, level + 2)
-                    lines.append(child_text)
+                    child_lines = _build_md_lines(child, level + 2)
+                    lines.extend(child_lines)
+                    lines.append("")
 
-    if attachments or forwarded or text:
-        lines.append("")
-        _append_sources_table(lines, item)
-
-    return "\n".join(lines) + "\n"
+    return lines
 
 
-def _render_message_with_wall(item: MdItem, tag: str, level: int) -> str:
+def _build_md_wall_message_lines(item: MdItem, tag: str, level: int) -> list:
     walls = [a for a in item.attachments if isinstance(a, WallAttachment)]
     others = [a for a in item.attachments if not isinstance(a, WallAttachment)]
 
@@ -109,10 +111,7 @@ def _render_message_with_wall(item: MdItem, tag: str, level: int) -> str:
     for wall in walls:
         lines.extend(_render_wall(wall))
 
-    lines.append("")
-    _append_sources_table(lines, item)
-
-    return "\n".join(lines) + "\n"
+    return lines
 
 
 def _rel_cell(result: BaseDownloadResult) -> str:
@@ -132,12 +131,20 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
     lines.append("| Тип | Относительная ссылка | Ссылка |")
     lines.append("|-----|---------------------|--------|")
 
+    relpath = f"../OriginalMessages/{item.json_filename}"
+    lines.append(f"| Исходный файл | [{relpath}]({relpath}) | |")
+
+    seen = set()
+
+    def _add_row(row: str):
+        if row not in seen:
+            seen.add(row)
+            lines.append(row)
+
     def _walk(item: MdItem):
         if item.author and item.author.photo_url:
             rel_cell = f"[{item.author.photo_local}]({item.author.photo_local})" if item.author.photo_local else ""
-            lines.append(f"| Аватар автора | {rel_cell} | {_url_cell(item.author.photo_url)} |")
-        relpath = f"../OriginalMessages/{item.json_filename}"
-        lines.append(f"| Исходный файл | [{relpath}]({relpath}) | |")
+            _add_row(f"| Аватар автора | {rel_cell} | {_url_cell(item.author.photo_url)} |")
         for att in item.attachments:
             _walk_attachment(att)
         for child in item.forwarded:
@@ -145,29 +152,29 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
 
     def _walk_attachment(att):
         if isinstance(att, PhotoAttachment):
-            lines.append(f"| Фото | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
+            _add_row(f"| Фото | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
         elif isinstance(att, VideoAttachment):
             if att.player_url:
-                lines.append(f"| Видео | {_rel_cell(att.mp4_download_result)} | {_url_cell(att.player_url)} |")
+                _add_row(f"| Видео | {_rel_cell(att.mp4_download_result)} | {_url_cell(att.player_url)} |")
             if att.preview_url:
-                lines.append(f"| Превью | {_rel_cell(att.preview_download_result)} | {_url_cell(att.preview_url)} |")
+                _add_row(f"| Превью | {_rel_cell(att.preview_download_result)} | {_url_cell(att.preview_url)} |")
         elif isinstance(att, LinkAttachment):
             if att.url:
-                lines.append(f"| Ссылка | | {_url_cell(att.url)} |")
+                _add_row(f"| Ссылка | | {_url_cell(att.url)} |")
         elif isinstance(att, WallAttachment):
             if att.author and att.author.photo_url:
-                lines.append(f"| Аватар автора поста | | {_url_cell(att.author.photo_url)} |")
+                _add_row(f"| Аватар автора поста | | {_url_cell(att.author.photo_url)} |")
             post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
-            lines.append(f"| Ссылка на пост | | {_url_cell(post_url)} |")
+            _add_row(f"| Ссылка на пост | | {_url_cell(post_url)} |")
             for child in att.children:
                 _walk_attachment(child)
         elif isinstance(att, DocAttachment):
             if att.url:
-                lines.append(f"| Документ | {_rel_cell(att.download_result)} | {_url_cell(att.url)} |")
+                _add_row(f"| Документ | {_rel_cell(att.download_result)} | {_url_cell(att.url)} |")
         elif isinstance(att, AudioAttachment):
-            lines.append(f"| Аудио | | {att.artist} — {att.title} |")
+            _add_row(f"| Аудио | | {att.artist} — {att.title} |")
         elif isinstance(att, StickerAttachment):
-            lines.append(f"| Стикер | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
+            _add_row(f"| Стикер | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
 
     def _url_cell(url: str) -> str:
         display = url if len(url) <= 80 else "url ссылка"
