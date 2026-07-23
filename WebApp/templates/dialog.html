@@ -245,7 +245,7 @@ function renderGroup(group, storage) {
   let html = '<div class="attach-group">';
   html += '<div class="attach-group-header">';
   html += `<span class="folder-path">${group.folder}</span>`;
-  html += `<button onclick="copyFolder('${group.folder.replace(/'/g, "\\'")}')" title="Копировать путь">&#128203; Путь</button>`;
+  html += `<button onclick="copyFolder('${group.folder.replace(/'/g, "\\'")}')" title="Копировать путь">Скопировать</button>`;
   html += `<button onclick="openFolder('${group.folder.replace(/'/g, "\\'")}')" title="Открыть в проводнике">&#128194; Открыть</button>`;
   html += '</div>';
   html += '<ul>';
