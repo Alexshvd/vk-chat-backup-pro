@@ -116,7 +116,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
 ### ExportMessageToMd/md_item_builder.py
-- `build_md_items(fwd, cid, root_cid, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately. `cid` and `root_cid` are passed from caller (main.py). Forwarded messages use `root_cid` for nested directory structure: `RawData/{root_cid}/{fwd_cid}/`.
+- `build_md_items(fwd, cid, root_cid, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages`. Downloads photos/videos/stickers/docs immediately. `cid` and `root_cid` are passed from caller (main.py). Root messages save to `RawData/{cid}/`, forwarded messages save to `RawData/{root_cid}/{cid}/`.
 - **Filename rules**:
   - With text: `{first_sentence}.Id{cid}.md`
   - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
@@ -162,7 +162,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/dialog/<peer_id>/delete-batch` | POST | Массовое удаление |
 | `/dialog/<peer_id>/<cid>/rename` | PUT | Переименование `.md` |
 | `/dialog/<peer_id>/<cid>/attachments` | GET | Список файлов вложений |
-| `/dialog/<peer_id>/<cid>/open-folder` | POST | Открытие папки в проводнике |
+| `/dialog/<peer_id>/<cid>/open-folder` | POST | Кроссплатформенное открытие папки (`explorer`/`open`/`xdg-open` через `platform.system()`) |
 | `/dialog/<peer_id>/<cid>/rename-attachment` | PUT | Переименование вложения |
 | `/export/<path>` | GET | Статика (Dialogs, Sources) |
 | `/large/<path>` | GET | Статика (LargeRawData) |
@@ -174,7 +174,8 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 ### dialog.html & index.html
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
-- **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в проводнике через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
+- **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в файловом менеджере через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
+- **Sticky-заголовок контента**: `content-header` (название файла + кнопки редактирования/удаления) закреплён вверху при прокрутке (`position: sticky`), фон `#f0f4fa`.
 
 ## Зависимости
 
