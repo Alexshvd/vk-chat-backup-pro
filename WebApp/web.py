@@ -114,15 +114,15 @@ def _rewrite_links_for_move(content: str, depth_diff: int) -> str:
         return "../" * (stripped + depth_diff) + core_url
 
     def _fix_md_link(m: re.Match) -> str:
-        before, link = m.group(1), m.group(2)
-        return f"{before}{_transform(link)})"
+        text, url = m.group(1), m.group(2)
+        return f"[{_transform(text)}]({_transform(url)})"
 
     def _fix_html_attr(m: re.Match) -> str:
         attr, url, close = m.group(1), m.group(2), m.group(3)
         return f"{attr}{_transform(url)}{close}"
 
-    # Markdown image/link:  ![alt](url) / [text](url) → group(1) = prefix, group(2) = url
-    content = re.sub(r'(\[[^\]]*?\]\()(.+?)\)', _fix_md_link, content)
+    # Markdown image/link:  ![alt](url) / [text](url) → group(1) = text, group(2) = url
+    content = re.sub(r'\[([^\]]*?)\]\((.+?)\)', _fix_md_link, content)
     # HTML src/href:   src="url" / href="url" → group(1)='src="', group(2)=url, group(3)='"'
     content = re.sub(r'((?:src|href)=")(.+?)(")', _fix_html_attr, content)
     return content
