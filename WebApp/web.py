@@ -126,7 +126,7 @@ def _rewrite_links_for_move(content: str, depth_diff: int) -> str:
     # Markdown link:   [text](url)   → group(1) = "[text](", group(2) = url
     content = re.sub(r'(\[[^\]]*?\]\()(.+?)\)', _fix_md_link, content)
     # HTML src/href:   src="url" / href="url" → group(1)='src="', group(2)=url, group(3)='"'
-    content = re.sub(r'((?:src|href)=)(")(.+?)(")', _fix_html_attr, content)
+    content = re.sub(r'((?:src|href)=")(.+?)(")', _fix_html_attr, content)
     return content
 
 
