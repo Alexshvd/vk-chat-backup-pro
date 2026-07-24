@@ -16,7 +16,7 @@
   .col-list { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; }
   .col-list-scroll { flex: 1; overflow-y: auto; }
   .col-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
-  .content-card { flex: 1; overflow-y: auto; }
+  .content-card { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
   .toolbar { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .btn-delete-batch { background: #e74c3c; color: #fff; }
@@ -37,14 +37,14 @@
   .content-header button:hover { background: #f0f0f0; }
   .content-header .btn-del { color: #e74c3c; border-color: #e74c3c; }
   .content-header .btn-del:hover { background: #fde8e8; }
-  .content-body { overflow-x: auto; }
+  .content-body { overflow-y: auto; overflow-x: auto; flex: 1; min-height: 0; }
   .content-body img { max-width: 100%; }
   .content-body video { max-width: 100%; }
   .content-body table { border-collapse: collapse; }
   .content-body table td, .content-body table th { border: 1px solid #ddd; padding: 6px 10px; }
   .content-body table th { background: #f9f9f9; }
   .content-body .loading { color: #999; padding: 20px; text-align: center; }
-  .placeholder { color: #999; text-align: center; padding: 60px 20px; }
+  .placeholder { color: #999; text-align: center; padding: 60px 20px; flex: 1; }
   .rename-input { border: 1px solid #4a90d9; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; width: 100%; min-width: 100px; outline: none; box-sizing: border-box; }
   .rename-input:focus { box-shadow: 0 0 0 2px rgba(74,144,217,0.3); }
   .rename-save-btn { background: none; border: 1px solid #27ae60; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 0.8rem; color: #27ae60; line-height: 1; flex-shrink: 0; }
