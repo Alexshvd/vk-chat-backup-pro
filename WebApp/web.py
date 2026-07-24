@@ -553,6 +553,19 @@ def rename_md_file(peer_id: int, cid: int):
     return jsonify({"success": True, "renamed": results})
 
 
+@app.route("/dialog/<int:peer_id>/folders")
+def list_md_folders(peer_id: int):
+    md_dir = _get_dialog_dir(peer_id) / "MdFiles"
+    folders = set()
+    if md_dir.is_dir():
+        for d in md_dir.rglob("*"):
+            if d.is_dir():
+                rel = str(d.relative_to(md_dir))
+                if rel != ".":
+                    folders.add(rel)
+    return jsonify(sorted(folders))
+
+
 @app.route("/dialog/<int:peer_id>/<int:cid>/move", methods=["POST"])
 def move_md_file(peer_id: int, cid: int):
     data = request.get_json(force=True)

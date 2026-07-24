@@ -74,6 +74,17 @@
   .attach-group-header button:hover { background: #e0e0e0; }
   .attach-group ul { list-style: disc; padding-left: 16px; margin: 0; }
   .attach-group li::before { content: "•"; flex-shrink: 0; }
+  .move-panel { background: #f0f7ff; border: 1px solid #d0dfe8; border-radius: 8px; padding: 10px 14px; margin: 0 -16px 12px; }
+  .move-panel-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
+  .move-panel-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #555; padding: 0 4px; }
+  .move-panel-list { max-height: 200px; overflow-y: auto; }
+  .move-panel-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+  .move-panel-item:hover { background: #dce6f5; }
+  .move-panel-item::before { content: "\1F4C2"; }
+  .move-panel-root { font-weight: 600; }
+  .move-panel-new { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #d0dfe8; }
+  .move-panel-new input { flex: 1; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; }
+  .move-panel-new button { background: #27ae60; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 0.9rem; }
 </style>
 </head>
 <body>
@@ -127,6 +138,17 @@
             <button onclick="renameSelected()" title="Переименовать">&#9998;</button>
             <button class="btn-move" onclick="moveSelected()" title="Переместить">&#128194;</button>
             <button class="btn-del" onclick="deleteSelected()" title="Удалить">&#128465;</button>
+          </div>
+          <div id="movePanel" class="move-panel" style="display:none;">
+            <div class="move-panel-header">
+              <span>Переместить в:</span>
+              <button class="move-panel-close" onclick="closeMovePanel()">&times;</button>
+            </div>
+            <div class="move-panel-list" id="moveFolderList"></div>
+            <div class="move-panel-new">
+              <input id="moveNewFolder" type="text" placeholder="Новая папка..." onkeydown="if(event.key==='Enter'){event.preventDefault();submitNewFolder();}if(event.key==='Escape'){event.preventDefault();closeMovePanel();}" />
+              <button onclick="submitNewFolder()">&#10003;</button>
+            </div>
           </div>
           <div class="content-body" id="contentBody"></div>
         </div>
@@ -463,13 +485,34 @@ function renameSelected() {
 // ─── Move ──────────────────────────────────────────
 function moveSelected() {
   if (!selectedCid) return;
-  const folder = prompt('Подпапка внутри MdFiles/:\n\nПустая строка = вернуть в корень', '');
-  if (folder === null) return;
+  const panel = document.getElementById('movePanel');
+  const list = document.getElementById('moveFolderList');
+  const input = document.getElementById('moveNewFolder');
+  list.innerHTML = '<div class="loading">Загрузка...</div>';
+  input.value = '';
+  panel.style.display = 'block';
 
+  fetch(`/dialog/${selectedPeer}/folders`)
+    .then(r => r.json())
+    .then(folders => {
+      let html = '<div class="move-panel-item move-panel-root" onclick="moveToFolder(\'\')">/ (Корень)</div>';
+      folders.forEach(f => {
+        html += `<div class="move-panel-item" onclick="moveToFolder('${f.replace(/'/g, "\\'")}')">${f}</div>`;
+      });
+      list.innerHTML = html;
+      input.focus();
+    })
+    .catch(err => {
+      list.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+    });
+}
+
+function moveToFolder(folder) {
+  closeMovePanel();
   fetch(`/dialog/${selectedPeer}/${selectedCid}/move`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ folder: folder.trim() })
+    body: JSON.stringify({ folder: folder })
   })
     .then(r => r.json())
     .then(data => {
@@ -486,6 +529,22 @@ function moveSelected() {
       }
     })
     .catch(err => showToast('Ошибка: ' + err.message, true));
+}
+
+function submitNewFolder() {
+  const input = document.getElementById('moveNewFolder');
+  const folder = input.value.trim();
+  if (!folder) return;
+  if (/[\\\/\*\?:"<>|]/.test(folder)) {
+    showToast('Недопустимые символы в имени папки', true);
+    return;
+  }
+  moveToFolder(folder);
+}
+
+function closeMovePanel() {
+  document.getElementById('movePanel').style.display = 'none';
+  document.getElementById('moveNewFolder').value = '';
 }
 
 // ─── Rename Attachment ──────────────────────────────
