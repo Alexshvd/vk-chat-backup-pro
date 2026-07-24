@@ -79,11 +79,55 @@ def _rewrite_md_links(md_text: str, md_file_abs: Path) -> str:
     def _fix_html_src(m: re.Match) -> str:
         return f'{m.group(1)}{_resolve(m.group(2))}"'
 
+    # Markdown image:  ![alt](url)   → group(1) = "![](", group(2) = url
     md_text = re.sub(r'(!\[.*?\]\()(.+?)\)', _fix_md_link, md_text)
+    # Markdown link:   [text](url)   → group(1) = "[text](", group(2) = url
     md_text = re.sub(r'(\[[^\]]*?\]\()(.+?)\)', _fix_md_link, md_text)
+    # HTML src/href:   src="url" / href="url" → group(1)='src="', group(2)=url, group(3)='"'
     md_text = re.sub(r'(src=")(.+?)(")', _fix_html_src, md_text)
     md_text = re.sub(r'(href=")(.+?)(")', _fix_html_src, md_text)
     return md_text
+
+
+_KNOWN_DIRS = ("RawData/", "LargeRawData/", "OriginalMessages/", "AutorImages/")
+
+
+def _rewrite_links_for_move(content: str, depth_diff: int) -> str:
+    """Rewrite relative paths in MD content after moving to a new depth.
+
+    depth_diff = target_depth - current_depth
+      > 0 → file moved deeper (prepend ../)
+      < 0 → file moved shallower (strip ../)
+      = 0 → no change
+    """
+    if depth_diff == 0:
+        return content
+
+    def _transform(url: str) -> str:
+        core_url = url
+        stripped = 0
+        while core_url.startswith("../"):
+            core_url = core_url[3:]
+            stripped += 1
+        if not any(core_url.startswith(d) for d in _KNOWN_DIRS):
+            return url
+        return "../" * (stripped + depth_diff) + core_url
+
+    def _fix_md_link(m: re.Match) -> str:
+        before, link = m.group(1), m.group(2)
+        return f"{before}{_transform(link)})"
+
+    def _fix_html_attr(m: re.Match) -> str:
+        attr, url, close = m.group(1), m.group(2), m.group(3)
+        return f"{attr}{_transform(url)}{close}"
+
+    # Markdown image:  ![alt](url)   → group(1) = "![](", group(2) = url
+    content = re.sub(r'(!\[.*?\]\()(.+?)\)', _fix_md_link, content)
+    # Markdown link:   [text](url)   → group(1) = "[text](", group(2) = url
+    content = re.sub(r'(\[[^\]]*?\]\()(.+?)\)', _fix_md_link, content)
+    # HTML src/href:   src="url" / href="url" → group(1)='src="', group(2)=url, group(3)='"'
+    content = re.sub(r'((?:src|href)=)(")(.+?)(")', _fix_html_attr, content)
+    return content
 
 
 def _md_to_html(md_file_abs: Path) -> str:
@@ -97,8 +141,8 @@ def _find_md_files(md_dir: Path, cid: int) -> list[Path]:
     result = []
     if not md_dir.is_dir():
         return result
-    for f in md_dir.iterdir():
-        if not f.is_file() or not f.name.endswith(".md"):
+    for f in md_dir.rglob("*.md"):
+        if not f.is_file():
             continue
         m = CID_PATTERN.search(f.name)
         if m and int(m.group(1)) == cid:
@@ -211,8 +255,8 @@ def _get_dialog_name(peer_id: int) -> str:
     md_dir = _get_dialog_dir(peer_id) / "MdFiles"
     if not md_dir.is_dir():
         return f"dialog_{peer_id}"
-    for f in sorted(md_dir.iterdir()):
-        if f.is_file() and f.name.endswith(".md"):
+    for f in sorted(md_dir.rglob("*.md")):
+        if f.is_file():
             heading = f.name
             if heading:
                 return f"{heading} ({peer_id})"
@@ -261,8 +305,8 @@ def export_page():
                 md_dir = entry / "MdFiles"
                 max_cid = 0
                 if md_dir.is_dir():
-                    for f in md_dir.iterdir():
-                        if f.is_file() and f.name.endswith(".md"):
+                    for f in md_dir.rglob("*.md"):
+                        if f.is_file():
                             m = CID_PATTERN.search(f.name)
                             if m:
                                 cid_val = int(m.group(1))
@@ -378,14 +422,14 @@ def index():
         if entry.is_dir() and entry.name.startswith("dialog_"):
             peer_id = int(entry.name[len("dialog_"):])
             md_dir = entry / "MdFiles"
-            count = len([f for f in md_dir.glob("*.md")]) if md_dir.is_dir() else 0
+            count = len([f for f in md_dir.rglob("*.md")]) if md_dir.is_dir() else 0
 
             last_message_name = ""
             if md_dir.is_dir():
                 last_cid = 0
                 last_filename = ""
-                for f in md_dir.iterdir():
-                    if f.is_file() and f.name.endswith(".md"):
+                for f in md_dir.rglob("*.md"):
+                    if f.is_file():
                         m = CID_PATTERN.search(f.name)
                         if m:
                             cid = int(m.group(1))
@@ -415,8 +459,8 @@ def dialog_messages(peer_id: int):
     message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
     messages = []
     if md_dir.is_dir():
-        for f in md_dir.iterdir():
-            if not f.is_file() or not f.name.endswith(".md"):
+        for f in md_dir.rglob("*.md"):
+            if not f.is_file():
                 continue
             m = CID_PATTERN.search(f.name)
             if not m:
@@ -425,9 +469,11 @@ def dialog_messages(peer_id: int):
             heading = f.name
             size = f.stat().st_size
             attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
+            rel_dir = str(f.parent.relative_to(md_dir)) if str(f.parent.relative_to(md_dir)) != "." else ""
             messages.append({
                 "cid": cid,
                 "filename": f.name,
+                "rel_dir": rel_dir,
                 "heading": heading,
                 "date_str": message_date_str_by_cid.get(cid, ""),
                 "size": size,
@@ -507,6 +553,45 @@ def rename_md_file(peer_id: int, cid: int):
         f.rename(new_path)
         results.append({"old": f.name, "new": new_filename})
     return jsonify({"success": True, "renamed": results})
+
+
+@app.route("/dialog/<int:peer_id>/<int:cid>/move", methods=["POST"])
+def move_md_file(peer_id: int, cid: int):
+    data = request.get_json(force=True)
+    target_folder = data.get("folder", "").strip().strip("/")
+
+    dialog_dir = _get_dialog_dir(peer_id)
+    md_dir = dialog_dir / "MdFiles"
+    files = _find_md_files(md_dir, cid)
+    if not files:
+        return jsonify({"success": False, "error": "MD file not found"}), 404
+
+    target_dir = md_dir / target_folder if target_folder else md_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    results = []
+    for f in files:
+        current_str = str(f.parent.relative_to(md_dir))
+        current_depth = 0 if current_str == "." else len(current_str.split("/"))
+        target_depth = len(target_folder.split("/")) if target_folder else 0
+        depth_diff = target_depth - current_depth
+
+        new_path = target_dir / f.name
+        if new_path.exists():
+            return jsonify({"success": False, "error": f"File exists: {f.name}"}), 409
+
+        if depth_diff != 0:
+            content = f.read_text(encoding="utf-8")
+            content = _rewrite_links_for_move(content, depth_diff)
+            f.write_text(content, encoding="utf-8")
+
+        f.rename(new_path)
+        results.append({
+            "old": str(f.relative_to(md_dir)),
+            "new": str(new_path.relative_to(md_dir)),
+        })
+
+    return jsonify({"success": True, "moved": results})
 
 
 @app.route("/dialog/<int:peer_id>/<int:cid>/attachments")

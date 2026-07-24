@@ -37,6 +37,8 @@
   .content-header button:hover { background: #f0f0f0; }
   .content-header .btn-del { color: #e74c3c; border-color: #e74c3c; }
   .content-header .btn-del:hover { background: #fde8e8; }
+  .content-header .btn-move { color: #2980b9; border-color: #2980b9; }
+  .content-header .btn-move:hover { background: #e8f4fd; }
   .content-body { overflow-x: auto; }
   .content-body img { max-width: 100%; }
   .content-body video { max-width: 100%; }
@@ -123,6 +125,7 @@
           <div class="content-header">
             <span class="content-filename" id="contentFilename"></span>
             <button onclick="renameSelected()" title="Переименовать">&#9998;</button>
+            <button class="btn-move" onclick="moveSelected()" title="Переместить">&#128194;</button>
             <button class="btn-del" onclick="deleteSelected()" title="Удалить">&#128465;</button>
           </div>
           <div class="content-body" id="contentBody"></div>
@@ -455,6 +458,34 @@ function renameSelected() {
       });
       saveBtn.addEventListener('click', () => finish(true));
     });
+}
+
+// ─── Move ──────────────────────────────────────────
+function moveSelected() {
+  if (!selectedCid) return;
+  const folder = prompt('Подпапка внутри MdFiles/:\n\nПустая строка = вернуть в корень', '');
+  if (folder === null) return;
+
+  fetch(`/dialog/${selectedPeer}/${selectedCid}/move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folder: folder.trim() })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const newPath = data.moved[0].new;
+        selectedFilename = newPath.split('/').pop();
+        const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
+        if (item) item.querySelector('.fname').childNodes[0].textContent = newPath;
+        document.getElementById('contentFilename').textContent = selectedFilename;
+        selectMessage(item);
+        showToast('Файл перемещён');
+      } else {
+        showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+      }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, true));
 }
 
 // ─── Rename Attachment ──────────────────────────────

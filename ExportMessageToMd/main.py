@@ -103,10 +103,10 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
 
         existing_md_by_cid: dict[int, str] = {}
         if md_dir.is_dir():
-            for md_file in md_dir.glob("*.Id*.md"):
+            for md_file in md_dir.rglob("*.Id*.md"):
                 m = re.search(r'\.Id(\d+)\.md$', md_file.name)
                 if m:
-                    existing_md_by_cid[int(m.group(1))] = md_file.name
+                    existing_md_by_cid[int(m.group(1))] = str(md_file.relative_to(md_dir))
 
         for message_index, message_file in enumerate(message_files):
             with open(message_file, encoding="utf-8") as fp:
