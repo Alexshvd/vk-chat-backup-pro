@@ -486,6 +486,7 @@ function renameSelected() {
 function moveSelected() {
   if (!selectedCid) return;
   const panel = document.getElementById('movePanel');
+  if (panel.style.display === 'block') { closeMovePanel(); return; }
   const list = document.getElementById('moveFolderList');
   const input = document.getElementById('moveNewFolder');
   list.innerHTML = '<div class="loading">Загрузка...</div>';
