@@ -498,7 +498,7 @@ function moveSelected() {
     .then(folders => {
       let html = '<div class="move-panel-item move-panel-root" onclick="moveToFolder(\'\')">/ (Корень)</div>';
       folders.forEach(f => {
-        html += `<div class="move-panel-item" onclick="moveToFolder('${f.replace(/'/g, "\\'").replace(/\//g, '\\/')}')">${f}</div>`;
+        html += `<div class="move-panel-item" onclick="moveToFolder('${f.replace(/'/g, "\\'")}')">${f}</div>`;
       });
       list.innerHTML = html;
       input.focus();
