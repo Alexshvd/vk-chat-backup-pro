@@ -1,6 +1,7 @@
 import html
 import json as _json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -526,7 +527,13 @@ def open_folder(peer_id: int, cid: int):
         folder.relative_to(export_root_abs)
     except ValueError:
         return jsonify({"success": False, "error": "access denied"}), 403
-    subprocess.Popen(["explorer", str(folder)])
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.Popen(["open", str(folder)])
+    elif system == "Windows":
+        subprocess.Popen(["explorer", str(folder)])
+    else:
+        subprocess.Popen(["xdg-open", str(folder)])
     return jsonify({"success": True})
 
 
