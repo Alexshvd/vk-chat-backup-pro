@@ -591,6 +591,9 @@ def move_md_file(peer_id: int, cid: int):
             return jsonify({"success": False, "error": "File is already in this folder"}), 409
 
         new_path = target_dir / f.name
+        if len(str(new_path)) > 254:
+            return jsonify({"success": False, "error": f"Path too long ({len(str(new_path))} chars, max 254). Rename the file before moving"}), 400
+
         if new_path.exists():
             return jsonify({"success": False, "error": f"File exists: {f.name}"}), 409
 
