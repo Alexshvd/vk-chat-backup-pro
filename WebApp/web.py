@@ -13,6 +13,7 @@ from flask import Flask, Response, abort, jsonify, redirect, render_template, re
 from mistune import HTMLRenderer, create_markdown
 
 from config_loader import load_config
+from dialog_dirs import collect_dialog_dirs
 from Loggers.print_logger import PrintLogger
 from Loggers.buffer_logger import BufferLogger
 from Loggers.aggregation_logger import AggregationLogger
@@ -40,16 +41,10 @@ def init_app(config_path: str):
     dialogs_dir_abs = export_serve_abs / "Dialogs"
 
 
-def _resolve_dialog_folder_name(peer_id: int) -> str:
-    config = load_config(_config_path)
-    custom = config.dialog_name_by_peer_id.get(peer_id)
-    if custom and (dialogs_dir_abs / custom).is_dir():
-        return custom
-    return f"dialog_{peer_id}"
-
-
 def _get_dialog_dir(peer_id: int) -> Path:
-    return dialogs_dir_abs / _resolve_dialog_folder_name(peer_id)
+    config = load_config(_config_path)
+    dialog_dirs = collect_dialog_dirs(dialogs_dir_abs, config)
+    return dialog_dirs.get(peer_id, dialogs_dir_abs / f"dialog_{peer_id}")
 
 
 def _max_filename_len(directory: Path) -> int:
@@ -164,7 +159,7 @@ def _get_attachment_size(md_dir: Path, raw_dir: Path, large_dir_root: Path, peer
         for f in cid_raw.rglob("*"):
             if f.is_file():
                 total += f.stat().st_size
-    cid_large = large_dir_root / _resolve_dialog_folder_name(peer_id) / str(cid)
+    cid_large = large_dir_root / _get_dialog_dir(peer_id).name / str(cid)
     if cid_large.is_dir():
         for f in cid_large.rglob("*"):
             if f.is_file():
@@ -213,7 +208,7 @@ def _delete_cid(peer_id: int, cid: int) -> dict:
     md_dir = dialog_dir / "MdFiles"
     raw_dir = dialog_dir / "RawData"
     orig_dir = dialog_dir / "OriginalMessages"
-    large_dir = large_root_abs / _resolve_dialog_folder_name(peer_id)
+    large_dir = large_root_abs / _get_dialog_dir(peer_id).name
 
     deleted = {"md_files": [], "raw_dir": None, "large_dir": None, "json_files": []}
 
@@ -243,7 +238,7 @@ def _delete_cid(peer_id: int, cid: int) -> dict:
 def _list_attachments(peer_id: int, cid: int) -> dict:
     dialog_dir = _get_dialog_dir(peer_id)
     raw_dir = dialog_dir / "RawData" / str(cid)
-    large_dir = large_root_abs / _resolve_dialog_folder_name(peer_id) / str(cid)
+    large_dir = large_root_abs / _get_dialog_dir(peer_id).name / str(cid)
 
     files = {"raw": [], "large": []}
     if raw_dir.is_dir():
@@ -294,65 +289,30 @@ def export_page():
                     "size_str": _format_size(f.stat().st_size),
                 })
 
-    if dialogs_dir_abs.is_dir():
-        for entry in dialogs_dir_abs.iterdir():
-            if entry.is_dir() and entry.name.startswith("dialog_"):
-                pid = int(entry.name[len("dialog_"):])
-                if pid not in files_by_peer_id:
-                    orig_dir = entry / "OriginalMessages"
-                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
-                        files_by_peer_id[pid] = []
-
     config = load_config(_config_path)
-
-    if dialogs_dir_abs.is_dir():
-        for pid, custom_name in config.dialog_name_by_peer_id.items():
-            if pid not in files_by_peer_id:
-                custom_dir = dialogs_dir_abs / custom_name
-                if custom_dir.is_dir():
-                    orig_dir = custom_dir / "OriginalMessages"
-                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
-                        files_by_peer_id[pid] = []
+    dialog_dirs = collect_dialog_dirs(dialogs_dir_abs, config)
 
     orig_counts = {}
     max_cid_by_peer_id = {}
-    if dialogs_dir_abs.is_dir():
-        for entry in dialogs_dir_abs.iterdir():
-            if entry.is_dir() and entry.name.startswith("dialog_"):
-                pid = int(entry.name[len("dialog_"):])
-                orig_dir = entry / "OriginalMessages"
-                orig_counts[pid] = len(list(orig_dir.glob("*.json"))) if orig_dir.is_dir() else 0
-                md_dir = entry / "MdFiles"
-                max_cid = 0
-                if md_dir.is_dir():
-                    for f in md_dir.rglob("*.md"):
-                        if f.is_file():
-                            m = CID_PATTERN.search(f.name)
-                            if m:
-                                cid_val = int(m.group(1))
-                                if cid_val > max_cid:
-                                    max_cid = cid_val
-                max_cid_by_peer_id[pid] = max_cid
+    for pid, d in dialog_dirs.items():
+        if pid not in files_by_peer_id:
+            orig_dir = d / "OriginalMessages"
+            if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
+                files_by_peer_id[pid] = []
+        orig_dir = d / "OriginalMessages"
+        orig_counts[pid] = len(list(orig_dir.glob("*.json"))) if orig_dir.is_dir() else 0
+        md_dir = d / "MdFiles"
+        max_cid = 0
+        if md_dir.is_dir():
+            for f in md_dir.rglob("*.md"):
+                if f.is_file():
+                    m = CID_PATTERN.search(f.name)
+                    if m:
+                        cid_val = int(m.group(1))
+                        if cid_val > max_cid:
+                            max_cid = cid_val
+        max_cid_by_peer_id[pid] = max_cid
 
-        for pid, custom_name in config.dialog_name_by_peer_id.items():
-            if pid not in max_cid_by_peer_id:
-                custom_dir = dialogs_dir_abs / custom_name
-                if custom_dir.is_dir():
-                    orig_dir = custom_dir / "OriginalMessages"
-                    orig_counts[pid] = len(list(orig_dir.glob("*.json"))) if orig_dir.is_dir() else 0
-                    md_dir = custom_dir / "MdFiles"
-                    max_cid = 0
-                    if md_dir.is_dir():
-                        for f in md_dir.rglob("*.md"):
-                            if f.is_file():
-                                m = CID_PATTERN.search(f.name)
-                                if m:
-                                    cid_val = int(m.group(1))
-                                    if cid_val > max_cid:
-                                        max_cid = cid_val
-                    max_cid_by_peer_id[pid] = max_cid
-
-    config = load_config(_config_path)
     filters = {}
     dialog_names = {}
     folder_exists_by_peer_id = {}
@@ -465,66 +425,36 @@ def run_export():
 @app.route("/")
 def index():
     dialogs = []
-    seen_pids = set()
     if not dialogs_dir_abs.is_dir():
         return render_template("index.html", dialogs=[])
-    for entry in sorted(dialogs_dir_abs.iterdir()):
-        if entry.is_dir() and entry.name.startswith("dialog_"):
-            peer_id = int(entry.name[len("dialog_"):])
-            seen_pids.add(peer_id)
-            md_dir = entry / "MdFiles"
-            count = len([f for f in md_dir.rglob("*.md")]) if md_dir.is_dir() else 0
-
-            last_message_name = ""
-            if md_dir.is_dir():
-                last_cid = 0
-                last_filename = ""
-                for f in md_dir.rglob("*.md"):
-                    if f.is_file():
-                        m = CID_PATTERN.search(f.name)
-                        if m:
-                            cid = int(m.group(1))
-                            if cid > last_cid:
-                                last_cid = cid
-                                last_filename = f.name
-                if last_filename:
-                    last_message_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_filename)
-
-            dialogs.append({
-                "peer_id": peer_id,
-                "name": _get_dialog_name(peer_id),
-                "count": count,
-                "last_message_name": last_message_name,
-            })
-
     config = load_config(_config_path)
-    for pid, custom_name in config.dialog_name_by_peer_id.items():
-        if pid not in seen_pids:
-            custom_dir = dialogs_dir_abs / custom_name
-            if custom_dir.is_dir():
-                seen_pids.add(pid)
-                md_dir = custom_dir / "MdFiles"
-                count = len([f for f in md_dir.rglob("*.md")]) if md_dir.is_dir() else 0
-                last_message_name = ""
-                if md_dir.is_dir():
-                    last_cid = 0
-                    last_filename = ""
-                    for f in md_dir.rglob("*.md"):
-                        if f.is_file():
-                            m = CID_PATTERN.search(f.name)
-                            if m:
-                                cid = int(m.group(1))
-                                if cid > last_cid:
-                                    last_cid = cid
-                                    last_filename = f.name
-                    if last_filename:
-                        last_message_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_filename)
-                dialogs.append({
-                    "peer_id": pid,
-                    "name": _get_dialog_name(pid),
-                    "count": count,
-                    "last_message_name": last_message_name,
-                })
+    dialog_dirs = collect_dialog_dirs(dialogs_dir_abs, config)
+    for pid in sorted(dialog_dirs.keys()):
+        d = dialog_dirs[pid]
+        md_dir = d / "MdFiles"
+        count = len([f for f in md_dir.rglob("*.md")]) if md_dir.is_dir() else 0
+
+        last_message_name = ""
+        if md_dir.is_dir():
+            last_cid = 0
+            last_filename = ""
+            for f in md_dir.rglob("*.md"):
+                if f.is_file():
+                    m = CID_PATTERN.search(f.name)
+                    if m:
+                        cid = int(m.group(1))
+                        if cid > last_cid:
+                            last_cid = cid
+                            last_filename = f.name
+            if last_filename:
+                last_message_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_filename)
+
+        dialogs.append({
+            "peer_id": pid,
+            "name": _get_dialog_name(pid),
+            "count": count,
+            "last_message_name": last_message_name,
+        })
     return render_template("index.html", dialogs=dialogs)
 
 
@@ -562,7 +492,7 @@ def dialog_messages(peer_id: int):
                 "attach_size_str": _format_size(attach_size) if attach_size else "-",
                 "is_part": "_part_" in f.name,
                 "has_raw": (raw_dir / str(cid)).is_dir(),
-                "has_large": (large_root_abs / _resolve_dialog_folder_name(peer_id) / str(cid)).is_dir(),
+                "has_large": (large_root_abs / _get_dialog_dir(peer_id).name / str(cid)).is_dir(),
             })
     last_message_name = ""
     if messages:
@@ -572,7 +502,7 @@ def dialog_messages(peer_id: int):
         last_message_name = last_name
 
     return render_template("dialog.html", peer_id=peer_id, dialog_name=_get_dialog_name(peer_id),
-                           dialog_folder_name=_resolve_dialog_folder_name(peer_id),
+                           dialog_folder_name=_get_dialog_dir(peer_id).name,
                            messages=messages, last_message_name=last_message_name)
 
 
@@ -589,7 +519,7 @@ def rename_dialog_folder(peer_id: int):
         if any(not s for s in new_name.replace("\\", "/").split("/")):
             return jsonify({"success": False, "error": "Имя не может содержать пустые сегменты"}), 400
 
-    old_folder_name = _resolve_dialog_folder_name(peer_id)
+    old_folder_name = _get_dialog_dir(peer_id).name
     target_name = new_name if new_name else f"dialog_{peer_id}"
 
     if old_folder_name == target_name:
@@ -785,7 +715,7 @@ def rename_attachment(peer_id: int, cid: int):
     if storage == "raw":
         file_dir = dialog_dir / "RawData" / str(cid)
     elif storage == "large":
-        file_dir = large_root_abs / _resolve_dialog_folder_name(peer_id) / str(cid)
+        file_dir = large_root_abs / _get_dialog_dir(peer_id).name / str(cid)
     else:
         return jsonify({"success": False, "error": "invalid storage type"}), 400
 
@@ -822,7 +752,7 @@ def rename_attachment(peer_id: int, cid: int):
 def get_limits(peer_id: int, cid: int):
     md_dir = _get_dialog_dir(peer_id) / "MdFiles"
     raw_dir = _get_dialog_dir(peer_id) / "RawData" / str(cid)
-    large_dir = large_root_abs / _resolve_dialog_folder_name(peer_id) / str(cid)
+    large_dir = large_root_abs / _get_dialog_dir(peer_id).name / str(cid)
     return jsonify({
         "md": _max_filename_len(md_dir),
         "raw": _max_filename_len(raw_dir),

@@ -9,6 +9,7 @@ from typing import Optional
 
 from config import Config
 from config_loader import load_config
+from dialog_dirs import collect_dialog_dirs
 from export_fwd import extract_items_from_data
 from md_renderer import render_md_item
 from md_item_builder import build_md_items
@@ -24,13 +25,6 @@ def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
     if min_date is not None and (item.get("date") or 0) <= min_date:
         return True
     return False
-
-
-def _resolve_dialog_folder_name(peer_id: int, config: Config, dialogs_dir: Path) -> str:
-    custom = config.dialog_name_by_peer_id.get(peer_id)
-    if custom and (dialogs_dir / custom).is_dir():
-        return custom
-    return f"dialog_{peer_id}"
 
 
 def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
@@ -66,22 +60,12 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         for g in data.get("groups", []):
             groups.setdefault(g["id"], g)
 
-    if dialogs_dir.is_dir():
-        for entry in dialogs_dir.iterdir():
-            if entry.is_dir() and entry.name.startswith("dialog_"):
-                pid = int(entry.name[len("dialog_"):])
-                if pid not in dialog_by_peer_id:
-                    orig_dir = entry / "OriginalMessages"
-                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
-                        dialog_by_peer_id[pid] = {}
-
-        for pid, custom_name in config.dialog_name_by_peer_id.items():
-            if pid not in dialog_by_peer_id:
-                custom_dir = dialogs_dir / custom_name
-                if custom_dir.is_dir():
-                    orig_dir = custom_dir / "OriginalMessages"
-                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
-                        dialog_by_peer_id[pid] = {}
+    dialog_dirs = collect_dialog_dirs(dialogs_dir, config)
+    for pid, d in dialog_dirs.items():
+        if pid not in dialog_by_peer_id:
+            orig_dir = d / "OriginalMessages"
+            if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
+                dialog_by_peer_id[pid] = {}
 
     merged = {"profiles": list(profiles.values()), "groups": list(groups.values())}
     authors = load_authors(merged)
@@ -95,8 +79,8 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         items = list(items_dict.values())
         yield f"\n=== Диалог {peer_id} (сообщений: {len(items)}) ==="
 
-        folder_name = _resolve_dialog_folder_name(peer_id, config, dialogs_dir)
-        dialog_dir = dialogs_dir / folder_name
+        dialog_dir = dialog_dirs.get(peer_id) or (dialogs_dir / f"dialog_{peer_id}")
+        folder_name = dialog_dir.name
         little_raw_data_dir = dialog_dir / "RawData"
         original_messages_dir = dialog_dir / "OriginalMessages"
         md_dir = dialog_dir / "MdFiles"

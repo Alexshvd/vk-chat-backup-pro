@@ -14,7 +14,8 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │
 ├── Config/
 │   ├── config.py             # Config dataclass (pure, no side-effects)
-│   └── config_loader.py      # load_config(path) + path_rel()
+│   ├── config_loader.py      # load_config(path) + path_rel()
+│   └── dialog_dirs.py        # collect_dialog_dirs(dialogs_dir, config) → {peer_id: Path}
 │
 ├── ExportMessageToMd/
 │   ├── main.py               # Generator: parse sources → extract → build → render → write
@@ -102,6 +103,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### Config/config_loader.py
 - `load_config(path: str) -> Config` — reads `config.json`, raises `FileNotFoundError` if file doesn't exist with path in message; parses and transforms (str keys → int, date strings → unix timestamps)
 - `path_rel(target, start)` — `os.path.relpath()` with `\` → `/`
+
+### Config/dialog_dirs.py
+- `collect_dialog_dirs(dialogs_dir: Path, config: Config) -> dict[int, Path]` — scans `dialogs_dir` for all dialog folders (both `dialog_{peer_id}` and custom-named from `config.dialog_name_by_peer_id`) and returns `{peer_id: Path}` mapping. Used by both CLI pipeline and web app to avoid duplicate directory scanning.
 
 ### config.json (user-provided, not tracked in git)
 - `export_root` — path to export root (default: `{parent_dir}/Temp/ExportMessages`)
