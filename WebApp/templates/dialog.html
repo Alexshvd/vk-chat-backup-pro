@@ -250,7 +250,7 @@ function closeFilterPanel() {
 function applyFilter() {
   filterIncludeNested = document.getElementById('filterNested').checked;
   document.querySelectorAll('.msg-item').forEach(item => {
-    const dir = item.dataset.relDir || '';
+    const dir = (item.dataset.relDir || '').replaceAll('\\', '/');
     let show;
     if (!filterFolder) {
       show = filterIncludeNested || dir === '';
