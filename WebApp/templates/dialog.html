@@ -17,12 +17,13 @@
   .col-list-scroll { flex: 1; overflow-y: auto; }
   .col-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .content-card { flex: 1; overflow-y: auto; }
-  .toolbar { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
-  .toolbar > :not(.toolbar-right) { align-self: flex-start; }
-  .toolbar-right { display: flex; gap: 8px; align-self: flex-end; }
-  .toolbar-col { display: flex; flex-direction: column; gap: 6px; }
-  .toolbar-col-right { align-items: flex-end; }
-  .toolbar-col-center { align-items: center; }
+  .toolbar { margin-bottom: 12px; display: grid; grid-template-columns: auto auto; gap: 4px 8px; justify-content: end; align-items: center; }
+  .toolbar .filter-btn { justify-self: end; }
+  .toolbar .sort-select { justify-self: end; }
+  #filterNested { justify-self: center; }
+  .sort-dir-btn { justify-self: center; }
+  .btn-delete-batch { grid-column: 1 / -1; justify-self: start; }
+  #selectedCount { grid-column: 1 / -1; }
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .toolbar .filter-btn { padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; background: #fff; color: #555; cursor: pointer; }
   .toolbar .filter-btn:hover { background: #f0f0f0; }
@@ -114,19 +115,13 @@
   <div class="dialog-layout">
     <div class="col-list">
       <div class="toolbar">
-        <div class="toolbar-right">
-          <div class="toolbar-col toolbar-col-right">
-            <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
-            <select class="sort-select" id="sortSelect" onchange="applySort()">
-              <option value="name" selected>по имени файла</option>
-              <option value="cid">по Id (дате)</option>
-            </select>
-          </div>
-          <div class="toolbar-col toolbar-col-center">
-            <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
-            <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
-          </div>
-        </div>
+        <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
+        <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
+        <select class="sort-select" id="sortSelect" onchange="applySort()">
+          <option value="name" selected>по имени файла</option>
+          <option value="cid">по Id (дате)</option>
+        </select>
+        <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
         <span id="selectedCount" style="color:#888;font-size:0.85rem;width:100%;"></span>
       </div>
