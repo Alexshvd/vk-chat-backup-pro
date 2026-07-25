@@ -113,7 +113,7 @@
     <div class="col-list">
       <div class="toolbar">
         <div class="toolbar-row">
-          <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 Все папки</button>
+          <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
           <input type="checkbox" id="filterNested" checked onchange="applyFilter()">
           <label for="filterNested">подпапки</label>
         </div>
@@ -239,7 +239,7 @@ function selectFilterFolder(folder) {
     btn.textContent = '📂 ' + folder;
     btn.classList.add('active');
   } else {
-    btn.textContent = '📂 Все папки';
+    btn.textContent = '📂 / (Корень)';
     btn.classList.remove('active');
   }
   applyFilter();
