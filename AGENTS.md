@@ -132,6 +132,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `_build_md_lines(item, level)` — private recursive dispatcher, returns `list[str]` without Sources
 - `_build_md_message_lines(item, tag, level)` — renders regular message to `list[str]`, calls `_build_md_lines(child, level + 2)` for forwarded messages
 - `_build_md_wall_message_lines(item, tag, level)` — renders wall-split message to `list[str]`, no Sources
+- `_render_author_compact(from_id, author, date)` — renders author info as multi-line formatted `<table>` HTML block with indentation (2-space indented nested tags, `<br>\n` between parts)
 - `_rel_cell(result)` — maps `BaseDownloadResult` to Sources table cell: `SuccessDownloadResult` → link, `ErrorDownloadResult` → "Ошибка скачивания", `NoDownloadResult` → empty. Raises `TypeError` for unknown types.
 - `_append_sources_table(lines, item)` — builds one consolidated Sources table with `seen` set for deduplication. JSON file row added once before `_walk()`. `_walk()` recursively processes forwarded messages via `_add_row()`.
 
@@ -167,6 +168,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/dialog/<peer_id>/folders` | GET | Список подпапок внутри `MdFiles/` (JSON-массив) |
 | `/dialog/<peer_id>/<cid>/open-folder` | POST | Кроссплатформенное открытие папки (`explorer`/`open`/`xdg-open` через `platform.system()`) |
 | `/dialog/<peer_id>/<cid>/rename-attachment` | PUT | Переименование вложения |
+| `/dialog/<peer_id>/<cid>/move` | POST | Перемещение MD-файла в другую папку (с проверкой длины пути и дубликатов) |
 | `/export/<path>` | GET | Статика (Dialogs, Sources) |
 | `/large/<path>` | GET | Статика (LargeRawData) |
 
@@ -179,7 +181,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
 - **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в файловом менеджере через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
 - **Sticky-заголовок контента**: `content-header` (название файла + кнопки редактирования/удаления) закреплён вверху при прокрутке (`position: sticky`), фон `#f0f4fa`.
-- **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`).
+- **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`). Проверка длины пути (макс. 254 символа). Если файл уже в целевой папке — возвращается ошибка "File is already in this folder".
+- **Отображение вложенности**: в левой колонке каждого сообщения в правом верхнем углу отображается путь подпапки (`rel-dir`) серым цветом мелким шрифтом. Пути нормализуются к прямым слешам (`/`) на всех платформах.
+- **Фильтр по папкам**: кнопка с CSS-стрелкой dropdown в тулбаре (CSS Grid layout, 3 колонки). Выпадающий список папок (переиспользует стили `.move-panel`). Чекбокс "показывать подпапки" включён по умолчанию. Фильтрация клиентская через `data-rel-dir` атрибут. Кнопка «Удалить выбранные» расположена на строке с сортировкой.
 
 ## Зависимости
 
