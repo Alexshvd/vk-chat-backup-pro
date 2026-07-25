@@ -84,7 +84,7 @@ python run.py --mode web --config config.json
 
 ## Data Flow
 
-1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups. Also scans `Dialogs/` for peer_ids not in Sources but with existing `OriginalMessages/*.json`.
+1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups. Also uses `collect_dialog_dirs()` to discover `Dialogs/` for peer_ids not in Sources but with existing `OriginalMessages/*.json`.
 2. **main.py** → `load_authors(merged_data)` → `dict[int, AuthorInfo]`
 3. **main.py** → per dialog: `extract_items_from_data(filtered_items)` → `{date}_{cid}.json`
 4. **main.py** → per dialog: `build_md_items(json, cid, root_cid, config, ...)` → `list[MdItem]` with resolved attachments and downloaded files. `cid` = current message's `conversation_message_id`, `root_cid` = original message's cid (passed through to forwarded messages for nested directory structure).
@@ -149,7 +149,8 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ## WebApp
 
 ### web.py
-- Flask app factory pattern: `init_app(config_path)` → `_init_paths()` → sets all path globals
+- Flask app factory pattern: `init_app(config_path)` → sets all path globals from `config.json`
+- `_get_dialog_dir(peer_id)` — returns `Path` for dialog folder using `collect_dialog_dirs()`, with `dialog_{peer_id}` fallback
 - `_build_message_date_str_by_cid(orig_dir, logger)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
 - `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)`, `orig_counts=dict` (count of OriginalMessages per peer_id) for displaying the MD output directory
 - `_list_attachments` uses `rglob("*")` to recursively find files in nested `RawData/{root_cid}/{fwd_cid}/` dirs
