@@ -501,7 +501,7 @@ function moveSelected() {
   fetch(`/dialog/${selectedPeer}/folders`)
     .then(r => r.json())
     .then(folders => {
-      let html = '<div class="move-panel-item move-panel-root" onclick="moveToFolder(\'\')">/ (Корень)</div>';
+      let html = '<div class="move-panel-item move-panel-root" onclick="moveToFolder(\'\')">\\ (Корень)</div>';
       folders.forEach(f => {
 <!--        const safe = f.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\//g, '\\/');-->
         const safe = f.replaceAll('\\', '/');
