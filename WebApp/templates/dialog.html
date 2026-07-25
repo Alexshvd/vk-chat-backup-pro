@@ -115,7 +115,7 @@
   <div class="dialog-layout">
     <div class="col-list">
       <div class="toolbar">
-        <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
+        <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень) ▾</button>
         <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
@@ -234,10 +234,10 @@ function selectFilterFolder(folder) {
   closeFilterPanel();
   const btn = document.getElementById('filterBtn');
   if (folder) {
-    btn.textContent = '📂 ' + folder;
+    btn.textContent = '📂 ' + folder + ' ▾';
     btn.classList.add('active');
   } else {
-    btn.textContent = '📂 / (Корень)';
+    btn.textContent = '📂 / (Корень) ▾';
     btn.classList.remove('active');
   }
   applyFilter();
