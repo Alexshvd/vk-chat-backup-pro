@@ -582,8 +582,8 @@ def move_md_file(peer_id: int, cid: int):
 
     results = []
     for f in files:
-        current_str = str(f.parent.relative_to(md_dir))
-        current_depth = 0 if current_str == "." else len(current_str.split("/"))
+        current_md_file_dir = f.parent.relative_to(md_dir)
+        current_depth = len(current_md_file_dir.parts)
         target_depth = len(target_folder.split("/")) if target_folder else 0
         depth_diff = target_depth - current_depth
 
