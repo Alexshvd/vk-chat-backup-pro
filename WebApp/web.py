@@ -467,7 +467,7 @@ def dialog_messages(peer_id: int):
             heading = f.name
             size = f.stat().st_size
             attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
-            rel_dir = str(f.parent.relative_to(md_dir)) if str(f.parent.relative_to(md_dir)) != "." else ""
+            rel_dir = str(f.parent.relative_to(md_dir)).replace("\\", "/") if str(f.parent.relative_to(md_dir)) != "." else ""
             messages.append({
                 "cid": cid,
                 "filename": f.name,
