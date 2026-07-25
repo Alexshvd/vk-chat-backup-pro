@@ -148,7 +148,7 @@
 │   └── Dialogs/
 │       ├── AutorImages/                      # Аватары авторов
 │       │   └── photo_12345.jpg
-│       └── dialog_{peer_id}/
+│       └── dialog_{peer_id}/ (или {custom_name})
 │           ├── RawData/                      # Малые вложения, сгруппированные по CID
 │           │   └── {cid}/
 │           │       ├── 1.jpg
@@ -158,7 +158,7 @@
 │           └── MdFiles/                      # Сконвертированные Markdown-файлы
 │               └── Привет.Id1234.md
 └── LargeRawData/                             # Большие файлы (видео) — вынесены отдельно,
-    └── dialog_{peer_id}/                     # т.к. остальная часть предполагается для использования в git-репозитории
+    └── dialog_{peer_id}/ (или {custom_name})     # т.к. остальная часть предполагается для использования в git-репозитории
         └── {cid}/
             └── 1.mp4</code></pre>
     </details>
@@ -203,6 +203,14 @@
             <input type="text" data-peer="{{ peer_id }}" data-field="min_date" value="{{ filters[peer_id].min_date }}" placeholder="yyyy-mm-dd-hh-mm-ss" style="width: 180px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px;">
           </label>
           <button type="button" onclick="saveFilters(this)" style="padding: 4px 10px; font-size: 0.8rem; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Сохранить фильтры</button>
+        </div>
+        <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 0.85rem; color: #666;">Название папки:
+            <input type="text" data-peer="{{ peer_id }}" data-field="dialog_name" value="{{ dialog_names.get(peer_id, '') }}" placeholder="dialog_{{ peer_id }}" {% if folder_exists_by_peer_id.get(peer_id, False) %}disabled title="Папка уже существует. Переименование доступно на странице диалога"{% endif %} style="width: 220px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; {% if folder_exists_by_peer_id.get(peer_id, False) %}background: #f0f0f0; color: #999;{% endif %}">
+          </label>
+          {% if folder_exists_by_peer_id.get(peer_id, False) %}
+          <span style="font-size: 0.75rem; color: #999;">переименование на странице диалога</span>
+          {% endif %}
         </div>
       </div>
       {% endfor %}

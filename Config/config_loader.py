@@ -21,6 +21,7 @@ def load_config(path: str) -> Config:
         parent = os.path.dirname(os.path.abspath(path))
         export_root = f"{parent}/Temp/ExportMessages"
 
+    dialog_names = {int(k): str(v) for k, v in raw.get("dialog_name_by_peer_id", {}).items()}
     min_cid = {int(k): int(v) for k, v in raw.get("min_cid_by_peer_id", {}).items()}
     min_date = {
         int(k): int(datetime.strptime(v, "%Y-%m-%d-%H-%M-%S").timestamp())
@@ -34,6 +35,7 @@ def load_config(path: str) -> Config:
         long_video_threshold=raw.get("long_video_threshold", 180),
         overwrite_existing_md=raw.get("overwrite_existing_md", False),
         overwrite_existing_original_message_json=raw.get("overwrite_existing_original_message_json", False),
+        dialog_name_by_peer_id=dialog_names,
         min_cid_by_peer_id=min_cid,
         min_date_by_peer_id=min_date,
     )

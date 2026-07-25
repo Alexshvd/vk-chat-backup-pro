@@ -30,7 +30,7 @@
       <a href="/dialog/{{ d.peer_id }}" class="card-link">
         <div class="card">
           <span class="card-title">
-            <div>Id {{ d.peer_id }}</div>
+            <div>{{ d.name }} (peer_id: {{ d.peer_id }})</div>
             {% if d.last_message_name %}
             <div style="font-size: 0.85rem; color: #555; font-weight: 400;">Последние сообщение: {{ d.last_message_name }}</div>
             {% endif %}

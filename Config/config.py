@@ -10,5 +10,6 @@ class Config:
     long_video_threshold: int = 180
     overwrite_existing_md: bool = False
     overwrite_existing_original_message_json: bool = False
+    dialog_name_by_peer_id: Dict[int, str] = field(default_factory=dict)
     min_cid_by_peer_id: Dict[int, int] = field(default_factory=dict)
     min_date_by_peer_id: Dict[int, int] = field(default_factory=dict)

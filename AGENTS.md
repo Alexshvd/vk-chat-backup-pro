@@ -96,7 +96,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ## Module Details
 
 ### Config/config.py
-- `Config` dataclass with fields: `export_root`, `download_short_video`, `download_long_video`, `long_video_threshold`, `overwrite_existing_md`, `overwrite_existing_original_message_json`, `min_cid_by_peer_id`, `min_date_by_peer_id`
+- `Config` dataclass with fields: `export_root`, `download_short_video`, `download_long_video`, `long_video_threshold`, `overwrite_existing_md`, `overwrite_existing_original_message_json`, `dialog_name_by_peer_id`, `min_cid_by_peer_id`, `min_date_by_peer_id`
 - Pure data container, no logic
 
 ### Config/config_loader.py
@@ -108,6 +108,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
 - `overwrite_existing_md` — if `true`, re-converts messages with existing MD files (deletes old MD + RawData + LargeRawData first); if `false` (default), skips already converted messages
 - `overwrite_existing_original_message_json` — if `true`, overwrites existing OriginalMessages JSON files; if `false` (default), skips already extracted messages
+- `dialog_name_by_peer_id` — custom folder names: `{peer_id: "folder_name"}`. If set, dialog folder is named `{folder_name}` instead of `dialog_{peer_id}`. Renamed via page `/dialog/<peer_id>` button. Both `Dialogs/` and `LargeRawData/` folders are renamed.
 - `min_cid_by_peer_id` — per-dialog filter: `{peer_id: min_cid}` (messages with cid <= min_cid are skipped)
 - `min_date_by_peer_id` — per-dialog filter: `{peer_id: "yyyy-mm-dd-hh-mm-ss"}` (messages with date <= filter are skipped)
 - If peer_id not in dict — filter disabled for that dialog
@@ -156,9 +157,10 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/export` | GET | Страница экспорта (список Sources по peer_id + диалоги с OriginalMessages без Sources, фильтры, кнопка генерации) |
 | `/export/create-sources` | POST | Создание директории Sources |
 | `/export/upload` | POST | Загрузка файла в Sources |
-| `/export/save-filters` | POST | Сохранение фильтров min_cid/min_date в config.json |
+| `/export/save-filters` | POST | Сохранение фильтров min_cid/min_date и кастомных названий диалогов в config.json |
 | `/export/generate` | POST | Потоковая генерация MD (chunked HTML), читает `peer_ids` из формы |
 | `/dialog/<peer_id>` | GET | Список `.md` файлов |
+| `/dialog/<peer_id>/rename-folder` | PUT | Переименование папки диалога (Dialogs + LargeRawData + config.json) |
 | `/dialog/<peer_id>/limits/<cid>` | GET | Макс. длины имён файлов |
 | `/dialog/<peer_id>/<cid>/content` | GET | HTML-рендер `.md` |
 | `/dialog/<peer_id>/<cid>` | DELETE | Удаление сообщения |
@@ -175,10 +177,11 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### export.html
 - **Блок 1 «Как получить messages.json»**: Пошаговая инструкция (открыть VK, открыть консоль, настроить параметры, запустить скрипт). Поля ввода `peerId` (обязательный), `fromDate` (yyyy-mm-dd, опционально), `fromMessageId` (опционально). Динамически генерируемый скрипт для консоли браузера с кнопкой копирования. Валидация даты.
 - **Блок 2 «Подключение messages.json»**: Путь к Sources, описание назначения, кнопка создания директории (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
-- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id`, а также диалоги с уже извлечёнными OriginalMessages (без исходных файлов в Sources), с чекбоксами выбора диалогов, количеством извлечённых сообщений для каждого peer_id, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
+- **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id`, а также диалоги с уже извлечёнными OriginalMessages (без исходных файлов в Sources), с чекбоксами выбора диалогов, количеством извлечённых сообщений для каждого peer_id, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), поле "Название папки" (enabled до первого экспорта, disabled после — переименование через страницу диалога), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
 
 ### dialog.html & index.html
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
+- **Переименование папки диалога**: кнопка ✏ в заголовке страницы диалога (`/dialog/<peer_id>`) → инлайн-редактирование имени папки. Пустое имя = сброс на `dialog_{peer_id}`. Переименовывает `Dialogs/` и `LargeRawData/` папки, сохраняет в `config.json`. Валидация: спецсимволы `\/:*?"<>|`, пустые сегменты, уникальность имени.
 - **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в файловом менеджере через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
 - **Sticky-заголовок контента**: `content-header` (название файла + кнопки редактирования/удаления) закреплён вверху при прокрутке (`position: sticky`), фон `#f0f4fa`.
 - **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`). Проверка длины пути (макс. 254 символа). Если файл уже в целевой папке — возвращается ошибка "File is already in this folder".

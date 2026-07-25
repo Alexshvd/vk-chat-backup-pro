@@ -26,6 +26,13 @@ def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
     return False
 
 
+def _resolve_dialog_folder_name(peer_id: int, config: Config, dialogs_dir: Path) -> str:
+    custom = config.dialog_name_by_peer_id.get(peer_id)
+    if custom and (dialogs_dir / custom).is_dir():
+        return custom
+    return f"dialog_{peer_id}"
+
+
 def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
     start_create_time = datetime.now()
 
@@ -68,6 +75,14 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
                     if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
                         dialog_by_peer_id[pid] = {}
 
+        for pid, custom_name in config.dialog_name_by_peer_id.items():
+            if pid not in dialog_by_peer_id:
+                custom_dir = dialogs_dir / custom_name
+                if custom_dir.is_dir():
+                    orig_dir = custom_dir / "OriginalMessages"
+                    if orig_dir.is_dir() and any(orig_dir.glob("*.json")):
+                        dialog_by_peer_id[pid] = {}
+
     merged = {"profiles": list(profiles.values()), "groups": list(groups.values())}
     authors = load_authors(merged)
     yield f"Найдено авторов: {len(authors)}"
@@ -80,11 +95,12 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         items = list(items_dict.values())
         yield f"\n=== Диалог {peer_id} (сообщений: {len(items)}) ==="
 
-        dialog_dir = dialogs_dir / f"dialog_{peer_id}"
+        folder_name = _resolve_dialog_folder_name(peer_id, config, dialogs_dir)
+        dialog_dir = dialogs_dir / folder_name
         little_raw_data_dir = dialog_dir / "RawData"
         original_messages_dir = dialog_dir / "OriginalMessages"
         md_dir = dialog_dir / "MdFiles"
-        large_raw_data_dir = large_root / f"dialog_{peer_id}"
+        large_raw_data_dir = large_root / folder_name
 
         dialog_dir.mkdir(parents=True, exist_ok=True)
 
