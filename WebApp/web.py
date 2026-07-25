@@ -587,6 +587,9 @@ def move_md_file(peer_id: int, cid: int):
         target_depth = len(target_folder.split("/")) if target_folder else 0
         depth_diff = target_depth - current_depth
 
+        if depth_diff == 0:
+            return jsonify({"success": False, "error": "File is already in this folder"}), 409
+
         new_path = target_dir / f.name
         if new_path.exists():
             return jsonify({"success": False, "error": f"File exists: {f.name}"}), 409
