@@ -594,10 +594,9 @@ def move_md_file(peer_id: int, cid: int):
         if new_path.exists():
             return jsonify({"success": False, "error": f"File exists: {f.name}"}), 409
 
-        if depth_diff != 0:
-            content = f.read_text(encoding="utf-8")
-            content = _rewrite_links_for_move(content, depth_diff)
-            f.write_text(content, encoding="utf-8")
+        content = f.read_text(encoding="utf-8")
+        content = _rewrite_links_for_move(content, depth_diff)
+        f.write_text(content, encoding="utf-8")
 
         f.rename(new_path)
         results.append({
