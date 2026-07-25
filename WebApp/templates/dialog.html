@@ -551,8 +551,9 @@ function submitNewFolder() {
   const input = document.getElementById('moveNewFolder');
   const folder = input.value.trim();
   if (!folder) return;
-  if (/[\\\/\*\?:"<>|]/.test(folder)) {
-    showToast('Недопустимые символы в имени папки', true);
+  const parts = folder.split(/[\\/]/);
+  if (/[\*\?:"<>|]/.test(folder) || parts.includes('..')) {
+    showToast('Недопустимый путь', true);
     return;
   }
   moveToFolder(folder);
