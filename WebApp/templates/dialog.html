@@ -506,10 +506,10 @@ function moveSelected() {
     .then(r => r.json())
     .then(folders => {
       const rootCur = !selectedRelDir ? ' move-panel-current' : '';
-      let html = `<div class="move-panel-item move-panel-root${rootCur}" onclick="moveToFolder('')">\\ (Корень)</div>`;
+      let html = `<div class="move-panel-item move-panel-root${rootCur}" onclick="moveToFolder('')">/ (Корень)</div>`;
       folders.forEach(f => {
         const safe = f.replaceAll('\\', '/');
-        const cur = (f === selectedRelDir) ? ' move-panel-current' : '';
+        const cur = (safe === selectedRelDir) ? ' move-panel-current' : '';
         html += `<div class="move-panel-item${cur}" onclick="moveToFolder('${safe}')">${f}</div>`;
       });
       list.innerHTML = html;

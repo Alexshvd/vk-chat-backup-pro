@@ -560,7 +560,7 @@ def list_md_folders(peer_id: int):
     if md_dir.is_dir():
         for d in md_dir.rglob("*"):
             if d.is_dir():
-                rel = str(d.relative_to(md_dir))
+                rel = str(d.relative_to(md_dir)).replace("\\", "/")
                 if rel != ".":
                     folders.add(rel)
     return jsonify(sorted(folders))
