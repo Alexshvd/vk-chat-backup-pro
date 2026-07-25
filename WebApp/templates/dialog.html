@@ -21,7 +21,8 @@
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .btn-delete-batch { background: #e74c3c; color: #fff; }
   .btn-delete-batch:disabled { background: #ccc; cursor: default; }
-  .msg-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 6px; background: #fff; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .msg-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 6px; background: #fff; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); position: relative; }
+  .msg-item .rel-dir { position: absolute; top: 4px; right: 8px; font-size: 0.65rem; color: #aaa; pointer-events: none; }
   .msg-item:hover { background: #e8f0fe; }
   .msg-item.active { background: #d2e3fc; }
   .msg-item .checkbox { margin: 0; cursor: pointer; flex-shrink: 0; }
@@ -126,6 +127,7 @@
             {% if msg.has_raw or msg.has_large %} &middot; вложения: {{ msg.attach_size_str }}{% endif %}
           </div>
         </div>
+        {% if msg.rel_dir %}<span class="rel-dir">{{ msg.rel_dir }}</span>{% endif %}
       </div>
       {% endfor %}
       </div>
@@ -530,14 +532,15 @@ function moveToFolder(folder) {
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        const newPath = data.moved[0].new;
-        selectedFilename = newPath.split('/').pop();
         const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
         if (item) {
           item.dataset.relDir = folder;
-          item.querySelector('.fname').childNodes[0].textContent = newPath;
+          const relEl = item.querySelector('.rel-dir');
+          if (folder) {
+            if (relEl) { relEl.textContent = folder; }
+            else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
+          } else if (relEl) { relEl.remove(); }
         }
-        document.getElementById('contentFilename').textContent = selectedFilename;
         selectMessage(item);
         showToast('Файл перемещён');
       } else {
