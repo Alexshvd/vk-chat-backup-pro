@@ -533,7 +533,10 @@ function moveToFolder(folder) {
         const newPath = data.moved[0].new;
         selectedFilename = newPath.split('/').pop();
         const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
-        if (item) item.querySelector('.fname').childNodes[0].textContent = newPath;
+        if (item) {
+          item.dataset.relDir = folder;
+          item.querySelector('.fname').childNodes[0].textContent = newPath;
+        }
         document.getElementById('contentFilename').textContent = selectedFilename;
         selectMessage(item);
         showToast('Файл перемещён');
