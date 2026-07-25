@@ -62,7 +62,9 @@ Output directory structure (`EXPORT_ROOT`):
 │           ├── OriginalMessages/             # Individual message JSON files {date}_{cid}.json
 │           │   └── 2026-01-15_1234.json
 │           └── MdFiles/                      # Rendered Markdown files
-│               └── Привет.Id1234.md
+│               ├── Привет.Id1234.md
+│               └── subfolder/                   # User-created subfolders
+│                   └── file.Id5678.md
 └── LargeRawData/                             # Large files (videos), kept separate
     └── dialog_{peer_id}/                     # because the rest is intended for git repo
         └── {root_cid}/                       # Nested structure same as RawData
@@ -162,6 +164,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/dialog/<peer_id>/delete-batch` | POST | Массовое удаление |
 | `/dialog/<peer_id>/<cid>/rename` | PUT | Переименование `.md` |
 | `/dialog/<peer_id>/<cid>/attachments` | GET | Список файлов вложений |
+| `/dialog/<peer_id>/folders` | GET | Список подпапок внутри `MdFiles/` (JSON-массив) |
 | `/dialog/<peer_id>/<cid>/open-folder` | POST | Кроссплатформенное открытие папки (`explorer`/`open`/`xdg-open` через `platform.system()`) |
 | `/dialog/<peer_id>/<cid>/rename-attachment` | PUT | Переименование вложения |
 | `/export/<path>` | GET | Статика (Dialogs, Sources) |
@@ -176,6 +179,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
 - **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в файловом менеджере через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
 - **Sticky-заголовок контента**: `content-header` (название файла + кнопки редактирования/удаления) закреплён вверху при прокрутке (`position: sticky`), фон `#f0f4fa`.
+- **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`).
 
 ## Зависимости
 
