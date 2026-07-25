@@ -255,16 +255,7 @@ def _list_attachments(peer_id: int, cid: int) -> dict:
 def _get_dialog_name(peer_id: int) -> str:
     config = load_config(_config_path)
     custom = config.dialog_name_by_peer_id.get(peer_id)
-    fallback = custom if custom else f"dialog_{peer_id}"
-    md_dir = _get_dialog_dir(peer_id) / "MdFiles"
-    if not md_dir.is_dir():
-        return fallback
-    for f in sorted(md_dir.rglob("*.md")):
-        if f.is_file():
-            heading = f.name
-            if heading:
-                return f"{heading} ({peer_id})"
-    return fallback
+    return custom if custom else f"dialog_{peer_id}"
 
 
 # ─── Routes (Export) ─────────────────────────────────────────

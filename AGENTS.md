@@ -151,6 +151,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### web.py
 - Flask app factory pattern: `init_app(config_path)` → sets all path globals from `config.json`
 - `_get_dialog_dir(peer_id)` — returns `Path` for dialog folder using `collect_dialog_dirs()`, with `dialog_{peer_id}` fallback
+- `_get_dialog_name(peer_id)` — returns custom folder name from `config.dialog_name_by_peer_id` or `dialog_{peer_id}` fallback
 - `_build_message_date_str_by_cid(orig_dir, logger)` — builds `dict[int, str]` cache mapping cid → date string from OriginalMessages JSON filenames (called once per dialog view instead of per-message)
 - `/export` → `render_template("export.html", ...)` passes `dialogs_path=str(dialogs_dir_abs)`, `orig_counts=dict` (count of OriginalMessages per peer_id) for displaying the MD output directory
 - `_list_attachments` uses `rglob("*")` to recursively find files in nested `RawData/{root_cid}/{fwd_cid}/` dirs
