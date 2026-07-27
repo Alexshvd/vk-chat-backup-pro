@@ -494,7 +494,6 @@ def dialog_messages(peer_id: int):
 
     return render_template("dialog.html", peer_id=peer_id, dialog_name=_get_dialog_name(peer_id),
                            dialog_folder_name=_get_dialog_dir(peer_id).name,
-                           default_name_length=len(f"dialog_{peer_id}"),
                            messages=messages, last_message_name=last_message_name)
 
 

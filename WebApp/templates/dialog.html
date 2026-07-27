@@ -780,14 +780,12 @@ function renameFolder() {
   const currentName = nameEl.textContent.trim();
   const isDefault = currentName.startsWith('dialog_');
   const editValue = isDefault ? '' : currentName;
-  const maxLen = {{ default_name_length }};
 
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'rename-input';
   input.value = editValue;
   input.placeholder = 'dialog_{{ peer_id }}';
-  input.maxLength = maxLen;
   input.style.width = '300px';
 
   const saveBtn = document.createElement('button');
@@ -795,29 +793,12 @@ function renameFolder() {
   saveBtn.className = 'rename-save-btn';
   saveBtn.title = 'Сохранить';
 
-  const counter = document.createElement('div');
-  counter.className = 'char-count';
-  counter.textContent = editValue.length + '/' + maxLen;
-
   const warnDiv = document.createElement('div');
   warnDiv.style.cssText = 'font-size:0.8rem;color:#cca700;margin-top:4px;';
   warnDiv.textContent = 'Расчёт длины путей файлов был выполнен для имени по умолчанию (dialog_{{ peer_id }}). При необходимости использовать более длинное название — перегенерируйте сообщения, т.к. некоторые имена файлов могли быть обрезаны из-за превышения лимита 254 символов.';
 
-  input.addEventListener('input', () => {
-    const len = input.value.length;
-    counter.textContent = len + '/' + maxLen;
-    if (len > maxLen) {
-      counter.style.color = '#e74c3c';
-      saveBtn.disabled = true;
-    } else {
-      counter.style.color = '';
-      saveBtn.disabled = false;
-    }
-  });
-
   nameEl.textContent = '';
   nameEl.appendChild(input);
-  nameEl.appendChild(counter);
   nameEl.appendChild(saveBtn);
   nameEl.appendChild(warnDiv);
   btn.style.display = 'none';
@@ -834,10 +815,6 @@ function renameFolder() {
     if (val === editValue) {
       nameEl.textContent = currentName;
       btn.style.display = '';
-      return;
-    }
-    if (val.length > maxLen) {
-      showToast('Имя слишком длинное', true);
       return;
     }
 
