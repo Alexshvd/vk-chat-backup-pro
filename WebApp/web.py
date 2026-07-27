@@ -494,6 +494,7 @@ def dialog_messages(peer_id: int):
 
     return render_template("dialog.html", peer_id=peer_id, dialog_name=_get_dialog_name(peer_id),
                            dialog_folder_name=_get_dialog_dir(peer_id).name,
+                           default_name_length=len(f"dialog_{peer_id}"),
                            messages=messages, last_message_name=last_message_name)
 
 
@@ -514,12 +515,28 @@ def rename_dialog_folder(peer_id: int):
     target_name = new_name if new_name else f"dialog_{peer_id}"
 
     if old_folder_name == target_name:
-        return jsonify({"ok": True, "new_name": target_name})
+        return jsonify({"ok": True, "new_name": target_name, "over_limit": []})
 
     old_dialog_dir = dialogs_dir_abs / old_folder_name
     new_dialog_dir = dialogs_dir_abs / target_name
     if new_dialog_dir.exists() and old_dialog_dir != new_dialog_dir:
         return jsonify({"success": False, "error": f"Папка '{target_name}' уже существует"}), 400
+
+    over_limit = []
+    if old_dialog_dir.is_dir():
+        for root, dirs, files in os.walk(old_dialog_dir):
+            for fname in files:
+                full_path = Path(root) / fname
+                rel_path = full_path.relative_to(old_dialog_dir)
+                new_abs_len = len(str(dialogs_dir_abs / target_name / rel_path))
+                if new_abs_len > 254:
+                    over_limit.append({
+                        "path": str(rel_path).replace("\\", "/"),
+                        "length": new_abs_len,
+                    })
+
+    if over_limit:
+        return jsonify({"ok": False, "over_limit": over_limit}), 200
 
     if old_dialog_dir.is_dir():
         old_dialog_dir.rename(new_dialog_dir)
@@ -540,7 +557,7 @@ def rename_dialog_folder(peer_id: int):
     with open(_config_path, "w", encoding="utf-8") as f:
         _json.dump(raw, f, ensure_ascii=False, indent=2)
 
-    return jsonify({"ok": True, "new_name": target_name})
+    return jsonify({"ok": True, "new_name": target_name, "over_limit": []})
 
 
 @app.route("/dialog/<int:peer_id>/<int:cid>/content")

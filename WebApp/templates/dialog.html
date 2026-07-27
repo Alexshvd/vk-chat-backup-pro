@@ -780,12 +780,14 @@ function renameFolder() {
   const currentName = nameEl.textContent.trim();
   const isDefault = currentName.startsWith('dialog_');
   const editValue = isDefault ? '' : currentName;
+  const maxLen = {{ default_name_length }};
 
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'rename-input';
   input.value = editValue;
   input.placeholder = 'dialog_{{ peer_id }}';
+  input.maxLength = maxLen;
   input.style.width = '300px';
 
   const saveBtn = document.createElement('button');
@@ -795,12 +797,16 @@ function renameFolder() {
 
   const counter = document.createElement('div');
   counter.className = 'char-count';
-  counter.textContent = editValue.length + '/254';
+  counter.textContent = editValue.length + '/' + maxLen;
+
+  const warnDiv = document.createElement('div');
+  warnDiv.style.cssText = 'font-size:0.8rem;color:#cca700;margin-top:4px;';
+  warnDiv.textContent = 'Расчёт длины путей файлов был выполнен для имени по умолчанию (dialog_{{ peer_id }}). При необходимости использовать более длинное название — перегенерируйте сообщения, т.к. некоторые имена файлов могли быть обрезаны из-за превышения лимита 254 символов.';
 
   input.addEventListener('input', () => {
     const len = input.value.length;
-    counter.textContent = len + '/254';
-    if (len > 254) {
+    counter.textContent = len + '/' + maxLen;
+    if (len > maxLen) {
       counter.style.color = '#e74c3c';
       saveBtn.disabled = true;
     } else {
@@ -813,6 +819,7 @@ function renameFolder() {
   nameEl.appendChild(input);
   nameEl.appendChild(counter);
   nameEl.appendChild(saveBtn);
+  nameEl.appendChild(warnDiv);
   btn.style.display = 'none';
   input.focus();
   input.select();
@@ -829,7 +836,7 @@ function renameFolder() {
       btn.style.display = '';
       return;
     }
-    if (val.length > 254) {
+    if (val.length > maxLen) {
       showToast('Имя слишком длинное', true);
       return;
     }
@@ -845,6 +852,10 @@ function renameFolder() {
           nameEl.textContent = currentName;
           btn.style.display = '';
           showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+        } else if (data.ok && data.over_limit && data.over_limit.length > 0) {
+          nameEl.textContent = data.new_name;
+          btn.style.display = '';
+          showOverLimitFiles(data.over_limit, data.new_name);
         } else {
           nameEl.textContent = data.new_name;
           btn.style.display = '';
@@ -864,6 +875,92 @@ function renameFolder() {
     if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   });
   saveBtn.addEventListener('click', () => finish(true));
+}
+
+// ─── Over-limit Files Panel ────────────────────────
+function showOverLimitFiles(files, newName) {
+  let panel = document.getElementById('overLimitPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'overLimitPanel';
+    panel.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:16px;margin:12px 0;';
+    const header = document.querySelector('.header');
+    header.parentNode.insertBefore(panel, header.nextSibling);
+  }
+  let html = '<div style="font-weight:600;margin-bottom:8px;color:#856404;">Следующие файлы превышают лимит 254 символа. Переименуйте их перед сменой папки:</div>';
+  html += '<ul style="margin:0;padding-left:20px;">';
+  for (const f of files) {
+    const baseName = f.path.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '').replace(/\.[^.]+$/, '');
+    html += '<li style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+    html += '<span style="font-family:monospace;font-size:0.85rem;">' + f.path + ' <span style="color:#856404;">(' + f.length + ')</span></span>';
+    if (f.path.endsWith('.md')) {
+      html += '<button onclick="renameFromOverLimit(\'' + f.path + '\', \'' + newName + '\', \'md\')" style="font-size:0.8rem;padding:2px 8px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#fff;">Переименовать</button>';
+    } else {
+      const storage = f.path.startsWith('RawData/') ? 'raw' : 'large';
+      const cidMatch = f.path.match(/(?:^|\/)(\d+)\//);
+      const cid = cidMatch ? cidMatch[1] : '';
+      const fname = f.path.split('/').pop();
+      html += '<button onclick="renameFromOverLimitAttach(\'' + fname + '\', \'' + cid + '\', \'' + storage + '\')" style="font-size:0.8rem;padding:2px 8px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#fff;">Переименовать</button>';
+    }
+    html += '</li>';
+  }
+  html += '</ul>';
+  html += '<div style="margin-top:10px;font-size:0.85rem;color:#856404;">После переименования нажмите «Переименовать папку» снова.</div>';
+  panel.innerHTML = html;
+}
+
+function renameFromOverLimit(relPath, dialogName, type) {
+  const parts = relPath.split('/');
+  const fname = parts.pop();
+  const dir = parts.join('/');
+  const cidMatch = fname.match(/\.Id(\d+)/);
+  if (!cidMatch) return;
+  const cid = cidMatch[1];
+  const suffixMatch = fname.match(/\.Id\d+(?:_part_\d+)?\.md$/);
+  const suffix = suffixMatch ? suffixMatch[0] : '';
+  const baseName = fname.slice(0, fname.length - suffix.length);
+
+  const newBase = prompt('Введите новое имя:', baseName);
+  if (newBase === null || !newBase.trim() || newBase.trim() === baseName) return;
+
+  fetch('/dialog/{{ peer_id }}/' + cid + '/rename', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: newBase.trim() })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast('Файл переименован: ' + data.renamed[0].new);
+      } else {
+        showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+      }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, true));
+}
+
+function renameFromOverLimitAttach(fname, cid, storage) {
+  const dotIdx = fname.lastIndexOf('.');
+  const ext = dotIdx > 0 ? fname.slice(dotIdx) : '';
+  const baseName = ext ? fname.slice(0, dotIdx) : fname;
+
+  const newBase = prompt('Введите новое имя:', baseName);
+  if (newBase === null || !newBase.trim() || newBase.trim() === baseName) return;
+
+  fetch('/dialog/{{ peer_id }}/' + cid + '/rename-attachment', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ old_name: fname, new_name: newBase.trim() + ext, storage: storage })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast('Файл переименован');
+      } else {
+        showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+      }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, true));
 }
 
 // ─── Utilities ──────────────────────────────────────
