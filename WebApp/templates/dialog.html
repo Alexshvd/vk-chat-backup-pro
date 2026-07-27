@@ -201,6 +201,11 @@ let limits = { md: 240, raw: 240, large: 240 };
 let sortAsc = true;
 let filterFolder = '';
 let filterIncludeNested = true;
+let overLimitFiles = [];
+let overLimitNewName = '';
+let overLimitDelta = 0;
+let overLimitSavedScroll = '';
+let overLimitSavedToolbar = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   applySort();
@@ -493,6 +498,13 @@ function renameSelected() {
     .then(d => { limits = d; })
     .catch(() => {})
     .finally(() => {
+      if (overLimitDelta) {
+        const olItem = document.querySelector('.msg-item.active');
+        if (olItem && olItem.dataset.fileLength) {
+          const dirLen = parseInt(olItem.dataset.fileLength) - olItem.dataset.fileName.length;
+          limits.md = 254 - dirLen - 1;
+        }
+      }
       const maxMd = limits.md - suffixLen;
 
       const input = document.createElement('input');
@@ -564,6 +576,7 @@ function renameSelected() {
                 fnameEl.childNodes[0].textContent = newName;
               }
               showToast(`Файл переименован`);
+              if (overLimitDelta) checkOverLimitItem(currentText.length, val.length);
             } else {
               filenameEl.textContent = fullName;
               showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
@@ -639,6 +652,10 @@ function moveToFolder(folder) {
         }
         selectMessage(item);
         showToast('Файл перемещён');
+        if (overLimitDelta) {
+          const newPath = (folder ? folder + '/' : '') + selectedFilename;
+          checkOverLimitItem(parseInt(item.dataset.fileLength), newPath.length);
+        }
       } else {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
       }
@@ -681,6 +698,14 @@ function renameAttachment(cid, oldName, storage, btnEl) {
     .then(d => { limits = d; })
     .catch(() => {})
     .finally(() => {
+      if (overLimitDelta) {
+        const olItem = document.querySelector('.msg-item.active');
+        if (olItem && olItem.dataset.fileLength) {
+          const dirLen = parseInt(olItem.dataset.fileLength) - olItem.dataset.fileName.length;
+          limits.raw = 254 - dirLen - 1;
+          limits.large = limits.raw;
+        }
+      }
       const maxAttach = (storage === 'large' ? limits.large : limits.raw) - ext.length;
 
       const input = document.createElement('input');
@@ -748,6 +773,7 @@ function renameAttachment(cid, oldName, storage, btnEl) {
               body.innerHTML = '<div class="loading">Загрузка...</div>';
               selectMessage(document.querySelector(`.msg-item[data-cid="${cid}"]`) || document.querySelector('.msg-item.active'));
               showToast(`Файл переименован`);
+              if (overLimitDelta) checkOverLimitItem(currentName.length, valWithExt.length);
             } else {
               nameEl.textContent = currentName;
               showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
@@ -856,85 +882,157 @@ function renameFolder() {
 
 // ─── Over-limit Files Panel ────────────────────────
 function showOverLimitFiles(files, newName) {
-  let panel = document.getElementById('overLimitPanel');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'overLimitPanel';
-    panel.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:16px;margin:12px 0;';
-    const header = document.querySelector('.header');
-    header.parentNode.insertBefore(panel, header.nextSibling);
-  }
-  let html = '<div style="font-weight:600;margin-bottom:8px;color:#856404;">Следующие файлы превышают лимит 254 символа. Переименуйте их перед сменой папки:</div>';
-  html += '<ul style="margin:0;padding-left:20px;">';
+  overLimitFiles = files;
+  overLimitNewName = newName;
+  const currentFolder = document.getElementById('dialogFolderName').textContent.trim();
+  overLimitDelta = newName.length - currentFolder.length;
+
+  const scroll = document.querySelector('.col-list-scroll');
+  const toolbar = document.querySelector('.toolbar');
+  overLimitSavedScroll = scroll.innerHTML;
+  overLimitSavedToolbar = toolbar.innerHTML;
+
+  let html = '';
   for (const f of files) {
-    const baseName = f.path.replace(/\.Id\d+(?:_part_\d+)?\.md$/, '').replace(/\.[^.]+$/, '');
-    html += '<li style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
-    html += '<span style="font-family:monospace;font-size:0.85rem;">' + f.path + ' <span style="color:#856404;">(' + f.length + ')</span></span>';
-    if (f.path.endsWith('.md')) {
-      html += '<button onclick="renameFromOverLimit(\'' + f.path + '\', \'' + newName + '\', \'md\')" style="font-size:0.8rem;padding:2px 8px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#fff;">Переименовать</button>';
-    } else {
-      const storage = f.path.startsWith('RawData/') ? 'raw' : 'large';
-      const cidMatch = f.path.match(/(?:^|\/)(\d+)\//);
-      const cid = cidMatch ? cidMatch[1] : '';
-      const fname = f.path.split('/').pop();
-      html += '<button onclick="renameFromOverLimitAttach(\'' + fname + '\', \'' + cid + '\', \'' + storage + '\')" style="font-size:0.8rem;padding:2px 8px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#fff;">Переименовать</button>';
-    }
-    html += '</li>';
+    const isMd = f.path.endsWith('.md');
+    const cidMatch = f.path.match(/\.Id(\d+)/);
+    const cid = cidMatch ? cidMatch[1] : '';
+    const fname = f.path.split('/').pop();
+    const parts = f.path.split('/');
+    parts.pop();
+    const relDir = parts.join('/').replace(/^MdFiles\/?/, '').replace(/^RawData\/?/, '').replace(/^OriginalMessages\/?/, '');
+    const storage = isMd ? '' : (f.path.startsWith('RawData/') ? 'raw' : 'large');
+    const typeLabel = isMd ? 'MD файл' : 'Вложение';
+    html += '<div class="msg-item" data-cid="' + cid + '" data-peer="{{ peer_id }}" data-rel-dir="' + relDir + '" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + fname + '" data-storage="' + storage + '" onclick="selectOverLimitItem(this)">';
+    html += '<div class="info">';
+    html += '<div class="fname">' + f.path + ' <span style="color:#e74c3c;">(' + f.length + ' / 254)</span></div>';
+    html += '<div class="meta">' + typeLabel + '</div>';
+    html += '</div>';
+    if (relDir) html += '<span class="rel-dir">' + relDir + '</span>';
+    html += '</div>';
   }
-  html += '</ul>';
-  html += '<div style="margin-top:10px;font-size:0.85rem;color:#856404;">После переименования нажмите «Переименовать папку» снова.</div>';
-  panel.innerHTML = html;
+  scroll.innerHTML = html;
+
+  toolbar.innerHTML = '<button class="filter-btn" onclick="hideOverLimitPanel()" style="background:#fff3cd;border-color:#ffc107;color:#856404;">← Назад к диалогу</button>'
+    + '<button class="filter-btn" onclick="retryFolderRename()" style="background:#d4edda;border-color:#28a745;color:#155724;">🔄 Переименовать папку</button>'
+    + '<select class="sort-select" onchange="applyOverLimitSort()"><option value="length" selected>по длине</option><option value="name">по имени</option></select>'
+    + '<button class="sort-dir-btn" onclick="toggleSortDir()">↑</button>';
+
+  document.querySelector('.btn-del').style.display = 'none';
+  document.querySelector('.btn-move').style.display = '';
+  document.getElementById('contentView').style.display = 'none';
+  document.getElementById('contentPlaceholder').style.display = 'block';
+  document.getElementById('contentPlaceholder').textContent = 'Выберите файл слева';
 }
 
-function renameFromOverLimit(relPath, dialogName, type) {
-  const parts = relPath.split('/');
-  const fname = parts.pop();
-  const dir = parts.join('/');
-  const cidMatch = fname.match(/\.Id(\d+)/);
-  if (!cidMatch) return;
-  const cid = cidMatch[1];
-  const suffixMatch = fname.match(/\.Id\d+(?:_part_\d+)?\.md$/);
-  const suffix = suffixMatch ? suffixMatch[0] : '';
-  const baseName = fname.slice(0, fname.length - suffix.length);
+function selectOverLimitItem(el) {
+  document.querySelectorAll('.msg-item.active').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  selectedCid = el.dataset.cid;
+  selectedPeer = el.dataset.peer;
+  selectedFilename = el.dataset.fileName;
+  selectedRelDir = el.dataset.relDir || '';
 
-  const newBase = prompt('Введите новое имя:', baseName);
-  if (newBase === null || !newBase.trim() || newBase.trim() === baseName) return;
+  const view = document.getElementById('contentView');
+  const placeholder = document.getElementById('contentPlaceholder');
+  view.style.display = 'block';
+  placeholder.style.display = 'none';
 
-  fetch('/dialog/{{ peer_id }}/' + cid + '/rename', {
+  document.getElementById('contentFilename').textContent = el.dataset.filePath;
+  const body = document.getElementById('contentBody');
+  body.innerHTML = '<div class="loading">Загрузка...</div>';
+
+  if (el.dataset.fileName.endsWith('.md')) {
+    fetch('/dialog/' + selectedPeer + '/' + selectedCid + '/content')
+      .then(r => r.json())
+      .then(data => {
+        let html = '<div class="content">';
+        data.parts.forEach((part, i) => {
+          if (data.parts.length > 1) html += '<h4>Часть ' + (i+1) + ': ' + part.filename + '</h4>';
+          html += part.html;
+        });
+        html += '</div>';
+        body.innerHTML = html;
+        fetchAttachments(body);
+      })
+      .catch(err => {
+        body.innerHTML = '<div class="loading">Ошибка загрузки: ' + err.message + '</div>';
+      });
+  } else {
+    body.innerHTML = '<div class="loading">Вложение: ' + el.dataset.fileName + '</div>';
+  }
+}
+
+function applyOverLimitSort() {
+  const key = document.querySelector('#overLimitPanelToolbar select, .toolbar select').value;
+  const container = document.querySelector('.col-list-scroll');
+  const items = Array.from(container.querySelectorAll('.msg-item'));
+  items.sort((a, b) => {
+    let cmp;
+    if (key === 'length') {
+      cmp = parseInt(a.dataset.fileLength) - parseInt(b.dataset.fileLength);
+    } else {
+      const nameA = (a.dataset.filePath || '').toLowerCase();
+      const nameB = (b.dataset.filePath || '').toLowerCase();
+      cmp = nameA.localeCompare(nameB, 'ru');
+    }
+    return sortAsc ? cmp : -cmp;
+  });
+  items.forEach(item => container.appendChild(item));
+  document.querySelector('.sort-dir-btn').textContent = sortAsc ? '↓' : '↑';
+}
+
+function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
+  const item = document.querySelector('.msg-item.active');
+  if (!item) return;
+  const oldLength = parseInt(item.dataset.fileLength);
+  const newLength = oldLength - oldFileNameLen + newFileNameLen;
+  if (newLength <= 254) {
+    item.remove();
+    if (!document.querySelector('.col-list-scroll .msg-item')) {
+      retryFolderRename();
+    }
+  } else {
+    item.dataset.fileLength = newLength;
+    const span = item.querySelector('.fname span');
+    if (span) span.textContent = '(' + newLength + ' / 254)';
+  }
+}
+
+function hideOverLimitPanel() {
+  const scroll = document.querySelector('.col-list-scroll');
+  const toolbar = document.querySelector('.toolbar');
+  scroll.innerHTML = overLimitSavedScroll;
+  toolbar.innerHTML = overLimitSavedToolbar;
+  document.querySelector('.btn-del').style.display = '';
+  document.getElementById('contentView').style.display = 'none';
+  document.getElementById('contentPlaceholder').style.display = 'block';
+  document.getElementById('contentPlaceholder').textContent = 'Выберите сообщение слева';
+  overLimitFiles = [];
+  overLimitNewName = '';
+  overLimitDelta = 0;
+  overLimitSavedScroll = '';
+  overLimitSavedToolbar = '';
+  applySort();
+  applyFilter();
+}
+
+function retryFolderRename() {
+  fetch('/dialog/{{ peer_id }}/rename-folder', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename: newBase.trim() })
+    body: JSON.stringify({ name: overLimitNewName })
   })
     .then(r => r.json())
     .then(data => {
-      if (data.success) {
-        showToast('Файл переименован: ' + data.renamed[0].new);
-      } else {
+      if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
+        showOverLimitFiles(data.over_limit, overLimitNewName);
+      } else if (data.success === false) {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
-      }
-    })
-    .catch(err => showToast('Ошибка: ' + err.message, true));
-}
-
-function renameFromOverLimitAttach(fname, cid, storage) {
-  const dotIdx = fname.lastIndexOf('.');
-  const ext = dotIdx > 0 ? fname.slice(dotIdx) : '';
-  const baseName = ext ? fname.slice(0, dotIdx) : fname;
-
-  const newBase = prompt('Введите новое имя:', baseName);
-  if (newBase === null || !newBase.trim() || newBase.trim() === baseName) return;
-
-  fetch('/dialog/{{ peer_id }}/' + cid + '/rename-attachment', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ old_name: fname, new_name: newBase.trim() + ext, storage: storage })
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.success) {
-        showToast('Файл переименован');
       } else {
-        showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+        hideOverLimitPanel();
+        document.getElementById('dialogFolderName').textContent = data.new_name;
+        showToast('Папка переименована');
       }
     })
     .catch(err => showToast('Ошибка: ' + err.message, true));
