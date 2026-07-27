@@ -521,9 +521,23 @@ def rename_dialog_folder(peer_id: int):
     if new_dialog_dir.exists() and old_dialog_dir != new_dialog_dir:
         return jsonify({"success": False, "error": f"Папка '{target_name}' уже существует"}), 400
 
+    orig_dir = old_dialog_dir / "OriginalMessages"
+    originals_over_limit = []
+    if orig_dir.is_dir():
+        for f in orig_dir.iterdir():
+            if f.is_file():
+                new_len = len(str(dialogs_dir_abs / target_name / f.relative_to(old_dialog_dir)))
+                if new_len > 254:
+                    originals_over_limit.append(f.name)
+    if originals_over_limit:
+        return jsonify({
+            "ok": False,
+            "error_type": "originals_over_limit",
+            "count": len(originals_over_limit),
+        }), 200
+
     md_dir = old_dialog_dir / "MdFiles"
     raw_dir = old_dialog_dir / "RawData"
-    orig_dir = old_dialog_dir / "OriginalMessages"
     message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
 
     over_limit = []
@@ -554,6 +568,20 @@ def rename_dialog_folder(peer_id: int):
                             item["is_part"] = "_part_" in fname
                             sub = full_path.parent.relative_to(md_dir)
                             item["rel_dir"] = str(sub).replace("\\", "/") if str(sub) != "." else ""
+                            cid_raw = raw_dir / str(cid)
+                            over_limit_attachments = []
+                            if cid_raw.is_dir():
+                                for af in cid_raw.rglob("*"):
+                                    if af.is_file():
+                                        a_rel = af.relative_to(old_dialog_dir)
+                                        a_new_len = len(str(dialogs_dir_abs / target_name / a_rel))
+                                        if a_new_len > 254:
+                                            over_limit_attachments.append({
+                                                "name": af.name,
+                                                "excess": a_new_len - 254,
+                                            })
+                            item["over_limit_attach_count"] = len(over_limit_attachments)
+                            item["over_limit_attachments"] = over_limit_attachments
                     else:
                         item["filename"] = fname
                     over_limit.append(item)

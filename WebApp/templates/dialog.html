@@ -42,6 +42,8 @@
   .msg-item .meta { font-size: 0.75rem; color: #888; margin-top: 1px; }
   .msg-item .part-label { font-size: 0.7rem; color: #e67e22; margin-left: 4px; }
   .msg-item .length-indicator { color: #e74c3c; font-weight: normal; font-size: 0.75rem; }
+  .attach-over-limit { background: #fff3cd; border-left: 3px solid #ffc107; padding-left: 4px; }
+  .attach-excess { color: #856404; font-size: 0.75rem; font-weight: 600; }
   .msg-item.stale { opacity: 0.5; }
   .content-card { background: #fff; border-radius: 8px; padding: 0px 16px 8px;; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .content-header { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #dce6f5 ; position: sticky; top: 0px; z-index: 1; background: #fff; margin: 0 -16px 12px; padding: 8px 16px 8px; }
@@ -207,6 +209,7 @@ let overLimitNewName = '';
 let overLimitDelta = 0;
 let overLimitSavedScroll = '';
 let overLimitSavedToolbar = '';
+let currentOverLimitAttachments = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   applySort();
@@ -378,6 +381,10 @@ function groupByFolder(files) {
 }
 
 function renderGroup(group, storage) {
+  const olMap = {};
+  if (overLimitDelta && currentOverLimitAttachments.length) {
+    currentOverLimitAttachments.forEach(a => { olMap[a.name] = a.excess; });
+  }
   let html = '<div class="attach-group">';
   html += '<div class="attach-group-header">';
   html += `<span class="folder-path">${group.folder}</span>`;
@@ -386,9 +393,12 @@ function renderGroup(group, storage) {
   html += '</div>';
   html += '<ul>';
   group.files.forEach(f => {
-    html += `<li>
+    const excess = olMap[f.name];
+    const liClass = excess ? ' class="attach-over-limit"' : '';
+    const excessHtml = excess ? ` <span class="attach-excess">(+${excess})</span>` : '';
+    html += `<li${liClass}>
       <span class="file-name">${f.name}</span>
-      <span class="file-size">(${formatSize(f.size)})</span>
+      <span class="file-size">(${formatSize(f.size)})${excessHtml}</span>
       <button class="rename-btn" onclick="renameAttachment(${selectedCid}, '${f.name}', '${storage}', this)">&#9998;</button>
     </li>`;
   });
@@ -776,7 +786,36 @@ function renameAttachment(cid, oldName, storage, btnEl) {
               body.innerHTML = '<div class="loading">Загрузка...</div>';
               selectMessage(document.querySelector(`.msg-item[data-cid="${cid}"]`) || document.querySelector('.msg-item.active'));
               showToast(`Файл переименован`);
-              if (overLimitDelta) checkOverLimitItem(currentName.length, valWithExt.length);
+              if (overLimitDelta) {
+                checkOverLimitItem(currentName.length, valWithExt.length);
+                currentOverLimitAttachments = currentOverLimitAttachments.filter(a => a.name !== oldName);
+                const olItem = document.querySelector('.msg-item.active');
+                if (olItem) {
+                  olItem.dataset.overLimitAttachCount = currentOverLimitAttachments.length;
+                  olItem.dataset.overLimitAttachments = JSON.stringify(currentOverLimitAttachments);
+                  const excessEl = olItem.querySelector('.attach-excess');
+                  if (currentOverLimitAttachments.length > 0) {
+                    if (excessEl) excessEl.textContent = 'вложений >254: ' + currentOverLimitAttachments.length;
+                  } else if (excessEl) {
+                    excessEl.remove();
+                  }
+                }
+                const body = document.getElementById('contentBody');
+                body.innerHTML = '<div class="loading">Загрузка...</div>';
+                fetch('/dialog/' + selectedPeer + '/' + selectedCid + '/content')
+                  .then(r => r.json())
+                  .then(data => {
+                    let html = '<div class="content">';
+                    data.parts.forEach((part, i) => {
+                      if (data.parts.length > 1) html += '<h4>Часть ' + (i+1) + ': ' + part.filename + '</h4>';
+                      html += part.html;
+                    });
+                    html += '</div>';
+                    body.innerHTML = html;
+                    fetchAttachments(body);
+                  })
+                  .catch(err => { body.innerHTML = '<div class="loading">Ошибка: ' + err.message + '</div>'; });
+              }
             } else {
               nameEl.textContent = currentName;
               showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
@@ -854,7 +893,11 @@ function renameFolder() {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
+        if (data.error_type === 'originals_over_limit') {
+          nameEl.textContent = currentName;
+          btn.style.display = '';
+          showOriginalsWarning(data.count);
+        } else if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
           nameEl.textContent = currentName;
           btn.style.display = '';
           showOverLimitFiles(data.over_limit, val);
@@ -899,7 +942,8 @@ function showOverLimitFiles(files, newName) {
   for (const f of files) {
     if (f.cid) {
       const hasAttach = f.has_raw || f.has_large;
-      html += '<div class="msg-item" data-cid="' + f.cid + '" data-peer="{{ peer_id }}" data-rel-dir="' + (f.rel_dir || '') + '" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + f.filename + '" onclick="selectOverLimitItem(this)">';
+      const olAttachJson = JSON.stringify(f.over_limit_attachments || []).replace(/"/g, '&quot;');
+      html += '<div class="msg-item" data-cid="' + f.cid + '" data-peer="{{ peer_id }}" data-rel-dir="' + (f.rel_dir || '') + '" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + f.filename + '" data-over-limit-attach-count="' + (f.over_limit_attach_count || 0) + '" data-over-limit-attachments="' + olAttachJson + '" onclick="selectOverLimitItem(this)">';
       html += '<div class="info">';
       html += '<div class="fname">' + f.filename;
       html += ' <span class="length-indicator">(' + f.length + ' / 254)</span>';
@@ -907,6 +951,7 @@ function showOverLimitFiles(files, newName) {
       html += '</div>';
       html += '<div class="meta">' + (f.date_str || '') + ' &middot; ' + (f.size_str || '');
       if (hasAttach) html += ' &middot; вложения: ' + (f.attach_size_str || '');
+      if (f.over_limit_attach_count) html += ' &middot; <span class="attach-excess">вложений >254: ' + f.over_limit_attach_count + '</span>';
       html += '</div>';
       html += '</div>';
       if (f.rel_dir) html += '<span class="rel-dir">' + f.rel_dir + '</span>';
@@ -952,6 +997,7 @@ function selectOverLimitItem(el) {
   selectedPeer = el.dataset.peer;
   selectedFilename = el.dataset.fileName;
   selectedRelDir = el.dataset.relDir || '';
+  try { currentOverLimitAttachments = JSON.parse(el.dataset.overLimitAttachments || '[]'); } catch(e) { currentOverLimitAttachments = []; }
 
   const view = document.getElementById('contentView');
   const placeholder = document.getElementById('contentPlaceholder');
@@ -1013,6 +1059,7 @@ function hideOverLimitPanel() {
   overLimitDelta = 0;
   overLimitSavedScroll = '';
   overLimitSavedToolbar = '';
+  currentOverLimitAttachments = [];
   applySort();
   applyFilter();
 }
@@ -1036,6 +1083,31 @@ function retryFolderRename() {
       }
     })
     .catch(err => showToast('Ошибка: ' + err.message, true));
+}
+
+function showOriginalsWarning(count) {
+  let panel = document.getElementById('originalsWarningPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'originalsWarningPanel';
+    panel.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:16px;margin:12px 0;';
+    const header = document.querySelector('.header');
+    header.parentNode.insertBefore(panel, header.nextSibling);
+  }
+  let html = '<div style="font-weight:600;margin-bottom:8px;color:#856404;">Переименование невозможно</div>';
+  html += '<div style="margin-bottom:8px;">';
+  html += '<strong>' + count + '</strong> файл(ов) <code>OriginalMessages/</code> превышают лимит 254 символа при новом имени папки.';
+  html += '</div>';
+  html += '<div style="margin-bottom:10px;font-size:0.9rem;">';
+  html += 'Эти JSON-файлы нельзя переименовать автоматически — они хранят исходные данные сообщений и используются при перегенерации MD.';
+  html += '</div>';
+  html += '<div style="font-size:0.9rem;margin-bottom:10px;">Чтобы уменьшить длину путей:';
+  html += '<ul style="margin:4px 0 0 20px;padding:0;">';
+  html += '<li>выберите более короткое имя папки, или</li>';
+  html += '<li>переместите весь каталог экспорта (<code>Dialogs/</code>, <code>LargeRawData/</code>, <code>Sources/</code>) выше по иерархии директорий</li>';
+  html += '</ul></div>';
+  html += '<button onclick="document.getElementById(\'originalsWarningPanel\').remove()" style="padding:6px 16px;border:1px solid #ffc107;border-radius:4px;background:#fff;cursor:pointer;font-size:0.85rem;">Понятно</button>';
+  panel.innerHTML = html;
 }
 
 // ─── Utilities ──────────────────────────────────────
