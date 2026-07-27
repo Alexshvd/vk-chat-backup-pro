@@ -41,6 +41,7 @@
   .msg-item .fname { font-weight: 600; font-size: 0.85rem; word-break: break-word; }
   .msg-item .meta { font-size: 0.75rem; color: #888; margin-top: 1px; }
   .msg-item .part-label { font-size: 0.7rem; color: #e67e22; margin-left: 4px; }
+  .msg-item .length-indicator { color: #e74c3c; font-weight: normal; font-size: 0.75rem; }
   .msg-item.stale { opacity: 0.5; }
   .content-card { background: #fff; border-radius: 8px; padding: 0px 16px 8px;; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .content-header { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #dce6f5 ; position: sticky; top: 0px; z-index: 1; background: #fff; margin: 0 -16px 12px; padding: 8px 16px 8px; }
@@ -288,7 +289,9 @@ function applySort() {
   items.sort((a, b) => {
     let cmp;
     if (key === 'cid') {
-      cmp = parseInt(a.dataset.cid) - parseInt(b.dataset.cid);
+      cmp = parseInt(a.dataset.cid || '0') - parseInt(b.dataset.cid || '0');
+    } else if (key === 'length') {
+      cmp = parseInt(a.dataset.fileLength || '0') - parseInt(b.dataset.fileLength || '0');
     } else {
       const nameA = a.querySelector('.fname').childNodes[0].textContent.trim().toLowerCase();
       const nameB = b.querySelector('.fname').childNodes[0].textContent.trim().toLowerCase();
@@ -894,35 +897,52 @@ function showOverLimitFiles(files, newName) {
 
   let html = '';
   for (const f of files) {
-    const isMd = f.path.endsWith('.md');
-    const cidMatch = f.path.match(/\.Id(\d+)/);
-    const cid = cidMatch ? cidMatch[1] : '';
-    const fname = f.path.split('/').pop();
-    const parts = f.path.split('/');
-    parts.pop();
-    const relDir = parts.join('/').replace(/^MdFiles\/?/, '').replace(/^RawData\/?/, '').replace(/^OriginalMessages\/?/, '');
-    const storage = isMd ? '' : (f.path.startsWith('RawData/') ? 'raw' : 'large');
-    const typeLabel = isMd ? 'MD файл' : 'Вложение';
-    html += '<div class="msg-item" data-cid="' + cid + '" data-peer="{{ peer_id }}" data-rel-dir="' + relDir + '" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + fname + '" data-storage="' + storage + '" onclick="selectOverLimitItem(this)">';
-    html += '<div class="info">';
-    html += '<div class="fname">' + f.path + ' <span style="color:#e74c3c;">(' + f.length + ' / 254)</span></div>';
-    html += '<div class="meta">' + typeLabel + '</div>';
-    html += '</div>';
-    if (relDir) html += '<span class="rel-dir">' + relDir + '</span>';
-    html += '</div>';
+    if (f.cid) {
+      const hasAttach = f.has_raw || f.has_large;
+      html += '<div class="msg-item" data-cid="' + f.cid + '" data-peer="{{ peer_id }}" data-rel-dir="' + (f.rel_dir || '') + '" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + f.filename + '" onclick="selectOverLimitItem(this)">';
+      html += '<div class="info">';
+      html += '<div class="fname">' + f.filename;
+      html += ' <span class="length-indicator">(' + f.length + ' / 254)</span>';
+      if (f.is_part) html += '<span class="part-label">(часть)</span>';
+      html += '</div>';
+      html += '<div class="meta">' + (f.date_str || '') + ' &middot; ' + (f.size_str || '');
+      if (hasAttach) html += ' &middot; вложения: ' + (f.attach_size_str || '');
+      html += '</div>';
+      html += '</div>';
+      if (f.rel_dir) html += '<span class="rel-dir">' + f.rel_dir + '</span>';
+      html += '</div>';
+    } else {
+      const storage = f.path.startsWith('RawData/') ? 'raw' : 'large';
+      const relDir = f.path.split('/').slice(0, -1).join('/');
+      html += '<div class="msg-item" data-cid="" data-peer="{{ peer_id }}" data-rel-dir="" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + f.filename + '" data-storage="' + storage + '" onclick="selectOverLimitItem(this)">';
+      html += '<div class="info">';
+      html += '<div class="fname">' + f.filename;
+      html += ' <span class="length-indicator">(' + f.length + ' / 254)</span>';
+      html += '</div>';
+      html += '<div class="meta">' + relDir + '</div>';
+      html += '</div>';
+      html += '</div>';
+    }
   }
   scroll.innerHTML = html;
 
-  toolbar.innerHTML = '<button class="filter-btn" onclick="hideOverLimitPanel()" style="background:#fff3cd;border-color:#ffc107;color:#856404;">← Назад к диалогу</button>'
+  toolbar.innerHTML = ''
+    + '<button class="filter-btn" onclick="hideOverLimitPanel()" style="background:#fff3cd;border-color:#ffc107;color:#856404;">← Назад к диалогу</button>'
     + '<button class="filter-btn" onclick="retryFolderRename()" style="background:#d4edda;border-color:#28a745;color:#155724;">🔄 Переименовать папку</button>'
-    + '<select class="sort-select" onchange="applyOverLimitSort()"><option value="length" selected>по длине</option><option value="name">по имени</option></select>'
-    + '<button class="sort-dir-btn" onclick="toggleSortDir()">↑</button>';
+    + '<button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>'
+    + '<input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">'
+    + '<select class="sort-select" id="sortSelect" onchange="applySort()">'
+    + '<option value="name">по имени файла</option>'
+    + '<option value="cid">по Id (дате)</option>'
+    + '<option value="length" selected>по длине</option>'
+    + '</select>'
+    + '<button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>';
 
-  document.querySelector('.btn-del').style.display = 'none';
-  document.querySelector('.btn-move').style.display = '';
   document.getElementById('contentView').style.display = 'none';
   document.getElementById('contentPlaceholder').style.display = 'block';
   document.getElementById('contentPlaceholder').textContent = 'Выберите файл слева';
+  applySort();
+  applyFilter();
 }
 
 function selectOverLimitItem(el) {
@@ -963,25 +983,6 @@ function selectOverLimitItem(el) {
   }
 }
 
-function applyOverLimitSort() {
-  const key = document.querySelector('#overLimitPanelToolbar select, .toolbar select').value;
-  const container = document.querySelector('.col-list-scroll');
-  const items = Array.from(container.querySelectorAll('.msg-item'));
-  items.sort((a, b) => {
-    let cmp;
-    if (key === 'length') {
-      cmp = parseInt(a.dataset.fileLength) - parseInt(b.dataset.fileLength);
-    } else {
-      const nameA = (a.dataset.filePath || '').toLowerCase();
-      const nameB = (b.dataset.filePath || '').toLowerCase();
-      cmp = nameA.localeCompare(nameB, 'ru');
-    }
-    return sortAsc ? cmp : -cmp;
-  });
-  items.forEach(item => container.appendChild(item));
-  document.querySelector('.sort-dir-btn').textContent = sortAsc ? '↓' : '↑';
-}
-
 function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
   const item = document.querySelector('.msg-item.active');
   if (!item) return;
@@ -994,7 +995,7 @@ function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
     }
   } else {
     item.dataset.fileLength = newLength;
-    const span = item.querySelector('.fname span');
+    const span = item.querySelector('.length-indicator');
     if (span) span.textContent = '(' + newLength + ' / 254)';
   }
 }
@@ -1004,7 +1005,6 @@ function hideOverLimitPanel() {
   const toolbar = document.querySelector('.toolbar');
   scroll.innerHTML = overLimitSavedScroll;
   toolbar.innerHTML = overLimitSavedToolbar;
-  document.querySelector('.btn-del').style.display = '';
   document.getElementById('contentView').style.display = 'none';
   document.getElementById('contentPlaceholder').style.display = 'block';
   document.getElementById('contentPlaceholder').textContent = 'Выберите сообщение слева';

@@ -521,6 +521,11 @@ def rename_dialog_folder(peer_id: int):
     if new_dialog_dir.exists() and old_dialog_dir != new_dialog_dir:
         return jsonify({"success": False, "error": f"Папка '{target_name}' уже существует"}), 400
 
+    md_dir = old_dialog_dir / "MdFiles"
+    raw_dir = old_dialog_dir / "RawData"
+    orig_dir = old_dialog_dir / "OriginalMessages"
+    message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
+
     over_limit = []
     if old_dialog_dir.is_dir():
         for root, dirs, files in os.walk(old_dialog_dir):
@@ -529,10 +534,29 @@ def rename_dialog_folder(peer_id: int):
                 rel_path = full_path.relative_to(old_dialog_dir)
                 new_abs_len = len(str(dialogs_dir_abs / target_name / rel_path))
                 if new_abs_len > 254:
-                    over_limit.append({
+                    item = {
                         "path": str(rel_path).replace("\\", "/"),
                         "length": new_abs_len,
-                    })
+                    }
+                    if rel_path.parts[0] == "MdFiles" and fname.endswith(".md"):
+                        m = CID_PATTERN.search(fname)
+                        if m:
+                            cid = int(m.group(1))
+                            size = full_path.stat().st_size
+                            attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
+                            item["cid"] = cid
+                            item["filename"] = fname
+                            item["date_str"] = message_date_str_by_cid.get(cid, "")
+                            item["size_str"] = _format_size(size)
+                            item["attach_size_str"] = _format_size(attach_size) if attach_size else ""
+                            item["has_raw"] = (raw_dir / str(cid)).is_dir()
+                            item["has_large"] = (large_root_abs / _get_dialog_dir(peer_id).name / str(cid)).is_dir()
+                            item["is_part"] = "_part_" in fname
+                            sub = full_path.parent.relative_to(md_dir)
+                            item["rel_dir"] = str(sub).replace("\\", "/") if str(sub) != "." else ""
+                    else:
+                        item["filename"] = fname
+                    over_limit.append(item)
 
     if over_limit:
         return jsonify({"ok": False, "over_limit": over_limit}), 200
