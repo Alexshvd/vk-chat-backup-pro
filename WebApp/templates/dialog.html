@@ -938,7 +938,7 @@ function selectOverLimitItem(el) {
   view.style.display = 'block';
   placeholder.style.display = 'none';
 
-  document.getElementById('contentFilename').textContent = el.dataset.filePath;
+  document.getElementById('contentFilename').textContent = el.dataset.fileName;
   const body = document.getElementById('contentBody');
   body.innerHTML = '<div class="loading">Загрузка...</div>';
 
