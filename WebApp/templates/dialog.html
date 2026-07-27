@@ -825,14 +825,14 @@ function renameFolder() {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.success === false) {
+        if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
+          nameEl.textContent = currentName;
+          btn.style.display = '';
+          showOverLimitFiles(data.over_limit, val);
+        } else if (data.success === false) {
           nameEl.textContent = currentName;
           btn.style.display = '';
           showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
-        } else if (data.ok && data.over_limit && data.over_limit.length > 0) {
-          nameEl.textContent = data.new_name;
-          btn.style.display = '';
-          showOverLimitFiles(data.over_limit, data.new_name);
         } else {
           nameEl.textContent = data.new_name;
           btn.style.display = '';
