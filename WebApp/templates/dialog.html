@@ -667,7 +667,9 @@ function moveToFolder(folder) {
         showToast('Файл перемещён');
         if (overLimitDelta) {
           const newPath = (folder ? folder + '/' : '') + selectedFilename;
-          checkOverLimitItem(parseInt(item.dataset.fileLength), newPath.length);
+          const oldRelDir = item.dataset.relDir || '';
+          const oldRelPath = oldRelDir ? oldRelDir + '/' + selectedFilename : selectedFilename;
+          checkOverLimitItem(oldRelPath.length, newPath.length);
         }
       } else {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
@@ -787,7 +789,6 @@ function renameAttachment(cid, oldName, storage, btnEl) {
               selectMessage(document.querySelector(`.msg-item[data-cid="${cid}"]`) || document.querySelector('.msg-item.active'));
               showToast(`Файл переименован`);
               if (overLimitDelta) {
-                checkOverLimitItem(currentName.length, valWithExt.length);
                 currentOverLimitAttachments = currentOverLimitAttachments.filter(a => a.name !== oldName);
                 const olItem = document.querySelector('.msg-item.active');
                 if (olItem) {
@@ -798,6 +799,15 @@ function renameAttachment(cid, oldName, storage, btnEl) {
                     if (excessEl) excessEl.textContent = 'вложений >254: ' + currentOverLimitAttachments.length;
                   } else if (excessEl) {
                     excessEl.remove();
+                  }
+                  if (currentOverLimitAttachments.length === 0) {
+                    const mdLength = parseInt(olItem.dataset.fileLength);
+                    if (mdLength <= 254) {
+                      olItem.remove();
+                      if (!document.querySelector('.col-list-scroll .msg-item')) {
+                        retryFolderRename();
+                      }
+                    }
                   }
                 }
                 const body = document.getElementById('contentBody');
@@ -1034,10 +1044,20 @@ function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
   if (!item) return;
   const oldLength = parseInt(item.dataset.fileLength);
   const newLength = oldLength - oldFileNameLen + newFileNameLen;
+  const attachCount = parseInt(item.dataset.overLimitAttachCount || '0');
   if (newLength <= 254) {
-    item.remove();
-    if (!document.querySelector('.col-list-scroll .msg-item')) {
-      retryFolderRename();
+    if (attachCount > 0) {
+      item.dataset.fileLength = newLength;
+      const span = item.querySelector('.length-indicator');
+      if (span) {
+        span.textContent = '(путь OK, ' + newLength + ' / 254)';
+        span.style.color = '#28a745';
+      }
+    } else {
+      item.remove();
+      if (!document.querySelector('.col-list-scroll .msg-item')) {
+        retryFolderRename();
+      }
     }
   } else {
     item.dataset.fileLength = newLength;
