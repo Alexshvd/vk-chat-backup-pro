@@ -993,7 +993,7 @@ function showOverLimitFiles(files, newName) {
 
   toolbar.innerHTML = ''
     + '<button class="filter-btn" onclick="hideOverLimitPanel()" style="background:#fff3cd;border-color:#ffc107;color:#856404;">← Назад к диалогу</button>'
-    + '<button class="filter-btn" onclick="retryFolderRename()" style="background:#d4edda;border-color:#28a745;color:#155724;">🔄 Переименовать папку</button>'
+    + '<button class="filter-btn" disabled style="background:#d4edda;border-color:#28a745;color:#155724;">🔄 Переименовать папку</button>'
     + '<button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>'
     + '<input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">'
     + '<select class="sort-select" id="sortSelect" onchange="applySort()">'
