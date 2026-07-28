@@ -948,6 +948,7 @@ function showOverLimitFiles(files, newName) {
   overLimitNewName = newName;
   const currentFolder = document.getElementById('dialogFolderName').textContent.trim();
   overLimitDelta = newName.length - currentFolder.length;
+  document.getElementById('renameFolderBtn').disabled = true;
 
   const scroll = document.querySelector('.col-list-scroll');
   const toolbar = document.querySelector('.toolbar');
@@ -1093,6 +1094,7 @@ function hideOverLimitPanel() {
   overLimitSavedScroll = '';
   overLimitSavedToolbar = '';
   currentOverLimitAttachments = [];
+  document.getElementById('renameFolderBtn').disabled = false;
   applySort();
   applyFilter();
 }
