@@ -961,7 +961,7 @@ function showOverLimitFiles(files, newName) {
       html += '</div>';
       html += '<div class="meta">' + (f.date_str || '') + ' &middot; ' + (f.size_str || '');
       if (hasAttach) html += ' &middot; вложения: ' + (f.attach_size_str || '');
-      if (f.over_limit_attach_count) html += ' &middot; <span class="attach-excess">вложений >254: ' + f.over_limit_attach_count + '</span>';
+      if (f.over_limit_attach_count) html += '<br><span style="color:#e74c3c;font-size:0.75rem;font-weight:600">вложений >254: ' + f.over_limit_attach_count + '</span>';
       html += '</div>';
       html += '</div>';
       if (f.rel_dir) html += '<span class="rel-dir">' + f.rel_dir + '</span>';
