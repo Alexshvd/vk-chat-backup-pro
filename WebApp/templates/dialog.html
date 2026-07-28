@@ -534,6 +534,11 @@ function renameSelected() {
       saveBtn.className = 'rename-save-btn';
       saveBtn.title = 'Сохранить';
 
+      if (currentText.length > maxMd) {
+        counter.style.color = '#e74c3c';
+        saveBtn.disabled = true;
+      }
+
       input.addEventListener('input', () => {
         const len = input.value.length;
         counter.textContent = `${len}/${maxMd}`;
@@ -732,6 +737,11 @@ function renameAttachment(cid, oldName, storage, btnEl) {
       saveBtn.textContent = '✓';
       saveBtn.className = 'rename-save-btn';
       saveBtn.title = 'Сохранить';
+
+      if (baseName.length > maxAttach) {
+        counter.style.color = '#e74c3c';
+        saveBtn.disabled = true;
+      }
 
       input.addEventListener('input', () => {
         const len = input.value.length;
