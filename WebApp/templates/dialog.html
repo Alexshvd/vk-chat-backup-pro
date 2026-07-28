@@ -952,7 +952,11 @@ function showOverLimitFiles(files, newName) {
       html += '<div class="msg-item" data-cid="' + f.cid + '" data-peer="{{ peer_id }}" data-rel-dir="' + (f.rel_dir || '') + '" data-file-path="' + f.path + '" data-file-length="' + f.length + '" data-file-name="' + f.filename + '" data-over-limit-attach-count="' + (f.over_limit_attach_count || 0) + '" data-over-limit-attachments="' + olAttachJson + '" onclick="selectOverLimitItem(this)">';
       html += '<div class="info">';
       html += '<div class="fname">' + f.filename;
-      html += ' <span class="length-indicator">(' + f.length + ' / 254)</span>';
+      if (f.length <= 254) {
+        html += ' <span class="length-indicator" style="color:#28a745">(путь OK, ' + f.length + ' / 254)</span>';
+      } else {
+        html += ' <span class="length-indicator">(' + f.length + ' / 254)</span>';
+      }
       if (f.is_part) html += '<span class="part-label">(часть)</span>';
       html += '</div>';
       html += '<div class="meta">' + (f.date_str || '') + ' &middot; ' + (f.size_str || '');
@@ -1058,7 +1062,10 @@ function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
   } else {
     item.dataset.fileLength = newLength;
     const span = item.querySelector('.length-indicator');
-    if (span) span.textContent = '(' + newLength + ' / 254)';
+    if (span) {
+      span.textContent = '(' + newLength + ' / 254)';
+      span.style.color = '';
+    }
   }
 }
 
