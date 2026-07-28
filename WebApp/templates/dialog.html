@@ -585,6 +585,7 @@ function renameSelected() {
               selectedFilename = newName;
               const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
               if (item) {
+                item.dataset.fileName = newName;
                 const fnameEl = item.querySelector('.fname');
                 fnameEl.childNodes[0].textContent = newName;
               }
