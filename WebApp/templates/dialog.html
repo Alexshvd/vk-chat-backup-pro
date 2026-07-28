@@ -714,12 +714,7 @@ function renameAttachment(cid, oldName, storage, btnEl) {
     .catch(() => {})
     .finally(() => {
       if (overLimitDelta) {
-        const olItem = document.querySelector('.msg-item.active');
-        if (olItem && olItem.dataset.fileLength) {
-          const dirLen = parseInt(olItem.dataset.fileLength) - olItem.dataset.fileName.length;
-          limits.raw = 254 - dirLen - 1;
-          limits.large = limits.raw;
-        }
+        limits.raw = limits.raw - overLimitDelta;
       }
       const maxAttach = (storage === 'large' ? limits.large : limits.raw) - ext.length;
 
