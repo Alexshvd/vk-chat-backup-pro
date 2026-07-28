@@ -12,12 +12,11 @@ def collect_dialog_dirs(dialogs_dir: Path, config: Config) -> dict:
     if not dialogs_dir.is_dir():
         return result
     for entry in dialogs_dir.iterdir():
-        if entry.is_dir() and entry.name.startswith("dialog_"):
+        if not entry.is_dir():
+            continue
+        if entry.name in config.peer_id_by_dialog_custom_name:
+            result[config.peer_id_by_dialog_custom_name[entry.name]] = entry
+        elif entry.name.startswith("dialog_"):
             pid = int(entry.name[len("dialog_"):])
             result[pid] = entry
-    for pid, custom_name in config.dialog_name_by_peer_id.items():
-        if pid not in result:
-            custom_dir = dialogs_dir / custom_name
-            if custom_dir.is_dir():
-                result[pid] = custom_dir
     return result

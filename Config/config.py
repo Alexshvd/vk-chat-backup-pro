@@ -11,5 +11,6 @@ class Config:
     overwrite_existing_md: bool = False
     overwrite_existing_original_message_json: bool = False
     dialog_name_by_peer_id: Dict[int, str] = field(default_factory=dict)
+    peer_id_by_dialog_custom_name: Dict[str, int] = field(default_factory=dict)
     min_cid_by_peer_id: Dict[int, int] = field(default_factory=dict)
     min_date_by_peer_id: Dict[int, int] = field(default_factory=dict)
