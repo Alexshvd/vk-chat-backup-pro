@@ -47,6 +47,10 @@ def _get_dialog_dir(peer_id: int) -> Path:
     return dialog_dirs.get(peer_id, dialogs_dir_abs / f"dialog_{peer_id}")
 
 
+def _get_dialog_large_raw_data_dir(peer_id: int) -> Path:
+    return large_root_abs / f"dialog_{peer_id}"
+
+
 def _max_filename_len(directory: Path) -> int:
     return 254 - len(str(directory)) - 1
 
@@ -152,14 +156,14 @@ def _find_md_files(md_dir: Path, cid: int) -> list[Path]:
 
 
 
-def _get_attachment_size(md_dir: Path, raw_dir: Path, large_dir_root: Path, peer_id: int, cid: int) -> int:
+def _get_attachment_size(md_dir: Path, raw_dir: Path, peer_id: int, cid: int) -> int:
     total = 0
     cid_raw = raw_dir / str(cid)
     if cid_raw.is_dir():
         for f in cid_raw.rglob("*"):
             if f.is_file():
                 total += f.stat().st_size
-    cid_large = large_dir_root / _get_dialog_dir(peer_id).name / str(cid)
+    cid_large = _get_dialog_large_raw_data_dir(peer_id) / str(cid)
     if cid_large.is_dir():
         for f in cid_large.rglob("*"):
             if f.is_file():
@@ -208,7 +212,7 @@ def _delete_cid(peer_id: int, cid: int) -> dict:
     md_dir = dialog_dir / "MdFiles"
     raw_dir = dialog_dir / "RawData"
     orig_dir = dialog_dir / "OriginalMessages"
-    large_dir = large_root_abs / _get_dialog_dir(peer_id).name
+    large_dir = _get_dialog_large_raw_data_dir(peer_id)
 
     deleted = {"md_files": [], "raw_dir": None, "large_dir": None, "json_files": []}
 
@@ -238,7 +242,7 @@ def _delete_cid(peer_id: int, cid: int) -> dict:
 def _list_attachments(peer_id: int, cid: int) -> dict:
     dialog_dir = _get_dialog_dir(peer_id)
     raw_dir = dialog_dir / "RawData" / str(cid)
-    large_dir = large_root_abs / _get_dialog_dir(peer_id).name / str(cid)
+    large_dir = _get_dialog_large_raw_data_dir(peer_id) / str(cid)
 
     files = {"raw": [], "large": []}
     if raw_dir.is_dir():
@@ -469,7 +473,7 @@ def dialog_messages(peer_id: int):
             cid = int(m.group(1))
             heading = f.name
             size = f.stat().st_size
-            attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
+            attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid)
             rel_dir = str(f.parent.relative_to(md_dir)).replace("\\", "/") if str(f.parent.relative_to(md_dir)) != "." else ""
             messages.append({
                 "cid": cid,
@@ -483,7 +487,7 @@ def dialog_messages(peer_id: int):
                 "attach_size_str": _format_size(attach_size) if attach_size else "-",
                 "is_part": "_part_" in f.name,
                 "has_raw": (raw_dir / str(cid)).is_dir(),
-                "has_large": (large_root_abs / _get_dialog_dir(peer_id).name / str(cid)).is_dir(),
+                "has_large": _get_dialog_large_raw_data_dir(peer_id).joinpath(str(cid)).is_dir(),
             })
     last_message_name = ""
     if messages:
@@ -567,7 +571,7 @@ def rename_dialog_folder(peer_id: int):
             continue
 
         size = md_file.stat().st_size
-        attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
+        attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid)
         sub = md_file.parent.relative_to(md_dir)
 
         item = {
@@ -579,7 +583,7 @@ def rename_dialog_folder(peer_id: int):
             "size_str": _format_size(size),
             "attach_size_str": _format_size(attach_size) if attach_size else "",
             "has_raw": (raw_dir / str(cid)).is_dir(),
-            "has_large": (large_root_abs / _get_dialog_dir(peer_id).name / str(cid)).is_dir(),
+            "has_large": _get_dialog_large_raw_data_dir(peer_id).joinpath(str(cid)).is_dir(),
             "is_part": "_part_" in md_file.name,
             "rel_dir": str(sub).replace("\\", "/") if str(sub) != "." else "",
             "over_limit_attach_count": len(over_limit_attachments),
@@ -592,11 +596,6 @@ def rename_dialog_folder(peer_id: int):
 
     if old_dialog_dir.is_dir():
         old_dialog_dir.rename(new_dialog_dir)
-
-    old_large_dir = large_root_abs / old_folder_name
-    new_large_dir = large_root_abs / target_name
-    if old_large_dir.is_dir() and not new_large_dir.exists():
-        old_large_dir.rename(new_large_dir)
 
     with open(_config_path, encoding="utf-8") as f:
         raw = _json.load(f)
@@ -775,7 +774,7 @@ def rename_attachment(peer_id: int, cid: int):
     if storage == "raw":
         file_dir = dialog_dir / "RawData" / str(cid)
     elif storage == "large":
-        file_dir = large_root_abs / _get_dialog_dir(peer_id).name / str(cid)
+        file_dir = _get_dialog_large_raw_data_dir(peer_id) / str(cid)
     else:
         return jsonify({"success": False, "error": "invalid storage type"}), 400
 
@@ -812,7 +811,7 @@ def rename_attachment(peer_id: int, cid: int):
 def get_limits(peer_id: int, cid: int):
     md_dir = _get_dialog_dir(peer_id) / "MdFiles"
     raw_dir = _get_dialog_dir(peer_id) / "RawData" / str(cid)
-    large_dir = large_root_abs / _get_dialog_dir(peer_id).name / str(cid)
+    large_dir = _get_dialog_large_raw_data_dir(peer_id) / str(cid)
     return jsonify({
         "md": _max_filename_len(md_dir),
         "raw": _max_filename_len(raw_dir),
