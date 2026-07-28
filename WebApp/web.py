@@ -541,50 +541,51 @@ def rename_dialog_folder(peer_id: int):
     message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
 
     over_limit = []
-    if old_dialog_dir.is_dir():
-        for root, dirs, files in os.walk(old_dialog_dir):
-            for fname in files:
-                full_path = Path(root) / fname
-                rel_path = full_path.relative_to(old_dialog_dir)
-                new_abs_len = len(str(dialogs_dir_abs / target_name / rel_path))
-                if new_abs_len > 254:
-                    item = {
-                        "path": str(rel_path).replace("\\", "/"),
-                        "length": new_abs_len,
-                    }
-                    if rel_path.parts[0] == "MdFiles" and fname.endswith(".md"):
-                        m = CID_PATTERN.search(fname)
-                        if m:
-                            cid = int(m.group(1))
-                            size = full_path.stat().st_size
-                            attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
-                            item["cid"] = cid
-                            item["filename"] = fname
-                            item["date_str"] = message_date_str_by_cid.get(cid, "")
-                            item["size_str"] = _format_size(size)
-                            item["attach_size_str"] = _format_size(attach_size) if attach_size else ""
-                            item["has_raw"] = (raw_dir / str(cid)).is_dir()
-                            item["has_large"] = (large_root_abs / _get_dialog_dir(peer_id).name / str(cid)).is_dir()
-                            item["is_part"] = "_part_" in fname
-                            sub = full_path.parent.relative_to(md_dir)
-                            item["rel_dir"] = str(sub).replace("\\", "/") if str(sub) != "." else ""
-                            cid_raw = raw_dir / str(cid)
-                            over_limit_attachments = []
-                            if cid_raw.is_dir():
-                                for af in cid_raw.rglob("*"):
-                                    if af.is_file():
-                                        a_rel = af.relative_to(old_dialog_dir)
-                                        a_new_len = len(str(dialogs_dir_abs / target_name / a_rel))
-                                        if a_new_len > 254:
-                                            over_limit_attachments.append({
-                                                "name": af.name,
-                                                "excess": a_new_len - 254,
-                                            })
-                            item["over_limit_attach_count"] = len(over_limit_attachments)
-                            item["over_limit_attachments"] = over_limit_attachments
-                    else:
-                        item["filename"] = fname
-                    over_limit.append(item)
+    for md_file in md_dir.rglob("*.md"):
+        rel_path = md_file.relative_to(old_dialog_dir)
+        new_abs_len = len(str(dialogs_dir_abs / target_name / rel_path))
+
+        m = CID_PATTERN.search(md_file.name)
+        if not m:
+            continue
+        cid = int(m.group(1))
+
+        over_limit_attachments = []
+        cid_raw = raw_dir / str(cid)
+        if cid_raw.is_dir():
+            for af in cid_raw.rglob("*"):
+                if af.is_file():
+                    a_rel = af.relative_to(old_dialog_dir)
+                    a_new_len = len(str(dialogs_dir_abs / target_name / a_rel))
+                    if a_new_len > 254:
+                        over_limit_attachments.append({
+                            "name": af.name,
+                            "excess": a_new_len - 254,
+                        })
+
+        if new_abs_len <= 254 and not over_limit_attachments:
+            continue
+
+        size = md_file.stat().st_size
+        attach_size = _get_attachment_size(md_dir, raw_dir, large_root_abs, peer_id, cid)
+        sub = md_file.parent.relative_to(md_dir)
+
+        item = {
+            "path": str(rel_path).replace("\\", "/"),
+            "length": new_abs_len,
+            "cid": cid,
+            "filename": md_file.name,
+            "date_str": message_date_str_by_cid.get(cid, ""),
+            "size_str": _format_size(size),
+            "attach_size_str": _format_size(attach_size) if attach_size else "",
+            "has_raw": (raw_dir / str(cid)).is_dir(),
+            "has_large": (large_root_abs / _get_dialog_dir(peer_id).name / str(cid)).is_dir(),
+            "is_part": "_part_" in md_file.name,
+            "rel_dir": str(sub).replace("\\", "/") if str(sub) != "." else "",
+            "over_limit_attach_count": len(over_limit_attachments),
+            "over_limit_attachments": over_limit_attachments,
+        }
+        over_limit.append(item)
 
     if over_limit:
         return jsonify({"ok": False, "over_limit": over_limit}), 200
