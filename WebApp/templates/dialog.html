@@ -30,7 +30,7 @@
   .toolbar .sort-select { grid-column: 2; grid-row: 2; justify-self: center; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; background: #fff; color: #555; cursor: pointer; }
   .sort-dir-btn { grid-column: 3; grid-row: 2; align-self: center; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; cursor: pointer; background: #fff; color: #555; }
   .msg-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 6px; background: #fff; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); position: relative; }
-  .msg-item .rel-dir { position: absolute; top: 4px; right: 8px; font-size: 0.65rem; color: #aaa; pointer-events: none; }
+  .msg-item .rel-dir { font-size: 0.65rem; color: #aaa; display: block; line-height: 1.2; }
   .msg-item:hover { background: #e8f0fe; }
   .msg-item.active { background: #d2e3fc; }
   .msg-item .checkbox { margin: 0; cursor: pointer; flex-shrink: 0; }
@@ -142,17 +142,17 @@
       {% for msg in messages %}
       <div class="msg-item" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}" data-rel-dir="{{ msg.rel_dir }}" onclick="selectMessage(this)">
         <input type="checkbox" class="checkbox" onclick="event.stopPropagation()" onchange="updateBatchButton()">
-        <div class="info">
-          <div class="fname">
-            {{ msg.filename }}
-            {% if msg.is_part %}<span class="part-label">(часть)</span>{% endif %}
+          <div class="info">
+            {% if msg.rel_dir %}<span class="rel-dir">{{ msg.rel_dir }}</span>{% endif %}
+            <div class="fname">
+              {{ msg.filename }}
+              {% if msg.is_part %}<span class="part-label">(часть)</span>{% endif %}
+            </div>
+            <div class="meta">
+              {{ msg.date_str }} &middot; {{ msg.size_str }}
+              {% if msg.has_raw or msg.has_large %} &middot; вложения: {{ msg.attach_size_str }}{% endif %}
+            </div>
           </div>
-          <div class="meta">
-            {{ msg.date_str }} &middot; {{ msg.size_str }}
-            {% if msg.has_raw or msg.has_large %} &middot; вложения: {{ msg.attach_size_str }}{% endif %}
-          </div>
-        </div>
-        {% if msg.rel_dir %}<span class="rel-dir">{{ msg.rel_dir }}</span>{% endif %}
       </div>
       {% endfor %}
       </div>
@@ -730,7 +730,7 @@ function batchMoveToFolder(folder) {
           const relEl = item.querySelector('.rel-dir');
           if (folder) {
             if (relEl) { relEl.textContent = folder; }
-            else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
+            else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.querySelector('.info').appendChild(s); }
           } else if (relEl) { relEl.remove(); }
         });
         if (selectedCid && batchMoveCids.includes(parseInt(selectedCid)) && !skippedCids[selectedCid]) {
@@ -804,7 +804,7 @@ function retryBatchMove() {
           const relEl = item.querySelector('.rel-dir');
           if (folder) {
             if (relEl) { relEl.textContent = folder; }
-            else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
+            else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.querySelector('.info').appendChild(s); }
           } else if (relEl) { relEl.remove(); }
         });
         if (selectedCid && cids.includes(parseInt(selectedCid)) && !skippedCids[selectedCid]) {
@@ -844,7 +844,7 @@ function moveToFolder(folder) {
         const relEl = item.querySelector('.rel-dir');
         if (folder) {
           if (relEl) { relEl.textContent = folder; }
-          else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
+          else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.querySelector('.info').appendChild(s); }
         } else if (relEl) { relEl.remove(); }
 
         selectMessage(item);
