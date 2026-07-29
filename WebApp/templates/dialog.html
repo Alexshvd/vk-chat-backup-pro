@@ -66,7 +66,11 @@
   .rename-save-btn:hover { background: #e8f8f0; }
   .rename-save-btn:disabled { opacity: 0.4; cursor: default; background: none; }
   .char-count { font-size: 0.75rem; color: #888; margin-top: 2px; }
-  .sort-select { padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; background: #fff; color: #555; cursor: pointer; }
+  .over-limit-bar { display: flex; gap: 8px; padding: 6px 0; margin-bottom: 4px; }
+  .over-limit-bar button { padding: 6px 14px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; border: 1px solid; }
+  .over-limit-bar .over-limit-back { background: #fff3cd; border-color: #ffc107; color: #856404; }
+  .over-limit-bar .over-limit-retry { background: #d4edda; border-color: #28a745; color: #155724; }
+  .over-limit-bar .over-limit-retry:disabled { opacity: 0.5; cursor: default; }
   .sort-dir-btn { padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 0.8rem; background: #fff; color: #555; }
   .sort-dir-btn:hover { background: #f0f0f0; }
   .attachments { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
@@ -133,6 +137,10 @@
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
       </div>
       <span id="selectedCount" style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;"></span>
+      <div id="overLimitBar" class="over-limit-bar" style="display:none;">
+        <button class="over-limit-back" onclick="hideOverLimitPanel()">← Назад к диалогу</button>
+        <button class="over-limit-retry" id="overLimitRetryBtn" disabled>🔄 Переименовать папку</button>
+      </div>
       <div class="col-list-scroll">
       {% for msg in messages %}
       <div class="msg-item" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}" data-rel-dir="{{ msg.rel_dir }}" onclick="selectMessage(this)">
@@ -208,7 +216,6 @@ let overLimitFiles = [];
 let overLimitNewName = '';
 let overLimitDelta = 0;
 let overLimitSavedScroll = '';
-let overLimitSavedToolbar = '';
 let currentOverLimitAttachments = [];
 let batchMoveCids = [];
 let batchMoveTargetFolder = '';
@@ -1149,9 +1156,15 @@ function showOverLimitFiles(files, newName) {
   indicator.style.display = '';
 
   const scroll = document.querySelector('.col-list-scroll');
-  const toolbar = document.querySelector('.toolbar');
   overLimitSavedScroll = scroll.innerHTML;
-  overLimitSavedToolbar = toolbar.innerHTML;
+
+  const bar = document.getElementById('overLimitBar');
+  bar.style.display = 'flex';
+  const retryBtn = document.getElementById('overLimitRetryBtn');
+  retryBtn.disabled = true;
+  retryBtn.textContent = overLimitMode === 'batch-move' ? '🔄 Повторить перемещение' : '🔄 Переименовать папку';
+
+  document.getElementById('sortSelect').value = 'length';
 
   let html = '';
   for (const f of files) {
@@ -1189,19 +1202,6 @@ function showOverLimitFiles(files, newName) {
     }
   }
   scroll.innerHTML = html;
-
-  const retryLabel = overLimitMode === 'batch-move' ? '🔄 Повторить перемещение' : '🔄 Переименовать папку';
-  toolbar.innerHTML = ''
-    + '<button class="filter-btn" onclick="hideOverLimitPanel()" style="background:#fff3cd;border-color:#ffc107;color:#856404;">← Назад к диалогу</button>'
-    + '<button class="filter-btn" disabled style="background:#d4edda;border-color:#28a745;color:#155724;">' + retryLabel + '</button>'
-    + '<button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>'
-    + '<input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">'
-    + '<select class="sort-select" id="sortSelect" onchange="applySort()">'
-    + '<option value="name">по имени файла</option>'
-    + '<option value="cid">по Id (дате)</option>'
-    + '<option value="length" selected>по длине</option>'
-    + '</select>'
-    + '<button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>';
 
   document.getElementById('contentView').style.display = 'none';
   document.getElementById('contentPlaceholder').style.display = 'block';
@@ -1285,9 +1285,8 @@ function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
 
 function hideOverLimitPanel() {
   const scroll = document.querySelector('.col-list-scroll');
-  const toolbar = document.querySelector('.toolbar');
   scroll.innerHTML = overLimitSavedScroll;
-  toolbar.innerHTML = overLimitSavedToolbar;
+  document.getElementById('overLimitBar').style.display = 'none';
   document.getElementById('contentView').style.display = 'none';
   document.getElementById('contentPlaceholder').style.display = 'block';
   document.getElementById('contentPlaceholder').textContent = 'Выберите сообщение слева';
@@ -1295,7 +1294,6 @@ function hideOverLimitPanel() {
   overLimitNewName = '';
   overLimitDelta = 0;
   overLimitSavedScroll = '';
-  overLimitSavedToolbar = '';
   currentOverLimitAttachments = [];
   document.getElementById('renameFolderBtn').disabled = false;
   document.getElementById('renameIndicator').style.display = 'none';
