@@ -746,6 +746,7 @@ function batchMoveToFolder(folder) {
         if (fileExists) parts.push('уже существует: ' + fileExists);
         showToast(parts.join(', '));
         batchMoveCids = [];
+        document.querySelectorAll('.msg-item .checkbox:checked').forEach(cb => cb.checked = false);
         updateBatchButton();
         applyFilter();
         applySort();
@@ -818,6 +819,7 @@ function retryBatchMove() {
         if (alreadyHere) parts.push('уже здесь: ' + alreadyHere);
         if (fileExists) parts.push('уже существует: ' + fileExists);
         showToast(parts.join(', '));
+        document.querySelectorAll('.msg-item .checkbox:checked').forEach(cb => cb.checked = false);
         updateBatchButton();
         applyFilter();
         applySort();
