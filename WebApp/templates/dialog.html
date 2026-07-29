@@ -722,6 +722,7 @@ function batchMoveToFolder(folder) {
             badge.className = 'skip-reason';
             badge.textContent = '⚠ ' + (reasonLabel[skippedCids[cid]] || 'пропущено');
             fnameEl.appendChild(badge);
+            setTimeout(() => { if (badge.parentNode) badge.remove(); }, 3000);
             return;
           }
           item.dataset.relDir = folder;
@@ -790,6 +791,7 @@ function retryBatchMove() {
             badge.className = 'skip-reason';
             badge.textContent = '⚠ ' + (reasonLabel[skippedCids[cid]] || 'пропущено');
             fnameEl.appendChild(badge);
+            setTimeout(() => { if (badge.parentNode) badge.remove(); }, 3000);
             return;
           }
           item.dataset.relDir = folder;
