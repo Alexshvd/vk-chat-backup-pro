@@ -172,6 +172,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/dialog/<peer_id>/<cid>/content` | GET | HTML-рендер `.md` |
 | `/dialog/<peer_id>/<cid>` | DELETE | Удаление сообщения |
 | `/dialog/<peer_id>/delete-batch` | POST | Массовое удаление |
+| `/dialog/<peer_id>/batch-move` | POST | Массовое перемещение MD-файлов (двухпроходная валидация: проверка всех путей, затем перемещение OK-файлов; возвращает `{success, skipped}`) |
 | `/dialog/<peer_id>/<cid>/rename` | PUT | Переименование `.md` |
 | `/dialog/<peer_id>/<cid>/attachments` | GET | Список файлов вложений |
 | `/dialog/<peer_id>/folders` | GET | Список подпапок внутри `MdFiles/` (JSON-массив) |
@@ -196,7 +197,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - **Sticky-заголовок контента**: `content-header` (название файла + кнопки редактирования/удаления) закреплён вверху при прокрутке (`position: sticky`), фон `#f0f4fa`.
 - **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`). Проверка длины пути (макс. 254 символа). Если файл уже в целевой папке — возвращается ошибка "File is already in this folder".
 - **Отображение вложенности**: в левой колонке каждого сообщения в правом верхнем углу отображается путь подпапки (`rel-dir`) серым цветом мелким шрифтом. Пути нормализуются к прямым слешам (`/`) на всех платформах.
-- **Фильтр по папкам**: кнопка с CSS-стрелкой dropdown в тулбаре (CSS Grid layout, 3 колонки). Выпадающий список папок (переиспользует стили `.move-panel`). Чекбокс "показывать подпапки" включён по умолчанию. Фильтрация клиентская через `data-rel-dir` атрибут. Кнопка «Удалить выбранные» расположена на строке с сортировкой.
+- **Фильтр по папкам**: кнопка с CSS-стрелкой dropdown в тулбаре (CSS Grid layout, 3 колонки × 3 строки). Выпадающий список папок (переиспользует стили `.move-panel`). Чекбокс "показывать подпапки" включён по умолчанию. Фильтрация клиентская через `data-rel-dir` атрибут.
+- **Тулбар (CSS Grid)**: `grid-template-columns: auto 1fr auto; grid-template-rows: auto auto auto`. Row 1: filter-btn (col 1/3, stretch, text-align left) + filterNested (col 3, center). Row 2: delete (col 1) + sort-select (col 2, center) + dir-btn (col 3, center). Row 3: move (col 1) + empty col 2-3. `#selectedCount` снаружи `.toolbar`. Все кнопки/селект одного стиля (`padding: 6px 14px; border-radius: 6px; font-size: 0.9rem`).
+- **Батчевое перемещение (batch-move)**: `POST /dialog/<peer_id>/batch-move` — двухпроходная валидация (все пути → OK-файлы). Сервер возвращает `{success, skipped}`. На фронте: `batchMove()` собирает выбранные CID, открывает move-panel под кнопкой «Переместить в»; `batchMoveToFolder(folder)` отправляет запрос, обновляет `dataset.relDir` DOM-элементов, добавляет skip-бэйджи с авто-исчезновением через 3с. При over-limit (>254) — вход в rename-mode (`overLimitMode = 'batch-move'`), retry через `retryBatchMove()`.
 
 ## Зависимости
 
