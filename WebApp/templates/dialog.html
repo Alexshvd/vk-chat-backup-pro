@@ -661,6 +661,7 @@ function moveSelected() {
 
 // ─── Batch Move ─────────────────────────────────────
 function batchMove() {
+  document.querySelectorAll('.skip-reason').forEach(el => el.remove());
   const checked = document.querySelectorAll('.msg-item .checkbox:checked');
   if (!checked.length) return;
   batchMoveCids = [];
