@@ -32,6 +32,8 @@
   #filterNested { margin: 0; cursor: pointer; }
   .btn-delete-batch { background: #e74c3c; color: #fff; }
   .btn-delete-batch:disabled { background: #ccc; cursor: default; }
+  .btn-move-batch { background: #2980b9; color: #fff; }
+  .btn-move-batch:disabled { background: #ccc; cursor: default; }
   .msg-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 6px; background: #fff; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); position: relative; }
   .msg-item .rel-dir { position: absolute; top: 4px; right: 8px; font-size: 0.65rem; color: #aaa; pointer-events: none; }
   .msg-item:hover { background: #e8f0fe; }
@@ -127,6 +129,7 @@
         <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
         <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
+        <button class="btn-move-batch" id="btnBatchMove" onclick="batchMove()" disabled>Переместить в</button>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
           <option value="name" selected>по имени файла</option>
           <option value="cid">по Id (дате)</option>
@@ -211,6 +214,9 @@ let overLimitDelta = 0;
 let overLimitSavedScroll = '';
 let overLimitSavedToolbar = '';
 let currentOverLimitAttachments = [];
+let batchMoveCids = [];
+let batchMoveTargetFolder = '';
+let overLimitMode = 'rename';
 
 document.addEventListener('DOMContentLoaded', () => {
   applySort();
@@ -491,6 +497,7 @@ function batchDelete() {
 function updateBatchButton() {
   const checked = document.querySelectorAll('.msg-item .checkbox:checked').length;
   document.getElementById('btnBatchDelete').disabled = checked === 0;
+  document.getElementById('btnBatchMove').disabled = checked === 0;
   document.getElementById('selectedCount').textContent = checked ? `Выбрано: ${checked}` : '';
 }
 
@@ -596,7 +603,7 @@ function renameSelected() {
                 fnameEl.childNodes[0].textContent = newName;
               }
               showToast(`Файл переименован`);
-              if (overLimitDelta) checkOverLimitItem(currentText.length, val.length);
+              if (overLimitDelta || overLimitMode === 'batch-move') checkOverLimitItem(currentText.length, val.length);
             } else {
               filenameEl.textContent = fullName;
               showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
@@ -651,6 +658,109 @@ function moveSelected() {
     });
 }
 
+// ─── Batch Move ─────────────────────────────────────
+function batchMove() {
+  const checked = document.querySelectorAll('.msg-item .checkbox:checked');
+  if (!checked.length) return;
+  batchMoveCids = [];
+  checked.forEach(cb => {
+    const item = cb.closest('.msg-item');
+    batchMoveCids.push(parseInt(item.dataset.cid));
+  });
+
+  const panel = document.getElementById('movePanel');
+  if (panel.style.display === 'block') { closeMovePanel(); return; }
+  const list = document.getElementById('moveFolderList');
+  const input = document.getElementById('moveNewFolder');
+  list.innerHTML = '<div class="loading">Загрузка...</div>';
+  input.value = '';
+  panel.style.display = 'block';
+  const btn = document.getElementById('btnBatchMove');
+  const rect = btn.getBoundingClientRect();
+  panel.style.top = (rect.bottom + 4) + 'px';
+  panel.style.left = rect.left + 'px';
+  panel.style.right = 'auto';
+
+  fetch(`/dialog/${selectedPeer || document.querySelector('.msg-item').dataset.peer}/folders`)
+    .then(r => r.json())
+    .then(folders => {
+      let html = `<div class="move-panel-item move-panel-root" onclick="batchMoveToFolder('')">/ (Корень)</div>`;
+      folders.forEach(f => {
+        const safe = f.replaceAll('\\', '/');
+        html += `<div class="move-panel-item" onclick="batchMoveToFolder('${safe}')">${f}</div>`;
+      });
+      list.innerHTML = html;
+      input.focus();
+    })
+    .catch(() => { list.innerHTML = '<div class="loading">Ошибка загрузки</div>'; });
+}
+
+function batchMoveToFolder(folder) {
+  closeMovePanel();
+  const peer = document.querySelector('.msg-item').dataset.peer;
+
+  fetch(`/dialog/${peer}/batch-move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cids: batchMoveCids, folder: folder })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        batchMoveCids.forEach(cid => {
+          const item = document.querySelector(`.msg-item[data-cid="${cid}"]`);
+          if (item) item.remove();
+        });
+        if (selectedCid && batchMoveCids.includes(parseInt(selectedCid))) {
+          document.getElementById('contentView').style.display = 'none';
+          document.getElementById('contentPlaceholder').style.display = 'block';
+          selectedCid = null;
+        }
+        showToast(`Перемещено ${batchMoveCids.length} сообщений`);
+        batchMoveCids = [];
+        updateBatchButton();
+      } else if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
+        overLimitMode = 'batch-move';
+        batchMoveTargetFolder = folder;
+        const indicator = document.getElementById('renameIndicator');
+        indicator.textContent = 'Пакетное перемещение: ' + batchMoveCids.length + ' файлов, некоторые превышают 254 символа';
+        indicator.style.display = '';
+        showOverLimitFiles(data.over_limit, '');
+      } else {
+        showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+      }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, true));
+}
+
+function retryBatchMove() {
+  const peer = document.querySelector('.msg-item').dataset.peer;
+  fetch(`/dialog/${peer}/batch-move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cids: batchMoveCids, folder: batchMoveTargetFolder })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
+        showOverLimitFiles(data.over_limit, '');
+      } else if (data.success === false) {
+        showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
+      } else {
+        hideOverLimitPanel();
+        batchMoveCids.forEach(cid => {
+          const item = document.querySelector(`.msg-item[data-cid="${cid}"]`);
+          if (item) item.remove();
+        });
+        showToast('Перемещено ' + batchMoveCids.length + ' сообщений');
+        batchMoveCids = [];
+        batchMoveTargetFolder = '';
+        overLimitMode = 'rename';
+      }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, true));
+}
+
 function moveToFolder(folder) {
   closeMovePanel();
   fetch(`/dialog/${selectedPeer}/${selectedCid}/move`, {
@@ -673,7 +783,7 @@ function moveToFolder(folder) {
         selectMessage(item);
         showToast('Файл перемещён');
 
-        if (overLimitDelta) {
+        if (overLimitDelta || overLimitMode === 'batch-move') {
           const newPath = (folder ? folder + '/' : '') + selectedFilename;
           const oldRelPath = oldRelDir ? oldRelDir + '/' + selectedFilename : selectedFilename;
           checkOverLimitItem(oldRelPath.length, newPath.length);
@@ -695,7 +805,11 @@ function submitNewFolder() {
     showToast('Недопустимый путь', true);
     return;
   }
-  moveToFolder(folder);
+  if (batchMoveCids.length > 0) {
+    batchMoveToFolder(folder);
+  } else {
+    moveToFolder(folder);
+  }
 }
 
 function closeMovePanel() {
@@ -813,7 +927,11 @@ function renameAttachment(cid, oldName, storage, btnEl) {
                     if (mdLength <= 254) {
                       olItem.remove();
                       if (!document.querySelector('.col-list-scroll .msg-item')) {
-                        retryFolderRename();
+                        if (overLimitMode === 'batch-move') {
+                          retryBatchMove();
+                        } else {
+                          retryFolderRename();
+                        }
                       }
                     }
                   }
@@ -926,6 +1044,7 @@ function renameFolder() {
         } else if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
           nameEl.textContent = currentName;
           btn.style.display = '';
+          overLimitMode = 'rename';
           showOverLimitFiles(data.over_limit, val);
         } else if (data.success === false) {
           nameEl.textContent = currentName;
@@ -957,10 +1076,14 @@ function showOverLimitFiles(files, newName) {
   overLimitFiles = files;
   overLimitNewName = newName;
   const currentFolder = document.getElementById('dialogFolderName').textContent.trim();
-  overLimitDelta = newName.length - currentFolder.length;
-  document.getElementById('renameFolderBtn').disabled = true;
+  overLimitDelta = overLimitMode === 'batch-move' ? 0 : newName.length - currentFolder.length;
+  document.getElementById('renameFolderBtn').disabled = overLimitMode !== 'batch-move';
   const indicator = document.getElementById('renameIndicator');
-  indicator.textContent = 'Переименование: ' + currentFolder + ' → ' + newName;
+  if (overLimitMode === 'batch-move') {
+    indicator.textContent = 'Пакетное перемещение: ' + batchMoveCids.length + ' файлов, некоторые превышают 254 символа';
+  } else {
+    indicator.textContent = 'Переименование: ' + currentFolder + ' → ' + newName;
+  }
   indicator.style.display = '';
 
   const scroll = document.querySelector('.col-list-scroll');
@@ -1005,9 +1128,10 @@ function showOverLimitFiles(files, newName) {
   }
   scroll.innerHTML = html;
 
+  const retryLabel = overLimitMode === 'batch-move' ? '🔄 Повторить перемещение' : '🔄 Переименовать папку';
   toolbar.innerHTML = ''
     + '<button class="filter-btn" onclick="hideOverLimitPanel()" style="background:#fff3cd;border-color:#ffc107;color:#856404;">← Назад к диалогу</button>'
-    + '<button class="filter-btn" disabled style="background:#d4edda;border-color:#28a745;color:#155724;">🔄 Переименовать папку</button>'
+    + '<button class="filter-btn" disabled style="background:#d4edda;border-color:#28a745;color:#155724;">' + retryLabel + '</button>'
     + '<button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>'
     + '<input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">'
     + '<select class="sort-select" id="sortSelect" onchange="applySort()">'
@@ -1080,7 +1204,11 @@ function checkOverLimitItem(oldFileNameLen, newFileNameLen) {
     } else {
       item.remove();
       if (!document.querySelector('.col-list-scroll .msg-item')) {
-        retryFolderRename();
+        if (overLimitMode === 'batch-move') {
+          retryBatchMove();
+        } else {
+          retryFolderRename();
+        }
       }
     }
   } else {
@@ -1109,6 +1237,9 @@ function hideOverLimitPanel() {
   currentOverLimitAttachments = [];
   document.getElementById('renameFolderBtn').disabled = false;
   document.getElementById('renameIndicator').style.display = 'none';
+  batchMoveCids = [];
+  batchMoveTargetFolder = '';
+  overLimitMode = 'rename';
   applySort();
   applyFilter();
 }

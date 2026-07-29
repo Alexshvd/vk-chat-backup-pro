@@ -684,6 +684,92 @@ def list_md_folders(peer_id: int):
     return jsonify(sorted(folders))
 
 
+@app.route("/dialog/<int:peer_id>/batch-move", methods=["POST"])
+def batch_move_md_files(peer_id: int):
+    data = request.get_json(force=True)
+    cids = data.get("cids", [])
+    target_folder = data.get("folder", "").strip().strip("/")
+
+    dialog_dir = _get_dialog_dir(peer_id)
+    md_dir = dialog_dir / "MdFiles"
+    raw_dir = dialog_dir / "RawData"
+    orig_dir = dialog_dir / "OriginalMessages"
+    message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
+
+    target_dir = md_dir / target_folder if target_folder else md_dir
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    over_limit = []
+    moves = []
+
+    for cid in cids:
+        files = _find_md_files(md_dir, cid)
+        if not files:
+            continue
+
+        for f in files:
+            current_rel = f.parent.relative_to(md_dir)
+            current_depth = len(current_rel.parts)
+            target_depth = len(target_folder.split("/")) if target_folder else 0
+            depth_diff = target_depth - current_depth
+
+            new_path = target_dir / f.name
+            new_len = len(str(new_path))
+
+            if new_len > 254:
+                size = f.stat().st_size
+                attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid)
+                sub = f.parent.relative_to(md_dir)
+
+                over_limit_attachments = []
+                cid_raw = raw_dir / str(cid)
+                if cid_raw.is_dir():
+                    for af in cid_raw.rglob("*"):
+                        if af.is_file():
+                            a_new_len = len(str(target_dir / af.name))
+                            if a_new_len > 254:
+                                over_limit_attachments.append({
+                                    "name": af.name,
+                                    "excess": a_new_len - 254,
+                                })
+
+                item = {
+                    "path": str(new_path.relative_to(dialog_dir)).replace("\\", "/"),
+                    "length": new_len,
+                    "cid": cid,
+                    "filename": f.name,
+                    "date_str": message_date_str_by_cid.get(cid, ""),
+                    "size_str": _format_size(size),
+                    "attach_size_str": _format_size(attach_size) if attach_size else "",
+                    "has_raw": (raw_dir / str(cid)).is_dir(),
+                    "has_large": _get_dialog_large_raw_data_dir(peer_id).joinpath(str(cid)).is_dir(),
+                    "is_part": "_part_" in f.name,
+                    "rel_dir": str(sub).replace("\\", "/") if str(sub) != "." else "",
+                    "over_limit_attach_count": len(over_limit_attachments),
+                    "over_limit_attachments": over_limit_attachments,
+                }
+                over_limit.append(item)
+            elif new_path.exists():
+                return jsonify({"success": False, "error": f"File exists: {f.name}"}), 409
+            else:
+                moves.append({
+                    "file": f,
+                    "new_path": new_path,
+                    "depth_diff": depth_diff,
+                })
+
+    if over_limit:
+        return jsonify({"ok": False, "over_limit": over_limit}), 200
+
+    for m in moves:
+        content = m["file"].read_text(encoding="utf-8")
+        content = _rewrite_links_for_move(content, m["depth_diff"])
+        m["file"].write_text(content, encoding="utf-8")
+        m["file"].rename(m["new_path"])
+
+    return jsonify({"success": True})
+
+
 @app.route("/dialog/<int:peer_id>/<int:cid>/move", methods=["POST"])
 def move_md_file(peer_id: int, cid: int):
     data = request.get_json(force=True)
