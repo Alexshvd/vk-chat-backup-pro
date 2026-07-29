@@ -515,7 +515,7 @@ function renameSelected() {
         const olItem = document.querySelector('.msg-item.active');
         if (olItem && olItem.dataset.fileLength) {
           const dirLen = parseInt(olItem.dataset.fileLength) - olItem.dataset.fileName.length;
-          limits.md = 254 - dirLen - 1;
+          limits.md = 254 - dirLen;
         }
       }
       const maxMd = limits.md - suffixLen;
