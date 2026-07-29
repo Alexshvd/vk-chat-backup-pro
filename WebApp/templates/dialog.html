@@ -114,6 +114,7 @@
       <button onclick="renameFolder()" id="renameFolderBtn" title="Переименовать папку диалога" style="background:none;border:1px solid #ddd;border-radius:4px;cursor:pointer;padding:2px 8px;font-size:0.85rem;color:#555;vertical-align:middle;margin-left:6px;">&#9998;</button>
       <span style="font-size:0.85rem;color:#888;font-weight:normal;">(peer_id: {{ peer_id }})</span>
     </h1>
+    <div id="renameIndicator" style="display:none;font-size:0.85rem;color:#555;margin-top:4px;"></div>
     {% if last_message_name %}
     <div style="font-size: 0.9rem; color: #555; margin-top: 4px;">Последние сообщение: {{ last_message_name }}</div>
     {% endif %}
@@ -958,6 +959,9 @@ function showOverLimitFiles(files, newName) {
   const currentFolder = document.getElementById('dialogFolderName').textContent.trim();
   overLimitDelta = newName.length - currentFolder.length;
   document.getElementById('renameFolderBtn').disabled = true;
+  const indicator = document.getElementById('renameIndicator');
+  indicator.textContent = 'Переименование: ' + currentFolder + ' → ' + newName;
+  indicator.style.display = '';
 
   const scroll = document.querySelector('.col-list-scroll');
   const toolbar = document.querySelector('.toolbar');
@@ -965,9 +969,6 @@ function showOverLimitFiles(files, newName) {
   overLimitSavedToolbar = toolbar.innerHTML;
 
   let html = '';
-  html += '<div style="padding:8px 12px;font-size:0.85rem;color:#555;border-bottom:1px solid #eee;margin-bottom:4px;">';
-  html += 'Переименование: <code>' + currentFolder + '</code> → <code>' + newName + '</code>';
-  html += '</div>';
   for (const f of files) {
     if (f.cid) {
       const hasAttach = f.has_raw || f.has_large;
@@ -1107,6 +1108,7 @@ function hideOverLimitPanel() {
   overLimitSavedToolbar = '';
   currentOverLimitAttachments = [];
   document.getElementById('renameFolderBtn').disabled = false;
+  document.getElementById('renameIndicator').style.display = 'none';
   applySort();
   applyFilter();
 }
