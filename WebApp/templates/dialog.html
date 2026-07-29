@@ -17,20 +17,18 @@
   .col-list-scroll { flex: 1; overflow-y: auto; }
   .col-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .content-card { flex: 1; overflow-y: auto; }
-  .toolbar { margin-bottom: 12px; display: grid; grid-template-columns: auto auto auto; gap: 4px 8px; justify-content: end; align-items: center; }
-  .toolbar .filter-btn { grid-column: 1 / 3; justify-self: end; }
-  #filterNested { grid-column: 3; justify-self: center; }
-  .batch-buttons { grid-column: 1; justify-self: start; display: flex; flex-direction: column; gap: 3px; }
-  .batch-buttons button { width: 100%; white-space: nowrap; padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-  .batch-buttons button:disabled { background: #ccc; cursor: default; }
-  .btn-delete-batch { background: #e74c3c; color: #fff; }
-  .btn-move-batch { background: #2980b9; color: #fff; }
-  .toolbar .sort-select { grid-column: 2; justify-self: end; }
-  .sort-dir-btn { grid-column: 3; justify-self: center; }
-  #selectedCount { grid-column: 1 / -1; }
+  .toolbar { margin-bottom: 4px; display: grid; grid-template-columns: auto auto 1fr; gap: 4px 8px; align-items: center; }
+  .filter-row { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: 8px; }
+  .filter-row .filter-btn { flex: 1; }
+  .filter-row .filter-btn::after { content: ""; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-top: 5px solid #555; }
+  .btn-delete-batch { grid-column: 1; grid-row: 2; background: #e74c3c; color: #fff; }
+  .btn-delete-batch:disabled { background: #ccc; cursor: default; }
+  .btn-move-batch { grid-column: 1; grid-row: 3; background: #2980b9; color: #fff; }
+  .btn-move-batch:disabled { background: #ccc; cursor: default; }
+  .toolbar .sort-select { grid-column: 2; grid-row: 2; justify-self: end; }
+  .sort-dir-btn { grid-column: 3; grid-row: 2; }
   .toolbar button { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .toolbar .filter-btn { padding: 4px 20px 4px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; background: #fff; color: #555; cursor: pointer; position: relative; }
-  .toolbar .filter-btn::after { content: ""; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-top: 5px solid #555; }
   .toolbar .filter-btn:hover { background: #f0f0f0; }
   .toolbar .filter-btn.active { background: #dce6f5; border-color: #2980b9; color: #2980b9; }
   #filterNested { margin: 0; cursor: pointer; }
@@ -127,19 +125,19 @@
   <div class="dialog-layout">
     <div class="col-list">
       <div class="toolbar">
-        <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
-        <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
-        <div class="batch-buttons">
-          <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
-          <button class="btn-move-batch" id="btnBatchMove" onclick="batchMove()" disabled>Переместить в</button>
+        <div class="filter-row">
+          <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
+          <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
         </div>
+        <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
+        <button class="btn-move-batch" id="btnBatchMove" onclick="batchMove()" disabled>Переместить в</button>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
           <option value="name" selected>по имени файла</option>
           <option value="cid">по Id (дате)</option>
         </select>
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
-        <span id="selectedCount" style="color:#888;font-size:0.85rem;width:100%;"></span>
       </div>
+      <span id="selectedCount" style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;"></span>
       <div class="col-list-scroll">
       {% for msg in messages %}
       <div class="msg-item" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}" data-rel-dir="{{ msg.rel_dir }}" onclick="selectMessage(this)">
