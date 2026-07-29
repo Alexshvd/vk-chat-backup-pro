@@ -69,8 +69,6 @@
   .over-limit-bar { display: flex; gap: 8px; padding: 6px 0; margin-bottom: 4px; }
   .over-limit-bar button { padding: 6px 14px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; border: 1px solid; }
   .over-limit-bar .over-limit-back { background: #fff3cd; border-color: #ffc107; color: #856404; }
-  .over-limit-bar .over-limit-retry { background: #d4edda; border-color: #28a745; color: #155724; }
-  .over-limit-bar .over-limit-retry:disabled { opacity: 0.5; cursor: default; }
   .sort-dir-btn { padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 0.8rem; background: #fff; color: #555; }
   .sort-dir-btn:hover { background: #f0f0f0; }
   .attachments { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
@@ -139,7 +137,6 @@
       <span id="selectedCount" style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;"></span>
       <div id="overLimitBar" class="over-limit-bar" style="display:none;">
         <button class="over-limit-back" onclick="hideOverLimitPanel()">← Назад к диалогу</button>
-        <button class="over-limit-retry" id="overLimitRetryBtn" disabled>🔄 Переименовать папку</button>
       </div>
       <div class="col-list-scroll">
       {% for msg in messages %}
@@ -1160,10 +1157,6 @@ function showOverLimitFiles(files, newName) {
 
   const bar = document.getElementById('overLimitBar');
   bar.style.display = 'flex';
-  const retryBtn = document.getElementById('overLimitRetryBtn');
-  retryBtn.disabled = true;
-  retryBtn.textContent = overLimitMode === 'batch-move' ? '🔄 Повторить перемещение' : '🔄 Переименовать папку';
-
   document.getElementById('sortSelect').value = 'length';
 
   let html = '';
