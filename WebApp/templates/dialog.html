@@ -519,7 +519,7 @@ function renameSelected() {
     .then(d => { limits = d; })
     .catch(() => {})
     .finally(() => {
-      if (overLimitDelta) {
+      if (overLimitDelta || overLimitMode === 'batch-move') {
         const olItem = document.querySelector('.msg-item.active');
         if (olItem && olItem.dataset.fileLength) {
           const dirLen = parseInt(olItem.dataset.fileLength) - olItem.dataset.fileName.length;
