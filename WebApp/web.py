@@ -692,7 +692,6 @@ def batch_move_md_files(peer_id: int):
 
     dialog_dir = _get_dialog_dir(peer_id)
     md_dir = dialog_dir / "MdFiles"
-    raw_dir = dialog_dir / "RawData"
     orig_dir = dialog_dir / "OriginalMessages"
     message_date_str_by_cid = _build_message_date_str_by_cid(orig_dir, PrintLogger())
 
@@ -718,20 +717,7 @@ def batch_move_md_files(peer_id: int):
 
             if new_len > 254:
                 size = f.stat().st_size
-                attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid)
                 sub = f.parent.relative_to(md_dir)
-
-                over_limit_attachments = []
-                cid_raw = raw_dir / str(cid)
-                if cid_raw.is_dir():
-                    for af in cid_raw.rglob("*"):
-                        if af.is_file():
-                            a_new_len = len(str(target_dir / af.name))
-                            if a_new_len > 254:
-                                over_limit_attachments.append({
-                                    "name": af.name,
-                                    "excess": a_new_len - 254,
-                                })
 
                 item = {
                     "path": str(new_path.relative_to(dialog_dir)).replace("\\", "/"),
@@ -740,13 +726,10 @@ def batch_move_md_files(peer_id: int):
                     "filename": f.name,
                     "date_str": message_date_str_by_cid.get(cid, ""),
                     "size_str": _format_size(size),
-                    "attach_size_str": _format_size(attach_size) if attach_size else "",
-                    "has_raw": (raw_dir / str(cid)).is_dir(),
-                    "has_large": _get_dialog_large_raw_data_dir(peer_id).joinpath(str(cid)).is_dir(),
                     "is_part": "_part_" in f.name,
                     "rel_dir": str(sub).replace("\\", "/") if str(sub) != "." else "",
-                    "over_limit_attach_count": len(over_limit_attachments),
-                    "over_limit_attachments": over_limit_attachments,
+                    "over_limit_attach_count": 0,
+                    "over_limit_attachments": [],
                 }
                 over_limit.append(item)
             elif new_path.exists():
