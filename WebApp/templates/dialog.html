@@ -661,7 +661,7 @@ function moveSelected() {
 
 // ─── Batch Move ─────────────────────────────────────
 function batchMove() {
-  document.querySelectorAll('.skip-reason').forEach(el => el.remove());
+  document.querySelectorAll('.skip-reason').forEach(el => { clearTimeout(el._timeoutId); el.remove(); });
   const checked = document.querySelectorAll('.msg-item .checkbox:checked');
   if (!checked.length) return;
   batchMoveCids = [];
@@ -723,7 +723,7 @@ function batchMoveToFolder(folder) {
             badge.className = 'skip-reason';
             badge.textContent = '⚠ ' + (reasonLabel[skippedCids[cid]] || 'пропущено');
             fnameEl.appendChild(badge);
-            setTimeout(() => { if (badge.parentNode) badge.remove(); }, 3000);
+            badge._timeoutId = setTimeout(() => { if (badge.parentNode) badge.remove(); }, 3000);
             return;
           }
           item.dataset.relDir = folder;
@@ -792,7 +792,7 @@ function retryBatchMove() {
             badge.className = 'skip-reason';
             badge.textContent = '⚠ ' + (reasonLabel[skippedCids[cid]] || 'пропущено');
             fnameEl.appendChild(badge);
-            setTimeout(() => { if (badge.parentNode) badge.remove(); }, 3000);
+            badge._timeoutId = setTimeout(() => { if (badge.parentNode) badge.remove(); }, 3000);
             return;
           }
           item.dataset.relDir = folder;
