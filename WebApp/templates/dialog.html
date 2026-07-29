@@ -878,13 +878,13 @@ function renameFolder() {
   saveBtn.title = 'Сохранить';
 
   const warnDiv = document.createElement('div');
-  warnDiv.style.cssText = 'font-size:0.8rem;color:#666;margin-top:6px;line-height:1.3;';
+  warnDiv.style.cssText = 'font-size:0.8rem;color:#8ab4f8;margin-top:6px;line-height:1.3;';
 
   const line1 = document.createElement('div');
-  line1.textContent = 'Оставьте поле пустым, чтобы вернуть dialog_{{ peer_id }}';
+  line1.textContent = '- Оставьте поле пустым, чтобы вернуть название по умолчанию (dialog_{{ peer_id }})';
 
   const line2 = document.createElement('div');
-  line2.textContent = 'Расположите корневую директорию выше по иерархии, чтобы увеличить допустимую длину имён файлов';
+  line2.textContent = '- Расположите корневую директорию выше по иерархии, чтобы увеличить допустимую длину имён файлов';
 
   warnDiv.appendChild(line1);
   warnDiv.appendChild(line2);
