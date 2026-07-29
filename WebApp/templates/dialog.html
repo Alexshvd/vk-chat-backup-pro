@@ -742,6 +742,7 @@ function batchMoveToFolder(folder) {
         showToast(parts.join(', '));
         batchMoveCids = [];
         updateBatchButton();
+        applyFilter();
         applySort();
       } else if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
         overLimitMode = 'batch-move';
@@ -813,6 +814,7 @@ function retryBatchMove() {
         if (fileExists) parts.push('уже существует: ' + fileExists);
         showToast(parts.join(', '));
         updateBatchButton();
+        applyFilter();
         applySort();
       }
     })
@@ -846,6 +848,7 @@ function moveToFolder(folder) {
           const oldRelPath = oldRelDir ? oldRelDir + '/' + selectedFilename : selectedFilename;
           checkOverLimitItem(oldRelPath.length, newPath.length);
         }
+        applyFilter();
         applySort();
       } else {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
