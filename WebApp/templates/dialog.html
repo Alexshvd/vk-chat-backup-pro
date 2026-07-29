@@ -46,6 +46,7 @@
   .msg-item .length-indicator { color: #e74c3c; font-weight: normal; font-size: 0.75rem; }
   .attach-over-limit { background: #fff3cd; border-left: 3px solid #ffc107; padding-left: 4px; }
   .attach-excess { color: #856404; font-size: 0.75rem; font-weight: 600; }
+  .skip-reason { font-size:0.7rem; color:#856404; background:#fff3cd; border-radius:3px; padding:1px 5px; margin-left:4px; white-space:nowrap; }
   .msg-item.stale { opacity: 0.5; }
   .content-card { background: #fff; border-radius: 8px; padding: 0px 16px 8px;; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   .content-header { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #dce6f5 ; position: sticky; top: 0px; z-index: 1; background: #fff; margin: 0 -16px 12px; padding: 8px 16px 8px; }
@@ -707,9 +708,22 @@ function batchMoveToFolder(folder) {
     .then(r => r.json())
     .then(data => {
       if (data.success) {
+        const skipped = data.skipped || [];
+        const skippedCids = {};
+        skipped.forEach(s => { skippedCids[s.cid] = s.reason; });
+        const reasonLabel = { 'already_in_folder': 'уже здесь', 'file_exists': 'уже существует' };
+
         batchMoveCids.forEach(cid => {
           const item = document.querySelector(`.msg-item[data-cid="${cid}"]`);
           if (!item) return;
+          if (skippedCids[cid]) {
+            const fnameEl = item.querySelector('.fname');
+            const badge = document.createElement('span');
+            badge.className = 'skip-reason';
+            badge.textContent = '⚠ ' + (reasonLabel[skippedCids[cid]] || 'пропущено');
+            fnameEl.appendChild(badge);
+            return;
+          }
           item.dataset.relDir = folder;
           const relEl = item.querySelector('.rel-dir');
           if (folder) {
@@ -717,11 +731,15 @@ function batchMoveToFolder(folder) {
             else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
           } else if (relEl) { relEl.remove(); }
         });
-        if (selectedCid && batchMoveCids.includes(parseInt(selectedCid))) {
+        if (selectedCid && batchMoveCids.includes(parseInt(selectedCid)) && !skippedCids[selectedCid]) {
           const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
           if (item) selectMessage(item);
         }
-        showToast(`Перемещено ${batchMoveCids.length} сообщений`);
+        const moved = batchMoveCids.length - skipped.length;
+        const parts = [];
+        if (moved) parts.push('Перемещено ' + moved);
+        if (skipped.length) parts.push('пропущено ' + skipped.length);
+        showToast(parts.join(', '));
         batchMoveCids = [];
         updateBatchButton();
         applySort();
@@ -758,9 +776,22 @@ function retryBatchMove() {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
       } else {
         hideOverLimitPanel();
+        const skipped = data.skipped || [];
+        const skippedCids = {};
+        skipped.forEach(s => { skippedCids[s.cid] = s.reason; });
+        const reasonLabel = { 'already_in_folder': 'уже здесь', 'file_exists': 'уже существует' };
+
         cids.forEach(cid => {
           const item = document.querySelector(`.msg-item[data-cid="${cid}"]`);
           if (!item) return;
+          if (skippedCids[cid]) {
+            const fnameEl = item.querySelector('.fname');
+            const badge = document.createElement('span');
+            badge.className = 'skip-reason';
+            badge.textContent = '⚠ ' + (reasonLabel[skippedCids[cid]] || 'пропущено');
+            fnameEl.appendChild(badge);
+            return;
+          }
           item.dataset.relDir = folder;
           const relEl = item.querySelector('.rel-dir');
           if (folder) {
@@ -768,11 +799,15 @@ function retryBatchMove() {
             else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
           } else if (relEl) { relEl.remove(); }
         });
-        if (selectedCid && cids.includes(parseInt(selectedCid))) {
+        if (selectedCid && cids.includes(parseInt(selectedCid)) && !skippedCids[selectedCid]) {
           const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
           if (item) selectMessage(item);
         }
-        showToast('Перемещено ' + cids.length + ' сообщений');
+        const moved = cids.length - skipped.length;
+        const parts = [];
+        if (moved) parts.push('Перемещено ' + moved);
+        if (skipped.length) parts.push('пропущено ' + skipped.length);
+        showToast(parts.join(', '));
         updateBatchButton();
         applySort();
       }

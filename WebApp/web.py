@@ -700,6 +700,7 @@ def batch_move_md_files(peer_id: int):
 
     over_limit = []
     moves = []
+    skipped = []
 
     for cid in cids:
         files = _find_md_files(md_dir, cid)
@@ -732,8 +733,10 @@ def batch_move_md_files(peer_id: int):
                     "over_limit_attachments": [],
                 }
                 over_limit.append(item)
+            elif depth_diff == 0:
+                skipped.append({"cid": cid, "filename": f.name, "reason": "already_in_folder"})
             elif new_path.exists():
-                return jsonify({"success": False, "error": f"File exists: {f.name}"}), 409
+                skipped.append({"cid": cid, "filename": f.name, "reason": "file_exists"})
             else:
                 moves.append({
                     "file": f,
@@ -750,7 +753,7 @@ def batch_move_md_files(peer_id: int):
         m["file"].write_text(content, encoding="utf-8")
         m["file"].rename(m["new_path"])
 
-    return jsonify({"success": True})
+    return jsonify({"success": True, "skipped": skipped})
 
 
 @app.route("/dialog/<int:peer_id>/<int:cid>/move", methods=["POST"])
