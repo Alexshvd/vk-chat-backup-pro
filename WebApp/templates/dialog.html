@@ -734,28 +734,35 @@ function batchMoveToFolder(folder) {
 }
 
 function retryBatchMove() {
-  const peer = document.querySelector('.msg-item').dataset.peer;
+  const peer = selectedPeer;
+  const cids = [...batchMoveCids];
+  const folder = batchMoveTargetFolder;
   fetch(`/dialog/${peer}/batch-move`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cids: batchMoveCids, folder: batchMoveTargetFolder })
+    body: JSON.stringify({ cids: cids, folder: folder })
   })
     .then(r => r.json())
     .then(data => {
       if (data.ok === false && data.over_limit && data.over_limit.length > 0) {
+        batchMoveCids = cids;
+        batchMoveTargetFolder = folder;
         showOverLimitFiles(data.over_limit, '');
       } else if (data.success === false) {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
       } else {
         hideOverLimitPanel();
-        batchMoveCids.forEach(cid => {
+        cids.forEach(cid => {
           const item = document.querySelector(`.msg-item[data-cid="${cid}"]`);
           if (item) item.remove();
         });
-        showToast('Перемещено ' + batchMoveCids.length + ' сообщений');
-        batchMoveCids = [];
-        batchMoveTargetFolder = '';
-        overLimitMode = 'rename';
+        showToast('Перемещено ' + cids.length + ' сообщений');
+        if (selectedCid && cids.includes(parseInt(selectedCid))) {
+          document.getElementById('contentView').style.display = 'none';
+          document.getElementById('contentPlaceholder').style.display = 'block';
+          selectedCid = null;
+        }
+        updateBatchButton();
       }
     })
     .catch(err => showToast('Ошибка: ' + err.message, true));
