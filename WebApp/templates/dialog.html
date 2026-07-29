@@ -661,17 +661,17 @@ function moveToFolder(folder) {
     .then(data => {
       if (data.success) {
         const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
-        if (item) {
-          const oldRelDir = item.dataset.relDir || '';
-          item.dataset.relDir = folder;
-          const relEl = item.querySelector('.rel-dir');
-          if (folder) {
-            if (relEl) { relEl.textContent = folder; }
-            else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
-          } else if (relEl) { relEl.remove(); }
-        }
+        const oldRelDir = item.dataset.relDir || '';
+        item.dataset.relDir = folder;
+        const relEl = item.querySelector('.rel-dir');
+        if (folder) {
+          if (relEl) { relEl.textContent = folder; }
+          else { const s = document.createElement('span'); s.className = 'rel-dir'; s.textContent = folder; item.appendChild(s); }
+        } else if (relEl) { relEl.remove(); }
+
         selectMessage(item);
         showToast('Файл перемещён');
+
         if (overLimitDelta) {
           const newPath = (folder ? folder + '/' : '') + selectedFilename;
           const oldRelPath = oldRelDir ? oldRelDir + '/' + selectedFilename : selectedFilename;
