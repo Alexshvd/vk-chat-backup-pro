@@ -740,7 +740,10 @@ function batchMoveToFolder(folder) {
         const moved = batchMoveCids.length - skipped.length;
         const parts = [];
         if (moved) parts.push('Перемещено ' + moved);
-        if (skipped.length) parts.push('пропущено ' + skipped.length);
+        const alreadyHere = skipped.filter(function(s) { return s.reason === 'already_in_folder'; }).length;
+        const fileExists = skipped.filter(function(s) { return s.reason === 'file_exists'; }).length;
+        if (alreadyHere) parts.push('уже здесь: ' + alreadyHere);
+        if (fileExists) parts.push('уже существует: ' + fileExists);
         showToast(parts.join(', '));
         batchMoveCids = [];
         updateBatchButton();
@@ -809,7 +812,10 @@ function retryBatchMove() {
         const moved = cids.length - skipped.length;
         const parts = [];
         if (moved) parts.push('Перемещено ' + moved);
-        if (skipped.length) parts.push('пропущено ' + skipped.length);
+        const alreadyHere = skipped.filter(function(s) { return s.reason === 'already_in_folder'; }).length;
+        const fileExists = skipped.filter(function(s) { return s.reason === 'file_exists'; }).length;
+        if (alreadyHere) parts.push('уже здесь: ' + alreadyHere);
+        if (fileExists) parts.push('уже существует: ' + fileExists);
         showToast(parts.join(', '));
         updateBatchButton();
         applySort();
