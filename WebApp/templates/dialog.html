@@ -662,6 +662,7 @@ function moveToFolder(folder) {
       if (data.success) {
         const item = document.querySelector(`.msg-item[data-cid="${selectedCid}"]`);
         if (item) {
+          const oldRelDir = item.dataset.relDir || '';
           item.dataset.relDir = folder;
           const relEl = item.querySelector('.rel-dir');
           if (folder) {
@@ -673,10 +674,10 @@ function moveToFolder(folder) {
         showToast('Файл перемещён');
         if (overLimitDelta) {
           const newPath = (folder ? folder + '/' : '') + selectedFilename;
-          const oldRelDir = item.dataset.relDir || '';
           const oldRelPath = oldRelDir ? oldRelDir + '/' + selectedFilename : selectedFilename;
           checkOverLimitItem(oldRelPath.length, newPath.length);
         }
+        applySort();
       } else {
         showToast('Ошибка: ' + (data.error || 'неизвестная'), true);
       }
