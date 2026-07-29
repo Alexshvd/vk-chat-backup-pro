@@ -634,6 +634,7 @@ function moveSelected() {
   const btn = document.querySelector('.btn-move');
   const rect = btn.getBoundingClientRect();
   panel.style.top = (rect.bottom + 4) + 'px';
+  panel.style.left = 'auto';
   panel.style.right = (window.innerWidth - rect.right) + 'px';
 
   fetch(`/dialog/${selectedPeer}/folders`)
