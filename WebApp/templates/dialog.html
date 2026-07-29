@@ -965,6 +965,9 @@ function showOverLimitFiles(files, newName) {
   overLimitSavedToolbar = toolbar.innerHTML;
 
   let html = '';
+  html += '<div style="padding:8px 12px;font-size:0.85rem;color:#555;border-bottom:1px solid #eee;margin-bottom:4px;">';
+  html += 'Переименование: <code>' + currentFolder + '</code> → <code>' + newName + '</code>';
+  html += '</div>';
   for (const f of files) {
     if (f.cid) {
       const hasAttach = f.has_raw || f.has_large;
