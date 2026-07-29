@@ -123,6 +123,9 @@
   {% if messages %}
   <div class="dialog-layout">
     <div class="col-list">
+      <div id="overLimitBar" class="over-limit-bar" style="display:none;">
+        <button class="over-limit-back" onclick="hideOverLimitPanel()">← Назад к диалогу</button>
+      </div>
       <div class="toolbar">
         <button class="filter-btn" id="filterBtn" onclick="toggleFilterPanel()" title="Фильтр по папкам">📂 / (Корень)</button>
         <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
@@ -135,9 +138,6 @@
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
       </div>
       <span id="selectedCount" style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;"></span>
-      <div id="overLimitBar" class="over-limit-bar" style="display:none;">
-        <button class="over-limit-back" onclick="hideOverLimitPanel()">← Назад к диалогу</button>
-      </div>
       <div class="col-list-scroll">
       {% for msg in messages %}
       <div class="msg-item" data-cid="{{ msg.cid }}" data-peer="{{ peer_id }}" data-rel-dir="{{ msg.rel_dir }}" onclick="selectMessage(this)">
