@@ -476,15 +476,20 @@ def index():
         config = load_config(_config_path)
         dialog_dirs = collect_dialog_dirs(dialogs_dir, config)
         if dialog_dirs:
-            return redirect(url_for("dialog_list"))
-    return render_template("welcome.html")
+            return dialog_list()
+    return render_template("main.html")
+
+
+@app.route("/main")
+def main_page():
+    return render_template("main.html")
 
 
 @app.route("/dialogs")
 def dialog_list():
     dialogs = []
     if not dialogs_dir_abs.is_dir():
-        return render_template("index.html", dialogs=[])
+        return render_template("dialogs.html", dialogs=[])
     config = load_config(_config_path)
     dialog_dirs = collect_dialog_dirs(dialogs_dir_abs, config)
     for pid in sorted(dialog_dirs.keys()):
@@ -513,7 +518,7 @@ def dialog_list():
             "count": count,
             "last_message_name": last_message_name,
         })
-    return render_template("index.html", dialogs=dialogs)
+    return render_template("dialogs.html", dialogs=dialogs)
 
 
 @app.route("/dialog/<int:peer_id>")
