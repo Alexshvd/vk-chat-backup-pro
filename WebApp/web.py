@@ -417,6 +417,30 @@ def run_export():
 
 # ─── Routes (Main) ────────────────────────────────────────────
 
+@app.route("/api/list-dirs")
+def api_list_dirs():
+    path_str = request.args.get("path", "").strip()
+    if not path_str:
+        config = load_config(_config_path)
+        path_str = config.export_root
+
+    current = Path(path_str).resolve()
+    if not current.is_dir():
+        return jsonify({"dirs": [], "parent": None, "current": str(current)})
+
+    try:
+        entries = sorted(
+            e.name for e in current.iterdir()
+            if e.is_dir() and not e.name.startswith("$")
+        )
+    except PermissionError:
+        entries = []
+
+    parent = str(current.parent) if current.parent != current else None
+
+    return jsonify({"dirs": entries, "parent": parent, "current": str(current)})
+
+
 @app.route("/settings")
 def settings_page():
     config = load_config(_config_path)

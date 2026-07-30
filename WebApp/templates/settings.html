@@ -20,14 +20,37 @@
   .field input[type="text"], .field input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
   .field input[type="checkbox"] { margin-right: 8px; transform: scale(1.1); }
   .field .checkbox-group { display: flex; align-items: center; }
-  .field .readonly-value { font-family: monospace; font-size: 0.85rem; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; display: inline-block; color: #555; word-break: break-all; }
+  .field .browse-row { display: flex; gap: 6px; }
+  .field .browse-row input { flex: 1; }
+  .field .browse-row button { flex-shrink: 0; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.85rem; }
+  .field .browse-row button:hover { background: #f0f0f0; }
+  .readonly-list { font-family: monospace; font-size: 0.85rem; background: #f5f5f5; border-radius: 4px; padding: 8px 12px; color: #555; }
+  .readonly-list .rl-item { padding: 2px 0; }
+  .readonly-list .rl-empty { color: #aaa; }
   .field .readonly-note { font-size: 0.8rem; color: #888; margin-top: 2px; }
   .warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; color: #856404; margin-top: 6px; line-height: 1.4; }
+  .info-box { background: #e8f4fd; border: 1px solid #b8d4e8; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; color: #2c5282; margin-top: 6px; line-height: 1.4; }
   .saved-msg { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; padding: 12px 16px; font-size: 0.9rem; color: #155724; margin-bottom: 16px; }
   .btn-save { background: #2980b9; color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 1rem; cursor: pointer; }
   .btn-save:hover { background: #2471a3; }
   .btn-save:disabled { background: #ccc; cursor: default; }
   .config-path { font-size: 0.8rem; color: #999; margin-top: 12px; }
+  .modal-overlay { position: fixed; z-index: 999; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 10px; padding: 20px; width: 520px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  .modal h3 { margin: 0 0 10px; font-size: 1rem; }
+  .modal .modal-path { font-size: 0.8rem; color: #888; margin-bottom: 8px; word-break: break-all; }
+  .modal .dir-list { flex: 1; overflow-y: auto; max-height: 300px; border: 1px solid #ddd; border-radius: 6px; padding: 4px; }
+  .modal .dir-list .dir-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 0.85rem; }
+  .modal .dir-list .dir-item:hover { background: #e8f0fe; }
+  .modal .dir-list .dir-item.parent { color: #2980b9; font-weight: 600; }
+  .modal .dir-list .dir-item.dir { color: #333; }
+  .modal .dir-list .loading { color: #999; padding: 20px; text-align: center; font-size: 0.85rem; }
+  .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  .modal .modal-actions button { padding: 6px 16px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; border: 1px solid #ddd; }
+  .modal .modal-actions .btn-select { background: #2980b9; color: #fff; border-color: #2980b9; }
+  .modal .modal-actions .btn-select:hover { background: #2471a3; }
+  .modal .modal-actions .btn-cancel { background: #fff; }
+  .modal .modal-actions .btn-cancel:hover { background: #f0f0f0; }
 </style>
 </head>
 <body>
@@ -48,7 +71,10 @@
 
       <div class="field">
         <label>Путь экспорта (export_root)</label>
-        <input type="text" name="export_root" value="{{ config.export_root }}">
+        <div class="browse-row">
+          <input type="text" name="export_root" id="exportRootInput" value="{{ config.export_root }}">
+          <button type="button" onclick="openDirBrowser()">📁 Обзор…</button>
+        </div>
         <div class="warning">⚠ При изменении пути экспорта необходимо вручную перенести папки <code>ExportMessages/</code> и <code>LargeRawData/</code> из старого пути в новый.</div>
       </div>
 
@@ -98,20 +124,49 @@
 
       <div class="field">
         <label>Кастомные имена папок диалогов (dialog_name_by_peer_id)</label>
-        <div class="readonly-value">{{ raw.get('dialog_name_by_peer_id', {}) | tojson }}</div>
+        <div class="readonly-list">
+          {% set dnb = raw.get('dialog_name_by_peer_id', {}) %}
+          {% if dnb %}
+            {% for k, v in dnb.items() %}
+            <div class="rl-item">{{ k }} → {{ v }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="rl-empty">нет значений</div>
+          {% endif %}
+        </div>
         <div class="readonly-note"><em>Редактируется через переименование диалога на странице диалога ✏</em></div>
       </div>
 
       <div class="field">
         <label>Фильтр по id сообщения (min_cid_by_peer_id)</label>
-        <div class="readonly-value">{{ raw.get('min_cid_by_peer_id', {}) | tojson }}</div>
+        <div class="readonly-list">
+          {% set mcid = raw.get('min_cid_by_peer_id', {}) %}
+          {% if mcid %}
+            {% for k, v in mcid.items() %}
+            <div class="rl-item">{{ k }} → {{ v }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="rl-empty">нет значений</div>
+          {% endif %}
+        </div>
         <div class="readonly-note"><em>Задаётся при экспорте (страница Экспорт → поле min_cid)</em></div>
+        <div class="info-box">Сообщения с <code>conversation_message_id</code> ≤ указанному значению пропускаются (не экспортируются).</div>
       </div>
 
       <div class="field">
         <label>Фильтр по дате сообщения (min_date_by_peer_id)</label>
-        <div class="readonly-value">{{ raw.get('min_date_by_peer_id', {}) | tojson }}</div>
+        <div class="readonly-list">
+          {% set mdt = raw.get('min_date_by_peer_id', {}) %}
+          {% if mdt %}
+            {% for k, v in mdt.items() %}
+            <div class="rl-item">{{ k }} → {{ v }}</div>
+            {% endfor %}
+          {% else %}
+            <div class="rl-empty">нет значений</div>
+          {% endif %}
+        </div>
         <div class="readonly-note"><em>Задаётся при экспорте (страница Экспорт → поле min_date)</em></div>
+        <div class="info-box">Сообщения с датой раньше или равной указанной пропускаются. Формат даты: <code>YYYY-MM-DD-HH-MM-SS</code>.</div>
       </div>
     </div>
 
@@ -121,7 +176,65 @@
   <div class="config-path">config.json: {{ config_path }}</div>
 </div>
 
+<div id="dirBrowserModal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <h3>Выберите папку экспорта</h3>
+    <div class="modal-path" id="modalCurrentPath"></div>
+    <div class="dir-list" id="dirList"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDirBrowser()">Отмена</button>
+      <button class="btn-select" onclick="selectDirBrowser()">Выбрать эту папку</button>
+    </div>
+  </div>
+</div>
+
 <script>
+let browserPath = '';
+
+function openDirBrowser() {
+  const input = document.getElementById('exportRootInput');
+  browserPath = input.value.trim() || 'C:\\';
+  document.getElementById('dirBrowserModal').style.display = 'flex';
+  loadDirList(browserPath);
+}
+
+function closeDirBrowser() {
+  document.getElementById('dirBrowserModal').style.display = 'none';
+}
+
+function loadDirList(path) {
+  const list = document.getElementById('dirList');
+  const pathEl = document.getElementById('modalCurrentPath');
+  pathEl.textContent = path;
+  list.innerHTML = '<div class="loading">Загрузка…</div>';
+  fetch('/api/list-dirs?path=' + encodeURIComponent(path))
+    .then(r => r.json())
+    .then(data => {
+      let html = '';
+      if (data.parent) {
+        html += '<div class="dir-item parent" onclick="loadDirList(\'' + data.parent.replace(/\\/g, '\\\\') + '\')">… (на уровень выше)</div>';
+      }
+      data.dirs.forEach(function(d) {
+        var childPath = data.current.replace(/\\/g, '/') + '/' + d;
+        childPath = childPath.replace(/\//g, '\\\\');
+        html += '<div class="dir-item dir" onclick="loadDirList(\'' + childPath + '\')">' + d + '</div>';
+      });
+      if (!data.dirs.length) {
+        html += '<div class="loading">Нет подпапок</div>';
+      }
+      list.innerHTML = html;
+    })
+    .catch(function() {
+      list.innerHTML = '<div class="loading">Ошибка загрузки</div>';
+    });
+}
+
+function selectDirBrowser() {
+  const path = document.getElementById('modalCurrentPath').textContent;
+  document.getElementById('exportRootInput').value = path;
+  closeDirBrowser();
+}
+
 document.getElementById('settingsForm').addEventListener('submit', function(e) {
   e.preventDefault();
   const btn = this.querySelector('.btn-save');
