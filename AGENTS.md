@@ -33,12 +33,13 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │       ├── buffer_logger.py  # BufferLogger — accumulates logs, ConsumeMessages()
 │       └── aggregation_logger.py  # AggregationLogger — delegates to multiple loggers
 │
-└── WebApp/
-    ├── web.py                # Flask app: просмотр, удаление, переименование, экспорт
+    └── WebApp/
+    ├── web.py                # Flask app: просмотр, удаление, переименование, экспорт, настройки
     └── templates/
         ├── index.html        # Список диалогов
         ├── dialog.html       # Двухколоночный UI
-        └── export.html       # Страница экспорта + запуск генерации
+        ├── export.html       # Страница экспорта + запуск генерации
+        └── settings.html     # Страница настроек
 ```
 
 Output directory structure (`EXPORT_ROOT`):
@@ -161,6 +162,9 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | Маршрут | Метод | Описание |
 |---|---|---|
 | `/` | GET | Список диалогов |
+| `/settings` | GET | Страница настроек (изменяемые поля + только чтение) |
+| `/settings/save` | POST | Сохранение настроек в config.json, перезагрузка конфига на сервере |
+| `/api/list-dirs` | GET | Список поддиректорий для браузера папок (используется в settings.html) |
 | `/export` | GET | Страница экспорта (список Sources по peer_id + диалоги с OriginalMessages без Sources, фильтры, кнопка генерации) |
 | `/export/create-sources` | POST | Создание директории Sources |
 | `/export/upload` | POST | Загрузка файла в Sources |
@@ -187,8 +191,14 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - **Блок 2 «Подключение messages.json»**: Путь к Sources, описание назначения, кнопка создания директории (`POST /export/create-sources`), кнопка загрузки файла (`POST /export/upload`)
 - **Блок 3 «Экспорт в MD»**: Описание конвертации, путь к директории MD-файлов, сворачиваемая структура директорий, список `.json` файлов из `Sources/` сгруппированных по `peer_id`, а также диалоги с уже извлечёнными OriginalMessages (без исходных файлов в Sources), с чекбоксами выбора диалогов, количеством извлечённых сообщений для каждого peer_id, поля фильтров `min_cid`/`min_date` для каждого peer_id (сохраняются через `POST /export/save-filters`), поле "Название папки" (enabled до первого экспорта, disabled после — переименование через страницу диалога), кнопка "Сформировать MD" → `POST /export/generate`. После нажатия кнопка блокируется, сервер отдаёт потоковый HTML-лог.
 
+### settings.html
+- **Блок «Основные настройки»**: изменяемые поля `export_root` (с кнопкой «Обзор…» — модальное окно выбора папки через `GET /api/list-dirs`), `download_short_video`, `download_long_video`, `long_video_threshold`, `overwrite_existing_md`, `overwrite_existing_original_message_json`. Предупреждение о ручном переносе папок при изменении `export_root` отображается постоянно.
+- **Блок «Только чтение»**: `dialog_name_by_peer_id`, `min_cid_by_peer_id`, `min_date_by_peer_id` — отображаются как список `key → value` с пояснением, где их редактировать. Для фильтров добавлено описание работы.
+- Сохранение → `POST /settings/save` → редирект на `/settings?saved=1` с зелёным подтверждением.
+- После сохранения вызывается `load_configs(_config_path)` для перезагрузки глобальных путей на сервере.
+
 ### dialog.html & index.html
-- Добавлена ссылка «Экспорт» в шапке (рядом с «Диалоги»)
+- Добавлена ссылка «Экспорт» и «Настройки» в шапке (рядом с «Диалоги»)
 - **Переименование папки диалога**: кнопка ✏ в заголовке страницы диалога (`/dialog/<peer_id>`) → инлайн-редактирование имени папки. Пустое имя = сброс на `dialog_{peer_id}`. Переименовывает только `Dialogs/` папку (`LargeRawData/` не затрагивается — всегда `dialog_{peer_id}`), сохраняет в `config.json`. Валидация: спецсимволы `\/:*?"<>|`, пустые сегменты, уникальность имени, имя не может начинаться с `dialog_`. **Блокирующая проверка OriginalMessages**: если хотя бы 1 файл `OriginalMessages/` превышает 254 символа при новом имени — возвращается `error_type: "originals_over_limit"` и папка **не** переименована. Далее сервер сканирует `.md` файлы в `MdFiles/` на превышение 254 символов (путь сам + вложения `RawData/{cid}/`), возвращает `over_limit[]` если есть (только `.md` файлы, non-md не включаются). `over_limit_attachments` — список `{name, excess}` файлов `RawData/{cid}/`, превышающих лимит при новом пути.
 - **Предупреждение OriginalMessages**: если `error_type === "originals_over_limit"`, показывается жёлтый блок с текстом о невозможности переименования и рекомендацией выбрать более короткое имя или переместить весь каталог экспорта (`Dialogs/`, `LargeRawData/`, `Sources/`) выше по иерархии директорий.
 - **Over-limit панель (двухколоночный UI)**: при обнаружении файлов, превышающих 254 символа, левая колонка переключается на список этих файлов. `.md` файлы отображаются **identically** нормальным сообщениям (имя файла, дата, размер, вложения, подпапка `rel-dir`, part-label) + красный индикатор `(N / 254)`. Если `.md` путь ≤ 254, но есть превышающие вложения — зелёный индикатор `(путь OK, N / 254)`. Количество вложений >254 отображается красным на новой строке. Non-md файлы в список не включаются. Над тулбаром отображается `#overLimitBar` с кнопкой «← Назад к диалогу» (возвращает к нормальному списку). Кнопка «🔄 Переименовать папку» удалена — `retryFolderRename()`/`retryBatchMove()` вызываются автоматически из `checkOverLimitItem()` при устранении всех превышений. ✏ в заголовке диалога disabled во время over-limit режима. Лимиты вычисляются из `data-file-length` атрибута. После переименования/перемещения `checkOverLimitItem` (таргетит `.length-indicator`) проверяет новую длину и удаляет из списка если ≤ 254 и `attachCount === 0`. Когда список пуст — автоматически вызывается `retryFolderRename`/`retryBatchMove`.
