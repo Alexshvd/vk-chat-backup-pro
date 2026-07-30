@@ -36,8 +36,9 @@ Read local `messages.json` files, extract all messages into individual JSON file
     └── WebApp/
     ├── web.py                # Flask app: просмотр, удаление, переименование, экспорт, настройки
     └── templates/
-        ├── index.html        # Список диалогов
-        ├── dialog.html       # Двухколоночный UI
+        ├── main.html         # Главная страница (лендинг с описанием и шагами)
+        ├── dialogs.html      # Список диалогов
+        ├── dialog.html       # Двухколоночный UI диалога
         ├── export.html       # Страница экспорта + запуск генерации
         └── settings.html     # Страница настроек
 ```
@@ -199,7 +200,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - Сохранение → `POST /settings/save` → редирект на `/settings?saved=1` с зелёным подтверждением.
 - После сохранения вызывается `load_configs(_config_path)` для перезагрузки глобальных путей на сервере.
 
-### dialog.html & index.html
+### dialog.html & dialogs.html
 - Добавлена ссылка «Экспорт» и «Настройки» в шапке (рядом с «Диалоги»)
 - **Переименование папки диалога**: кнопка ✏ в заголовке страницы диалога (`/dialog/<peer_id>`) → инлайн-редактирование имени папки. Пустое имя = сброс на `dialog_{peer_id}`. Переименовывает только `Dialogs/` папку (`LargeRawData/` не затрагивается — всегда `dialog_{peer_id}`), сохраняет в `config.json`. Валидация: спецсимволы `\/:*?"<>|`, пустые сегменты, уникальность имени, имя не может начинаться с `dialog_`. **Блокирующая проверка OriginalMessages**: если хотя бы 1 файл `OriginalMessages/` превышает 254 символа при новом имени — возвращается `error_type: "originals_over_limit"` и папка **не** переименована. Далее сервер сканирует `.md` файлы в `MdFiles/` на превышение 254 символов (путь сам + вложения `RawData/{cid}/`), возвращает `over_limit[]` если есть (только `.md` файлы, non-md не включаются). `over_limit_attachments` — список `{name, excess}` файлов `RawData/{cid}/`, превышающих лимит при новом пути.
 - **Предупреждение OriginalMessages**: если `error_type === "originals_over_limit"`, показывается жёлтый блок с текстом о невозможности переименования и рекомендацией выбрать более короткое имя или переместить весь каталог экспорта (`Dialogs/`, `LargeRawData/`, `Sources/`) выше по иерархии директорий.
