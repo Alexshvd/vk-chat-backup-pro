@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VkChatBackup — Настройки</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #222; }
+  .container { max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 20px; display: inline; }
+  .back-link { color: #555; text-decoration: none; font-size: 0.9rem; margin-right: 12px; }
+  .back-link:hover { text-decoration: underline; }
+  .header { margin-bottom: 20px; }
+  .section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .section h2 { font-size: 1.1rem; margin: 0 0 16px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; color: #333; }
+  .field .hint { font-size: 0.8rem; color: #888; margin-top: 2px; }
+  .field input[type="text"], .field input[type="number"] { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+  .field input[type="checkbox"] { margin-right: 8px; transform: scale(1.1); }
+  .field .checkbox-group { display: flex; align-items: center; }
+  .field .readonly-value { font-family: monospace; font-size: 0.85rem; background: #f5f5f5; padding: 6px 10px; border-radius: 4px; display: inline-block; color: #555; word-break: break-all; }
+  .field .readonly-note { font-size: 0.8rem; color: #888; margin-top: 2px; }
+  .warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; color: #856404; margin-top: 6px; line-height: 1.4; }
+  .saved-msg { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; padding: 12px 16px; font-size: 0.9rem; color: #155724; margin-bottom: 16px; }
+  .btn-save { background: #2980b9; color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 1rem; cursor: pointer; }
+  .btn-save:hover { background: #2471a3; }
+  .btn-save:disabled { background: #ccc; cursor: default; }
+  .config-path { font-size: 0.8rem; color: #999; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <a href="/" class="back-link">&larr; Диалоги</a>
+    <a href="/export" class="back-link">Экспорт</a>
+    <h1>Настройки</h1>
+  </div>
+
+  {% if saved %}
+  <div class="saved-msg">✓ Настройки сохранены</div>
+  {% endif %}
+
+  <form id="settingsForm">
+    <div class="section">
+      <h2>Основные настройки</h2>
+
+      <div class="field">
+        <label>Путь экспорта (export_root)</label>
+        <input type="text" name="export_root" value="{{ config.export_root }}">
+        <div class="warning">⚠ При изменении пути экспорта необходимо вручную перенести папки <code>ExportMessages/</code> и <code>LargeRawData/</code> из старого пути в новый.</div>
+      </div>
+
+      <div class="field">
+        <div class="checkbox-group">
+          <input type="hidden" name="download_short_video" value="false">
+          <input type="checkbox" name="download_short_video" value="true" {% if config.download_short_video %}checked{% endif %}>
+          <label style="margin:0;font-weight:600;font-size:0.9rem;">Скачивать короткие видео (download_short_video)</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="checkbox-group">
+          <input type="hidden" name="download_long_video" value="false">
+          <input type="checkbox" name="download_long_video" value="true" {% if config.download_long_video %}checked{% endif %}>
+          <label style="margin:0;font-weight:600;font-size:0.9rem;">Скачивать длинные видео (download_long_video)</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Порог длинного видео, сек (long_video_threshold)</label>
+        <input type="number" name="long_video_threshold" value="{{ config.long_video_threshold }}" min="0" step="1">
+      </div>
+
+      <div class="field">
+        <div class="checkbox-group">
+          <input type="hidden" name="overwrite_existing_md" value="false">
+          <input type="checkbox" name="overwrite_existing_md" value="true" {% if config.overwrite_existing_md %}checked{% endif %}>
+          <label style="margin:0;font-weight:600;font-size:0.9rem;">Перезаписывать MD-файлы (overwrite_existing_md)</label>
+        </div>
+        <div class="hint">Если включено — старые MD-файлы, RawData и LargeRawData удаляются перед повторной конвертацией.</div>
+      </div>
+
+      <div class="field">
+        <div class="checkbox-group">
+          <input type="hidden" name="overwrite_existing_original_message_json" value="false">
+          <input type="checkbox" name="overwrite_existing_original_message_json" value="true" {% if config.overwrite_existing_original_message_json %}checked{% endif %}>
+          <label style="margin:0;font-weight:600;font-size:0.9rem;">Перезаписывать JSON сообщений (overwrite_existing_original_message_json)</label>
+        </div>
+        <div class="hint">Если включено — существующие JSON-файлы извлечённых сообщений перезаписываются.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Только чтение</h2>
+      <p style="font-size:0.85rem;color:#888;margin:0 0 14px;">Эти настройки изменяются в других разделах приложения.</p>
+
+      <div class="field">
+        <label>Кастомные имена папок диалогов (dialog_name_by_peer_id)</label>
+        <div class="readonly-value">{{ raw.get('dialog_name_by_peer_id', {}) | tojson }}</div>
+        <div class="readonly-note"><em>Редактируется через переименование диалога на странице диалога ✏</em></div>
+      </div>
+
+      <div class="field">
+        <label>Фильтр по id сообщения (min_cid_by_peer_id)</label>
+        <div class="readonly-value">{{ raw.get('min_cid_by_peer_id', {}) | tojson }}</div>
+        <div class="readonly-note"><em>Задаётся при экспорте (страница Экспорт → поле min_cid)</em></div>
+      </div>
+
+      <div class="field">
+        <label>Фильтр по дате сообщения (min_date_by_peer_id)</label>
+        <div class="readonly-value">{{ raw.get('min_date_by_peer_id', {}) | tojson }}</div>
+        <div class="readonly-note"><em>Задаётся при экспорте (страница Экспорт → поле min_date)</em></div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-save">Сохранить</button>
+  </form>
+
+  <div class="config-path">config.json: {{ config_path }}</div>
+</div>
+
+<script>
+document.getElementById('settingsForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = this.querySelector('.btn-save');
+  btn.disabled = true;
+  btn.textContent = 'Сохранение...';
+
+  const formData = new FormData(this);
+  const data = {};
+  for (const [key, val] of formData.entries()) {
+    if (key === 'download_short_video' || key === 'download_long_video' || key === 'overwrite_existing_md' || key === 'overwrite_existing_original_message_json') {
+      data[key] = val === 'true';
+    } else if (key === 'long_video_threshold') {
+      data[key] = parseInt(val) || 0;
+    } else {
+      data[key] = val;
+    }
+  }
+
+  fetch('/settings/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+    .then(r => r.json())
+    .then(result => {
+      if (result.ok) {
+        window.location.href = '/settings?saved=1';
+      } else {
+        alert('Ошибка: ' + (result.error || 'неизвестная'));
+        btn.disabled = false;
+        btn.textContent = 'Сохранить';
+      }
+    })
+    .catch(err => {
+      alert('Ошибка: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+    });
+});
+</script>
+</body>
+</html>

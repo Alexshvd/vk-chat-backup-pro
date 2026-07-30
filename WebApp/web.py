@@ -417,6 +417,33 @@ def run_export():
 
 # ─── Routes (Main) ────────────────────────────────────────────
 
+@app.route("/settings")
+def settings_page():
+    config = load_config(_config_path)
+    with open(_config_path, encoding="utf-8") as f:
+        raw = _json.load(f)
+    saved = request.args.get("saved") == "1"
+    return render_template("settings.html", config=config, config_path=_config_path, saved=saved, raw=raw)
+
+
+@app.route("/settings/save", methods=["POST"])
+def save_settings():
+    data = request.get_json(force=True)
+    allowed = {
+        "export_root", "download_short_video", "download_long_video",
+        "long_video_threshold", "overwrite_existing_md",
+        "overwrite_existing_original_message_json",
+    }
+    with open(_config_path, encoding="utf-8") as f:
+        raw = _json.load(f)
+    for key in allowed:
+        if key in data:
+            raw[key] = data[key]
+    with open(_config_path, "w", encoding="utf-8") as f:
+        _json.dump(raw, f, ensure_ascii=False, indent=2)
+    return jsonify({"ok": True})
+
+
 @app.route("/")
 def index():
     dialogs = []
