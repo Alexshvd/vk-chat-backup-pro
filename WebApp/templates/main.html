@@ -21,7 +21,7 @@
   .card-body { flex: 1; }
   .card-body h3 { margin: 0 0 6px; font-size: 1rem; color: #333; }
   .card-body p { margin: 0; font-size: 0.9rem; color: #666; line-height: 1.5; }
-  .card-btn { flex-shrink: 0; padding: 8px 20px; background: #4a90d9; color: #fff; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-block; }
+  .card-btn { flex-shrink: 0; padding: 8px 20px; min-width: 150px; text-align: center; background: #4a90d9; color: #fff; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-block; }
   .card-btn:hover { background: #357abd; }
   .card-btn.settings { background: #6c757d; }
   .card-btn.settings:hover { background: #5a6268; }
@@ -43,7 +43,7 @@
 
   <div class="hero">
     <h1>VkChatBackup</h1>
-    <p>Веб-редактор экспортированных диалогов VK. Позволяет выгрузить сообщения, конвертировать их в Markdown, редактировать файлы, перемещать по папкам и управлять вложениями — всё через браузер.</p>
+    <p>Веб-редактор экспортированных диалогов VK. Позволяет выгрузить сообщения, конвертировать их в Markdown, редактировать файлы, перемещать по папкам и управлять вложениями — всё через браузер. Все данные остаются на вашем компьютере, ничего не загружается на сторонние сервисы.</p>
   </div>
 
   <div class="steps">
@@ -75,11 +75,6 @@
     </div>
   </div>
 
-  <div class="links">
-    <a href="/dialogs" style="background:#27ae60;color:#fff;">Диалоги</a>
-    <a href="/export" style="background:#4a90d9;color:#fff;">Экспорт</a>
-    <a href="/settings" style="background:#6c757d;color:#fff;">Настройки</a>
-  </div>
 </div>
 </body>
 </html>
