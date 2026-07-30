@@ -31,7 +31,7 @@ md = create_markdown(renderer=renderer, plugins=['table', 'strikethrough'])
 _config_path = ""
 
 
-def init_app(config_path: str):
+def load_configs(config_path: str):
     global _config_path, export_root_abs, export_serve_abs, large_root_abs, dialogs_dir_abs
     _config_path = config_path
     config = load_config(config_path)
@@ -465,6 +465,7 @@ def save_settings():
             raw[key] = data[key]
     with open(_config_path, "w", encoding="utf-8") as f:
         _json.dump(raw, f, ensure_ascii=False, indent=2)
+    load_configs(_config_path)
     return jsonify({"ok": True})
 
 

@@ -18,8 +18,8 @@ def cli(args):
 
 
 def web(args):
-    from web import app, init_app
-    init_app(args.config)
+    from web import app, load_configs
+    load_configs(args.config)
     app.run(debug=True, host="127.0.0.1", port=5000, threaded=True)
 
 

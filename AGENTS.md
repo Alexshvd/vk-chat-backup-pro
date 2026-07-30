@@ -149,7 +149,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ## WebApp
 
 ### web.py
-- Flask app factory pattern: `init_app(config_path)` → sets all path globals from `config.json`
+- Flask app factory pattern: `load_configs(config_path)` → sets all path globals from `config.json`
 - `_get_dialog_dir(peer_id)` — returns `Path` for dialog folder using `collect_dialog_dirs()`, with `dialog_{peer_id}` fallback
 - `_get_dialog_name(peer_id)` — returns custom folder name from `config.dialog_name_by_peer_id` or `dialog_{peer_id}` fallback
 - `_get_dialog_large_raw_data_dir(peer_id)` — returns `large_root_abs / f"dialog_{peer_id}"` (always `dialog_{peer_id}`, never renamed)
