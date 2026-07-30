@@ -181,7 +181,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 | `/dialog/<peer_id>/<cid>/attachments` | GET | Список файлов вложений |
 | `/dialog/<peer_id>/folders` | GET | Список подпапок внутри `MdFiles/` (JSON-массив) |
 | `/dialog/<peer_id>/<cid>/open-folder` | POST | Кроссплатформенное открытие папки (`explorer`/`open`/`xdg-open` через `platform.system()`) |
-| `/dialog/<peer_id>/<cid>/rename-attachment` | PUT | Переименование вложения |
+| `/dialog/<peer_id>/delete-folder` | POST | Удаление пустой подпапки из `MdFiles/`. Проверяет `rglob("*.md")` — если есть файлы, возвращает ошибку с `file_count`. Если только подпапки — `shutil.rmtree()`. Кнопка в тулбаре (row 3, col 2–3) активна только при выбранной папке в фильтре. |
 | `/dialog/<peer_id>/<cid>/move` | POST | Перемещение MD-файла в другую папку (с проверкой длины пути и дубликатов) |
 | `/export/<path>` | GET | Статика (Dialogs, Sources) |
 | `/large/<path>` | GET | Статика (LargeRawData) |
