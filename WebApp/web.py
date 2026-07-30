@@ -471,6 +471,17 @@ def save_settings():
 
 @app.route("/")
 def index():
+    dialogs_dir = dialogs_dir_abs
+    if dialogs_dir.is_dir():
+        config = load_config(_config_path)
+        dialog_dirs = collect_dialog_dirs(dialogs_dir, config)
+        if dialog_dirs:
+            return redirect(url_for("dialog_list"))
+    return render_template("welcome.html")
+
+
+@app.route("/dialogs")
+def dialog_list():
     dialogs = []
     if not dialogs_dir_abs.is_dir():
         return render_template("index.html", dialogs=[])

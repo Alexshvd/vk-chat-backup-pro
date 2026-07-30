@@ -161,7 +161,8 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 | Маршрут | Метод | Описание |
 |---|---|---|
-| `/` | GET | Список диалогов |
+| `/` | GET | Главная страница (лендинг с описанием и шагами). Если есть диалоги — редирект на `/dialogs` |
+| `/dialogs` | GET | Список диалогов |
 | `/settings` | GET | Страница настроек (изменяемые поля + только чтение) |
 | `/settings/save` | POST | Сохранение настроек в config.json, перезагрузка конфига на сервере |
 | `/api/list-dirs` | GET | Список поддиректорий для браузера папок (используется в settings.html) |

@@ -19,13 +19,13 @@
 </head>
 <body>
 <div class="container">
-  <div style="margin-bottom: 16px;">
-    <h1 style="display: inline;">VkChatBackup — Диалоги</h1>
-    <div style="float: right;">
-      <a href="/export" style="color: #555; text-decoration: none; font-size: 0.9rem; margin-left: 12px;">Экспорт</a>
-      <a href="/settings" style="color: #555; text-decoration: none; font-size: 0.9rem; margin-left: 12px;">Настройки</a>
-    </div>
+  <div style="margin-bottom: 16px; display: flex; gap: 16px; font-size: 0.9rem;">
+    <a href="/">Главная</a>
+    <a href="/dialogs">Диалоги</a>
+    <a href="/export">Экспорт</a>
+    <a href="/settings">Настройки</a>
   </div>
+  <h1>VkChatBackup — Диалоги</h1>
   {% if dialogs %}
     {% for d in dialogs %}
       <a href="/dialog/{{ d.peer_id }}" class="card-link">
