@@ -852,6 +852,36 @@ def move_md_file(peer_id: int, cid: int):
     return jsonify({"success": True, "moved": results})
 
 
+@app.route("/dialog/<int:peer_id>/delete-folder", methods=["POST"])
+def delete_md_folder(peer_id: int):
+    data = request.get_json(force=True)
+    folder = data.get("folder", "").strip().strip("/")
+    if not folder:
+        return jsonify({"success": False, "error": "Не указана папка"}), 400
+
+    md_dir = _get_dialog_dir(peer_id) / "MdFiles"
+    target_dir = (md_dir / folder).resolve()
+
+    try:
+        target_dir.relative_to(md_dir.resolve())
+    except ValueError:
+        return jsonify({"success": False, "error": "Недопустимый путь"}), 400
+
+    if not target_dir.is_dir():
+        return jsonify({"success": False, "error": f"Папка '{folder}' не найдена"}), 404
+
+    md_files = list(target_dir.rglob("*.md"))
+    if md_files:
+        return jsonify({
+            "success": False,
+            "error": f"Невозможно удалить: в папке и вложенных подпапках найдено {len(md_files)} файл(ов). Переместите их перед удалением.",
+            "file_count": len(md_files)
+        })
+
+    shutil.rmtree(target_dir)
+    return jsonify({"success": True, "deleted_folder": folder})
+
+
 @app.route("/dialog/<int:peer_id>/<int:cid>/attachments")
 def list_attachments(peer_id: int, cid: int):
     return jsonify(_list_attachments(peer_id, cid))

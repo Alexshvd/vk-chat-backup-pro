@@ -17,7 +17,7 @@
   .col-list-scroll { flex: 1; overflow-y: auto; }
   .col-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .content-card { flex: 1; overflow-y: auto; }
-  .toolbar { margin-bottom: 4px; display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto auto; gap: 4px 8px; align-items: center; }
+  .toolbar { margin-bottom: 4px; display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto auto auto; gap: 4px 8px; align-items: center; }
   .toolbar .filter-btn { grid-column: 1 / 3; grid-row: 1; justify-self: stretch; text-align: left; padding: 4px 20px 4px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.8rem; background: #fff; color: #555; cursor: pointer; position: relative; }
   .toolbar .filter-btn::after { content: ""; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-top: 5px solid #555; }
   .toolbar .filter-btn:hover { background: #f0f0f0; }
@@ -27,6 +27,9 @@
   .btn-delete-batch:disabled { background: #ccc; cursor: default; }
   .btn-move-batch { grid-column: 1; grid-row: 3; background: #2980b9; color: #fff; padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
   .btn-move-batch:disabled { background: #ccc; cursor: default; }
+  .btn-delete-folder { grid-column: 1 / 4; grid-row: 4; justify-self: stretch; background: #e67e22; color: #fff; padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+  .btn-delete-folder:hover:not(:disabled) { background: #d35400; }
+  .btn-delete-folder:disabled { background: #ccc; cursor: not-allowed; }
   .toolbar .sort-select { grid-column: 2; grid-row: 2; justify-self: center; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; background: #fff; color: #555; cursor: pointer; }
   .sort-dir-btn { grid-column: 3; grid-row: 2; align-self: center; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; cursor: pointer; background: #fff; color: #555; }
   .msg-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 6px; background: #fff; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); position: relative; }
@@ -132,6 +135,7 @@
         <input type="checkbox" id="filterNested" checked onchange="applyFilter()" title="Показывать сообщения из вложенных подпапок">
         <button class="btn-delete-batch" id="btnBatchDelete" onclick="batchDelete()" disabled>Удалить выбранные</button>
         <button class="btn-move-batch" id="btnBatchMove" onclick="batchMove()" disabled>Переместить в</button>
+        <button class="btn-delete-folder" id="btnDeleteFolder" onclick="deleteSubfolder()" disabled title="Сначала выберите папку в фильтре">🗑 Удалить подпапку</button>
         <select class="sort-select" id="sortSelect" onchange="applySort()">
           <option value="name" selected>по имени файла</option>
           <option value="cid">по Id (дате)</option>
@@ -255,12 +259,17 @@ function selectFilterFolder(folder) {
   filterFolder = folder;
   closeFilterPanel();
   const btn = document.getElementById('filterBtn');
+  const delBtn = document.getElementById('btnDeleteFolder');
   if (folder) {
     btn.textContent = '📂 ' + folder;
     btn.classList.add('active');
+    delBtn.disabled = false;
+    delBtn.title = 'Удалить папку "' + folder + '"';
   } else {
     btn.textContent = '📂 / (Корень)';
     btn.classList.remove('active');
+    delBtn.disabled = true;
+    delBtn.title = 'Сначала выберите папку в фильтре';
   }
   applyFilter();
 }
@@ -493,6 +502,31 @@ function batchDelete() {
       document.querySelectorAll('.msg-item.stale').forEach(e => e.classList.remove('stale'));
       showToast('Ошибка: ' + err.message, true);
     });
+}
+
+// ─── Delete Subfolder ───────────────────────────────
+function deleteSubfolder() {
+  const btn = document.getElementById('btnDeleteFolder');
+  if (btn.disabled) return;
+  const folder = filterFolder;
+  if (!folder) return;
+  if (!confirm('Удалить папку "' + folder + '" и все пустые подпапки?')) return;
+
+  fetch('/dialog/{{ peer_id }}/delete-folder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folder: folder })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast('Папка "' + folder + '" удалена');
+        selectFilterFolder('');
+      } else {
+        showToast(data.error || 'Ошибка удаления папки', true);
+      }
+    })
+    .catch(err => showToast('Ошибка: ' + err.message, true));
 }
 
 function updateBatchButton() {
