@@ -510,7 +510,7 @@ def dialog_list():
                             last_cid = cid
                             last_filename = f.name
             if last_filename:
-                last_message_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_filename)
+                last_message_name = last_filename
 
         dialogs.append({
             "peer_id": pid,
@@ -560,9 +560,7 @@ def dialog_messages(peer_id: int):
     last_message_name = ""
     if messages:
         last_msg = max(messages, key=lambda m: m["cid"])
-        last_name = last_msg["filename"]
-        last_name = re.sub(r"\.Id\d+(?:_part_\d+)?\.md$", "", last_name)
-        last_message_name = last_name
+        last_message_name = last_msg["filename"]
 
     return render_template("dialog.html", peer_id=peer_id, dialog_name=_get_dialog_name(peer_id),
                            dialog_folder_name=_get_dialog_dir(peer_id).name,
