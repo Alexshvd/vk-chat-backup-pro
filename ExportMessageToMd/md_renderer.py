@@ -228,7 +228,7 @@ def _render_photo(att: PhotoAttachment) -> str:
     if not att.original_url:
         return "**Фото:** нет данных"
     if isinstance(att.download_result, SuccessDownloadResult):
-        return f"**Фото:** ![]({att.download_result.local_path})"
+        return f'**Фото:** <a href="{att.download_result.local_path}"><img src="{att.download_result.local_path}" width="300" alt="Фото"></a>'
     return f"**Фото:** [ссылка]({att.original_url})"
 
 
@@ -241,10 +241,10 @@ def _render_video(att: VideoAttachment) -> list:
 
     if isinstance(att.preview_download_result, SuccessDownloadResult):
         lines.append("")
-        lines.append(f"![]({att.preview_download_result.local_path})")
+        lines.append(f'<a href="{att.preview_download_result.local_path}"><img src="{att.preview_download_result.local_path}" width="300" alt="Превью"></a>')
 
     if isinstance(att.mp4_download_result, SuccessDownloadResult):
-        lines.append(f"\n<video src=\"{att.mp4_download_result.local_path}\" controls></video>")
+        lines.append(f'\n<video src="{att.mp4_download_result.local_path}" width="240" controls></video>')
 
     if att.player_url:
         lines.append("")

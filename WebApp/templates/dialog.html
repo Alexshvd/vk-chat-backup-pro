@@ -56,7 +56,7 @@
   .content-header .btn-move { color: #2980b9; border-color: #2980b9; }
   .content-header .btn-move:hover { background: #e8f4fd; }
   .content-body { overflow-x: auto; }
-  .content-body img { max-width: 100%; }
+  .content-body img { max-width: 100%; cursor: zoom-in; }
   .content-body video { max-width: 100%; }
   .content-body table { border-collapse: collapse; }
   .content-body table td, .content-body table th { border: 1px solid #ddd; padding: 6px 10px; }
@@ -85,6 +85,9 @@
   .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 20px; border-radius: 6px; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
   .toast.show { opacity: 1; }
   .toast.error { background: #c0392b; }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 2000; cursor: zoom-out; }
+  .lightbox.show { display: flex; }
+  .lightbox img { max-width: 90%; max-height: 90%; object-fit: contain; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
   .attach-group { margin-bottom: 10px; background: #f0f7ff; border: 1px solid #d0dfe8; border-radius: 6px; padding: 6px 10px; }
   .attach-group-header { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: #f0f4f8; border-radius: 4px; margin-bottom: 4px; font-size: 0.8rem; }
   .attach-group-header .folder-path { font-weight: 600; color: #333; word-break: break-all; flex: 1; }
@@ -185,6 +188,8 @@
 </div>
 
 <div id="toast" class="toast"></div>
+
+<div id="lightbox" class="lightbox" onclick="closeLightbox()"><img id="lightboxImg" alt=""></div>
 
 <div id="movePanel" class="move-panel" style="display:none;">
   <div class="move-panel-header">
@@ -1396,6 +1401,37 @@ function showToast(msg, isError) {
   clearTimeout(t._timeout);
   t._timeout = setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+// ─── Lightbox ───────────────────────────────────────
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
+  document.getElementById('lightboxImg').src = '';
+}
+
+document.addEventListener('click', e => {
+  const lightbox = document.getElementById('lightbox');
+  if (lightbox.classList.contains('show') && e.target === lightbox) {
+    closeLightbox();
+    return;
+  }
+  if (e.target.tagName === 'IMG') {
+    const body = document.getElementById('contentBody');
+    if (body.contains(e.target)) {
+      const link = e.target.closest('a');
+      e.preventDefault();
+      openLightbox(link ? link.href : e.target.src);
+    }
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
 </script>
 </body>
 </html>
