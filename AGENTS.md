@@ -7,7 +7,8 @@ Read local `messages.json` files, extract all messages into individual JSON file
 
 ```
 ├── run.py                    # Entry point: cli / web modes
-├── config.json               # User-provided config (not tracked)
+├── config.json               # Ready-made config (tracked, user-editable)
+├── README.md                 # GitHub README (RU)
 ├── requirements.txt          # requests, flask, mistune
 ├── .gitignore
 ├── AGENTS.md
@@ -109,7 +110,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 ### Config/dialog_dirs.py
 - `collect_dialog_dirs(dialogs_dir: Path, config: Config) -> dict[int, Path]` — single loop over `dialogs_dir` entries: if entry name matches `config.peer_id_by_dialog_custom_name` → add as custom; elif starts with `dialog_` → parse peer_id suffix and add. Returns `{peer_id: Path}` mapping. Used by both CLI pipeline and web app to avoid duplicate directory scanning.
 
-### config.json (user-provided, not tracked in git)
+### config.json (ready-made example in repo, user-editable)
 - `export_root` — path to export root (default: `{parent_dir}/Temp/ExportMessages`)
 - `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
 - `overwrite_existing_md` — if `true`, re-converts messages with existing MD files (deletes old MD + RawData + LargeRawData first); if `false` (default), skips already converted messages
