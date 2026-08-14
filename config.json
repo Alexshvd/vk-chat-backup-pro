@@ -1,0 +1,17 @@
+{
+  "export_root": "Temp/ExportMessages",
+  "download_short_video": true,
+  "download_long_video": false,
+  "long_video_threshold": 180,
+  "overwrite_existing_md": false,
+  "overwrite_existing_original_message_json": false,
+  "dialog_name_by_peer_id": {
+    "123456789": "Пример_имени_папки"
+  },
+  "min_cid_by_peer_id": {
+    "123456789": 100
+  },
+  "min_date_by_peer_id": {
+    "123456789": "2020-01-01-00-00-00"
+  }
+}
