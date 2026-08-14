@@ -8,7 +8,10 @@
 ![Mistune](https://img.shields.io/badge/Mistune-3.3-purple)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-![Скриншот приложения](docs/screenshots/main.png)
+<div align="center">
+  
+  ![FavoritesCleared](https://drive.google.com/uc?export=view&id=1MOhCpXx4Mk-YSf-f2jxKktjxwf_i7pbl)
+</div>
 
 ## О проекте
 
@@ -24,7 +27,10 @@
 
 Приложение полностью локальное — данные (исходные JSON, медиафайлы, Markdown-документы) остаются только на вашем компьютере и не передаются на внешние сервисы. Управление происходит через веб-редактор в браузере.
 
-![Скриншот веб-редактора](docs/screenshots/editor.png)
+<div align="center">
+  
+  ![Скриншот веб-редактора](docs/screenshots/editor.png)
+</div>
 
 **Возможности:**
 - Сохранение истории сообщений с указанием авторства и со всеми вложениями в markdown файлы (текст, фото, видео, документы, пересланные сообщения из других диалогов и сообществ)
@@ -56,6 +62,10 @@
 3. **Управление** — через веб-редактор: просмотр, переименование, удаление, группировка по папкам
 
 Внутри веб-редактора есть подробная пошаговая инструкция (главная страница и страница «Экспорт») — следуйте ей.
+<div align="center">
+  
+  ![Pages.Export](https://drive.google.com/uc?export=view&id=1nyddqC1p_9hfkuDV89tQLEwXGajlGugq)
+</div>
 
 ## Рекомендации
 
