@@ -82,8 +82,11 @@ Output directory structure (`EXPORT_ROOT`):
 # Запуск генерации MD (CLI)
 python run.py --mode cli --config config.json
 
-# Запуск веб-сервера
+# Запуск веб-сервера (по умолчанию порт 5000)
 python run.py --mode web --config config.json
+
+# Запуск веб-сервера на указанном порту (--port / -p)
+python run.py --mode web --config config.json --port 8080
 ```
 
 ## Data Flow

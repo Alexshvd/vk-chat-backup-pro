@@ -20,7 +20,7 @@ def cli(args):
 def web(args):
     from web import app, load_configs
     load_configs(args.config)
-    app.run(debug=True, host="127.0.0.1", port=5000, threaded=True)
+    app.run(debug=True, host="127.0.0.1", port=args.port, threaded=True)
 
 
 if __name__ == "__main__":
@@ -28,7 +28,11 @@ if __name__ == "__main__":
     parser.add_argument("--mode", choices=["cli", "web"], required=True,
                         help="cli — запуск генерации, web — запуск Flask сервера")
     parser.add_argument("--config", "-c", required=True, help="Path to config.json")
+    parser.add_argument("--port", "-p", type=int, default=5000,
+                        help="Port for web mode (default: 5000)")
     args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error(f"--port must be in range 1..65535, got {args.port}")
     if args.mode == "cli":
         cli(args)
     else:
