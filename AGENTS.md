@@ -89,6 +89,8 @@ python run.py --mode web --config config.json
 python run.py --mode web --config config.json --port 8080
 ```
 
+После успешного старта web-режима браузер открывается автоматически (порт опрашивается до готовности сервера; при занятом порте — не открывается). При `debug=True` reloader`ом страница открывается только в дочернем процессе сервера (`WERKZEUG_RUN_MAIN=true`), чтобы не было дублирующих вкладок. В exe (`sys.frozen`) reloader отключён (`use_reloader=False`), поэтому браузер открывает единственный процесс.
+
 ## Data Flow
 
 1. **main.py** → scans all `*.json` in `Sources/`, groups messages by `peer_id` into `dialog_by_peer_id[cid]` (dedup by `conversation_message_id`), merges profiles/groups. Also uses `collect_dialog_dirs()` to discover `Dialogs/` for peer_ids not in Sources but with existing `OriginalMessages/*.json`.

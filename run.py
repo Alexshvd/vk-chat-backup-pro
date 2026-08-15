@@ -1,11 +1,27 @@
 import argparse
+import os
+import socket
 import sys
+import threading
+import time
+import webbrowser
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
 sys.path.insert(0, str(root / "WebApp"))
 sys.path.insert(0, str(root / "ExportMessageToMd"))
 sys.path.insert(0, str(root / "Config"))
+
+
+def _open_browser(port: int):
+    url = f"http://127.0.0.1:{port}"
+    for _ in range(100):
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                webbrowser.open(url)
+                return
+        except OSError:
+            time.sleep(0.1)
 
 
 def cli(args):
@@ -20,7 +36,11 @@ def cli(args):
 def web(args):
     from web import app, load_configs
     load_configs(args.config)
-    app.run(debug=True, host="127.0.0.1", port=args.port, threaded=True)
+    use_reloader = not getattr(sys, "frozen", False)
+    if not use_reloader or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        threading.Thread(target=_open_browser, args=(args.port,), daemon=True).start()
+    app.run(debug=True, host="127.0.0.1", port=args.port, threaded=True,
+            use_reloader=use_reloader)
 
 
 if __name__ == "__main__":
