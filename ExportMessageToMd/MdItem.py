@@ -92,3 +92,4 @@ class MdItem:
     filename: str
     is_wall_split: bool = False
     author: Optional[AuthorInfo] = None
+    reply: Optional[List["MdItem"]] = None

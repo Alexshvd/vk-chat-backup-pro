@@ -73,7 +73,14 @@ def _build_md_message_lines(item: MdItem, tag: str, level: int) -> list:
     attachments = item.attachments
     forwarded = item.forwarded
 
-    if text and len(attachments) == 1 and not forwarded:
+    if item.reply:
+        lines.append("## Ответ на сообщение")
+        lines.append("")
+        for reply_item in item.reply:
+            lines.extend(_build_md_lines(reply_item, level + 2))
+            lines.append("")
+
+    if text and len(attachments) == 1 and not forwarded and not item.reply:
         lines.extend(_render_attachment(attachments[0]))
         lines.append("")
         lines.append(text.replace("\n", "<br>\n"))
@@ -113,6 +120,13 @@ def _build_md_wall_message_lines(item: MdItem, tag: str, level: int) -> list:
         _render_author_line(item),
         "",
     ]
+
+    if item.reply:
+        lines.append("## Ответ на сообщение")
+        lines.append("")
+        for reply_item in item.reply:
+            lines.extend(_build_md_lines(reply_item, level + 2))
+            lines.append("")
 
     if item.text:
         lines.append(item.text.replace("\n", "<br>\n"))
@@ -165,6 +179,8 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
             _walk_attachment(att)
         for child in item.forwarded:
             _walk(child)
+        for reply_item in item.reply or []:
+            _walk(reply_item)
 
     def _walk_attachment(att):
         if isinstance(att, PhotoAttachment):

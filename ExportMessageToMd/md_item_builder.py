@@ -59,6 +59,15 @@ def build_md_items(
             build_md_items(fwd_message, fwd_cid, root_cid, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)
         )
 
+    resolved_reply = []
+    reply_msg = fwd.get("reply_message")
+    if reply_msg:
+        reply_cid = reply_msg.get("conversation_message_id")
+        if reply_cid is None:
+            logger.LogWarning("Ответ на сообщение без conversation_message_id, пропущен")
+        else:
+            resolved_reply = build_md_items(reply_msg, reply_cid, root_cid, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)
+
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
     others = [a for a in resolved_attachments if not isinstance(a, WallAttachment)]
     json_stem = Path(json_filename).stem
@@ -68,6 +77,7 @@ def build_md_items(
         item = _make_item(
             cid, from_id, date, text, resolved_attachments,
             resolved_forwarded, json_filename, author,
+            reply=resolved_reply,
         )
         item.heading = _compute_heading(text, cid)
 
@@ -93,6 +103,7 @@ def build_md_items(
         item = _make_item(
             cid, from_id, date, text, others + [wall],
             resolved_forwarded, json_filename, author,
+            reply=resolved_reply,
         )
         item.heading = _compute_heading(text, cid)
         item.filename = _compute_filename(
@@ -115,6 +126,7 @@ def _make_item(
     attachments: List[BaseAttachmentItem],
     forwarded: List[MdItem], json_filename: str,
     author: AuthorInfo = None,
+    reply: Optional[List[MdItem]] = None,
 ) -> MdItem:
     item = MdItem(
         cid=cid,
@@ -126,6 +138,7 @@ def _make_item(
         json_filename=json_filename,
         heading="",
         filename="",
+        reply=reply,
     )
     if author:
         item.author = author
