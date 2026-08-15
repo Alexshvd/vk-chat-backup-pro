@@ -55,12 +55,13 @@ Output directory structure (`EXPORT_ROOT`):
 │       │   └── photo_12345.jpg
 │       └── dialog_{peer_id}/
 │           ├── RawData/                      # Small attachments, nested by root CID
-│           │   └── {root_cid}/              # Root message's attachments + forwarded subdirs
+│           │   └── {root_cid}/              # Root message's attachments + forwarded/reply subdirs
 │           │       ├── 1.jpg                # Root message's direct attachments
 │           │       ├── 2.webp
 │           │       ├── {fwd_cid}/           # Forwarded message's attachments
 │           │       │   ├── Лабораторная_работа_14.docx
 │           │       │   └── VIM.docx
+│           │       ├── {reply_cid}/         # Reply message's attachments
 │           │       └── {fwd_cid}/
 │           │           └── ...
 │           ├── OriginalMessages/             # Individual message JSON files {date}_{cid}.json
