@@ -97,8 +97,15 @@ python run.py --mode web --config config.json --port 8080
 
 ## Сборка exe (портативная версия, без установки Python)
 
-Сборка через **PyInstaller** из venv (Python 3.12, там установлены flask/mistune/requests):
+Сборка через **PyInstaller** из venv (Python 3.12, там установлены flask/mistune/requests). Одним скриптом:
 
+```sh
+build_exe.bat
+```
+
+Скрипт: выбирает PyInstaller (`.venv` → глобальный), собирает onedir и **автоматически копирует** `config.json` в `dist\VkChatBackup\`. Если PyInstaller не установлен — ошибка с подсказкой `.venv\Scripts\pip install pyinstaller`.
+
+Эквивалентная команда вручную:
 ```sh
 .venv\Scripts\pip install pyinstaller
 
@@ -106,6 +113,7 @@ python run.py --mode web --config config.json --port 8080
   --name VkChatBackup ^
   --add-data "WebApp/templates;WebApp/templates" ^
   --paths WebApp --paths ExportMessageToMd --paths Config run.py
+copy /Y config.json "dist\VkChatBackup\config.json"
 ```
 
 Результат — `dist/VkChatBackup/VkChatBackup.exe` + `_internal/`. Портативный комплект:
@@ -113,7 +121,7 @@ python run.py --mode web --config config.json --port 8080
 dist/VkChatBackup/
 ├── VkChatBackup.exe
 ├── _internal/
-└── config.json          # копия конфига, кладётся вручную
+└── config.json          # копия конфига (build_exe.bat кладёт автоматически)
 ```
 Запуск: двойной клик по `VkChatBackup.exe` → web-редактор на 5000 + браузер. CLI: `VkChatBackup.exe --mode cli --config config.json`.
 
@@ -121,8 +129,8 @@ dist/VkChatBackup/
 - **`--paths` обязателен**: `run.py` подключает `WebApp/`, `ExportMessageToMd/`, `Config/` через `sys.path` в рантайме (`run.py:11-13`) — без `--paths` PyInstaller не находит модули `web`, `main`, `config_loader`, `Loggers` (в `build/VkChatBackup/warn-VkChatBackup.txt` появляются `missing module named web/main/...`).
 - **`--add-data` обязателен**: 5 html → `_internal/WebApp/templates`.
 - **template_folder**: PyInstaller кладёт модуль `web` в PYZ как плоский `web.pyc`, поэтому `Flask(__name__)` по умолчанию ищет шаблоны в `_internal/templates`, а не в `_internal/WebApp/templates` → `TemplateNotFound`. В `web.py` явно задан `template_folder` (frozen → `sys._MEIPASS/WebApp/templates`, dev → рядом с `web.py`).
-- **Пересборка после правок кода**: повторять ту же команду PyInstaller (дёргает `--clean`), затем заново копировать `config.json` в `dist/VkChatBackup/`.
-- `.gitignore` уже покрывает `dist/`, `build/`, `.venv/`, `Temp/`.
+- **Пересборка после правок кода**: запустить `build_exe.bat` (дёргает `--clean`) — `config.json` скопируется в `dist/VkChatBackup/` автоматически.
+- `.gitignore` уже покрывает `dist/`, `build/`, `.venv/`, `Temp/`, а также авто-генерируемый `VkChatBackup.spec`.
 
 ## Data Flow
 
