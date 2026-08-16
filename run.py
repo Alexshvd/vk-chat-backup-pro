@@ -43,11 +43,18 @@ def web(args):
             use_reloader=use_reloader)
 
 
+def _default_config_path() -> str:
+    if getattr(sys, "frozen", False):
+        return str(Path(sys.executable).resolve().parent / "config.json")
+    return str(Path(__file__).resolve().parent / "config.json")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="VkChatBackupCommunity")
-    parser.add_argument("--mode", choices=["cli", "web"], required=True,
-                        help="cli — запуск генерации, web — запуск Flask сервера")
-    parser.add_argument("--config", "-c", required=True, help="Path to config.json")
+    parser = argparse.ArgumentParser(description="VkChatBackup")
+    parser.add_argument("--mode", choices=["cli", "web"], default="web",
+                        help="cli — запуск генерации, web — запуск Flask сервера (default: web)")
+    parser.add_argument("--config", "-c", default=_default_config_path(),
+                        help="Path to config.json (default: config.json рядом с приложением)")
     parser.add_argument("--port", "-p", type=int, default=5000,
                         help="Port for web mode (default: 5000)")
     args = parser.parse_args()

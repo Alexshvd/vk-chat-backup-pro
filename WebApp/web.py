@@ -5,6 +5,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -21,7 +22,13 @@ from main import main as run_pipeline
 
 CID_PATTERN = re.compile(r"\.Id(\d+)(?:_part_\d+)?\.md$")
 
-app = Flask(__name__)
+def _template_folder() -> str:
+    if getattr(sys, "frozen", False):
+        return str(Path(sys._MEIPASS) / "WebApp" / "templates")
+    return str(Path(__file__).resolve().parent / "templates")
+
+
+app = Flask(__name__, template_folder=_template_folder())
 export_root_abs: Optional[Path] = None
 export_serve_abs: Optional[Path] = None
 large_root_abs: Optional[Path] = None

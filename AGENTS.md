@@ -78,6 +78,10 @@ Output directory structure (`EXPORT_ROOT`):
 
 ## Launch
 
+Аргументы `--mode` и `--config` — **опциональны**:
+- `--mode` по умолчанию `web` (двойной клик по exe / `python run.py` → web-редактор)
+- `--config` по умолчанию `config.json` **рядом с приложением**: в exe — каталог `sys.executable` (frozen), в dev — каталог `run.py`
+
 ```sh
 # Запуск генерации MD (CLI)
 python run.py --mode cli --config config.json
@@ -90,6 +94,35 @@ python run.py --mode web --config config.json --port 8080
 ```
 
 После успешного старта web-режима браузер открывается автоматически (порт опрашивается до готовности сервера; при занятом порте — не открывается). При `debug=True` reloader`ом страница открывается только в дочернем процессе сервера (`WERKZEUG_RUN_MAIN=true`), чтобы не было дублирующих вкладок. В exe (`sys.frozen`) reloader отключён (`use_reloader=False`), поэтому браузер открывает единственный процесс.
+
+## Сборка exe (портативная версия, без установки Python)
+
+Сборка через **PyInstaller** из venv (Python 3.12, там установлены flask/mistune/requests):
+
+```sh
+.venv\Scripts\pip install pyinstaller
+
+.venv\Scripts\pyinstaller --onedir --console --noconfirm --clean ^
+  --name VkChatBackup ^
+  --add-data "WebApp/templates;WebApp/templates" ^
+  --paths WebApp --paths ExportMessageToMd --paths Config run.py
+```
+
+Результат — `dist/VkChatBackup/VkChatBackup.exe` + `_internal/`. Портативный комплект:
+```
+dist/VkChatBackup/
+├── VkChatBackup.exe
+├── _internal/
+└── config.json          # копия конфига, кладётся вручную
+```
+Запуск: двойной клик по `VkChatBackup.exe` → web-редактор на 5000 + браузер. CLI: `VkChatBackup.exe --mode cli --config config.json`.
+
+Важные нюансы сборки:
+- **`--paths` обязателен**: `run.py` подключает `WebApp/`, `ExportMessageToMd/`, `Config/` через `sys.path` в рантайме (`run.py:11-13`) — без `--paths` PyInstaller не находит модули `web`, `main`, `config_loader`, `Loggers` (в `build/VkChatBackup/warn-VkChatBackup.txt` появляются `missing module named web/main/...`).
+- **`--add-data` обязателен**: 5 html → `_internal/WebApp/templates`.
+- **template_folder**: PyInstaller кладёт модуль `web` в PYZ как плоский `web.pyc`, поэтому `Flask(__name__)` по умолчанию ищет шаблоны в `_internal/templates`, а не в `_internal/WebApp/templates` → `TemplateNotFound`. В `web.py` явно задан `template_folder` (frozen → `sys._MEIPASS/WebApp/templates`, dev → рядом с `web.py`).
+- **Пересборка после правок кода**: повторять ту же команду PyInstaller (дёргает `--clean`), затем заново копировать `config.json` в `dist/VkChatBackup/`.
+- `.gitignore` уже покрывает `dist/`, `build/`, `.venv/`, `Temp/`.
 
 ## Data Flow
 
@@ -160,6 +193,7 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 ### web.py
 - Flask app factory pattern: `load_configs(config_path)` → sets all path globals from `config.json`
+- `app = Flask(__name__, template_folder=_template_folder())` — явный template_folder: в exe (frozen) → `sys._MEIPASS/WebApp/templates`, в dev → рядом с `web.py` (иначе в PyInstaller — `TemplateNotFound`, см. «Сборка exe»)
 - `_get_dialog_dir(peer_id)` — returns `Path` for dialog folder using `collect_dialog_dirs()`, with `dialog_{peer_id}` fallback
 - `_get_dialog_name(peer_id)` — returns custom folder name from `config.dialog_name_by_peer_id` or `dialog_{peer_id}` fallback
 - `_get_dialog_large_raw_data_dir(peer_id)` — returns `large_root_abs / f"dialog_{peer_id}"` (always `dialog_{peer_id}`, never renamed)
