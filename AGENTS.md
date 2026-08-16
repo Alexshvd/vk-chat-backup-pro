@@ -121,12 +121,9 @@ copy /Y config.json "dist\VkChatBackup\config.json"
 dist/VkChatBackup/
 ├── VkChatBackup.exe
 ├── _internal/
-├── config.json                     # копия конфига (build_exe.bat кладёт автоматически)
-└── VkChatBackupWithArgs.lnk        # ярлык с аргументами (build_exe.bat создаёт автоматически)
+└── config.json          # копия конфига (build_exe.bat кладёт автоматически)
 ```
 Запуск: двойной клик по `VkChatBackup.exe` → web-редактор на 5000 + браузер. CLI: `VkChatBackup.exe --mode cli --config config.json`.
-
-**Ярлык `VkChatBackupWithArgs.lnk`**: создаётся в конце `build_exe.bat` через PowerShell (WScript.Shell): Target = `VkChatBackup.exe` (абсолютный путь через `%~dp0`), Arguments = `--mode web --port 5000 --config config.json`, WorkingDirectory = каталог exe, Icon = exe. При неудаче создания — только WARN (сборку не ломает). Нюанс: `.lnk` хранит абсолютный путь до exe — при переносе папки на другую машину ярлык нужно пересоздать (пересобрать `build_exe.bat`).
 
 Важные нюансы сборки:
 - **`--paths` обязателен**: `run.py` подключает `WebApp/`, `ExportMessageToMd/`, `Config/` через `sys.path` в рантайме (`run.py:11-13`) — без `--paths` PyInstaller не находит модули `web`, `main`, `config_loader`, `Loggers` (в `build/VkChatBackup/warn-VkChatBackup.txt` появляются `missing module named web/main/...`).
