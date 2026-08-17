@@ -14,6 +14,9 @@ if exist ".venv\Scripts\pyinstaller.exe" (
   set "PYI=pyinstaller"
 )
 
+echo Очистка промежуточных файлов...
+rmdir /s /q build 2>nul
+
 %PYI% --onedir --console --noconfirm --clean ^
   --name VkChatBackup ^
   --add-data "WebApp/templates;WebApp/templates" ^

@@ -103,7 +103,7 @@ python run.py --mode web --config config.json --port 8080
 build_exe.bat
 ```
 
-Скрипт: выбирает PyInstaller (`.venv` → глобальный), собирает onedir и **автоматически копирует** `config.json` в `dist\VkChatBackup\`. Если PyInstaller не установлен — ошибка с подсказкой `.venv\Scripts\pip install pyinstaller`.
+Скрипт: выбирает PyInstaller (`.venv` → глобальный), очищает промежуточные файлы (`build/`), собирает onedir и **автоматически копирует** `config.json` в `dist\VkChatBackup\`. Если PyInstaller не установлен — ошибка с подсказкой `.venv\Scripts\pip install pyinstaller`.
 
 Эквивалентная команда вручную:
 ```sh
