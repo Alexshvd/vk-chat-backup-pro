@@ -16,6 +16,7 @@ if exist ".venv\Scripts\pyinstaller.exe" (
 
 echo Очистка промежуточных файлов...
 rmdir /s /q build 2>nul
+rmdir /s /q dist\VkChatBackup 2>nul
 
 %PYI% --onedir --console --noconfirm --clean ^
   --name VkChatBackup ^
