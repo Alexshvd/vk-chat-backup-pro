@@ -75,7 +75,7 @@ build_exe.bat
 
 | Флаг | Краткая | Описание | По умолчанию |
 |---|---|---|---|
-| `--mode` | | `web` — веб-редактор, `cli` — генерация MD | `web` |
+| `--mode` | | Режим запуска: `web` | `web` |
 | `--port` | `-p` | Порт веб-сервера | `5000` |
 | `--config` | `-c` | Путь к `config.json` | `config.json` рядом с приложением |
 | `--no-browser` | `-nb` | Не открывать браузер автоматически | браузер открывается |
@@ -89,7 +89,7 @@ build_exe.bat
 3. В поле **Объект** допишите флаги после пути к exe:
 
    ```
-   "C:\путь\к\VkChatBackup.exe" --no-browser --port 8080
+   "C:\путь\к\VkChatBackup.exe" --mode web --port 8080 --config "C:\путь\к\config.json" --no-browser
    ```
 
    <div align="center">
@@ -103,7 +103,6 @@ build_exe.bat
 
 - Не открывать браузер: `"...\VkChatBackup.exe" --no-browser`
 - Другой порт: `"...\VkChatBackup.exe" --port 8080`
-- CLI-режим: `"...\VkChatBackup.exe" --mode cli --config config.json`
 
 ---
 
