@@ -28,6 +28,9 @@ def _fmt_date(ts: int) -> str:
 
 
 def _render_author_compact(from_id: Any, author: Optional = None, date: Optional[int] = None) -> str:
+    if not author and not date:
+        label = "Сообщество" if (isinstance(from_id, int) and from_id < 0) else "Пользователь"
+        return f"**{label}** (Id: {from_id})"
     img_cell = (
         '    <td style="vertical-align:middle">\n'
         f'      <img width="55" height="55" src="{author.photo_local}">\n'
