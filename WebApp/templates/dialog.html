@@ -146,6 +146,10 @@
           <option value="cid">по Id (дате)</option>
         </select>
         <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="Направление сортировки">↑</button>
+        <label style="grid-column:1/4;display:flex;align-items:center;gap:6px;font-size:0.9rem;cursor:pointer;">
+          <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+          Выбрать все
+        </label>
       </div>
       <span id="selectedCount" style="color:#888;font-size:0.85rem;display:block;margin-bottom:8px;"></span>
       <div class="col-list-scroll">
@@ -541,6 +545,20 @@ function updateBatchButton() {
   document.getElementById('btnBatchDelete').disabled = checked === 0;
   document.getElementById('btnBatchMove').disabled = checked === 0;
   document.getElementById('selectedCount').textContent = checked ? `Выбрано: ${checked}` : '';
+  const visible = document.querySelectorAll('.msg-item:not([style*="display: none"]) .checkbox');
+  const totalVisible = visible.length;
+  const checkedVisible = document.querySelectorAll('.msg-item:not([style*="display: none"]) .checkbox:checked').length;
+  document.getElementById('selectAll').checked = totalVisible > 0 && checkedVisible === totalVisible;
+}
+
+function toggleSelectAll() {
+  const master = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.msg-item').forEach(item => {
+    if (item.style.display !== 'none') {
+      item.querySelector('.checkbox').checked = master;
+    }
+  });
+  updateBatchButton();
 }
 
 // ─── Rename selected ────────────────────────────────
