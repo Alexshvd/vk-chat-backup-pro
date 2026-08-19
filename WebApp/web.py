@@ -806,7 +806,7 @@ def batch_move_md_files(peer_id: int):
                     "over_limit_attachments": [],
                 }
                 over_limit.append(item)
-            elif depth_diff == 0:
+            elif str(current_rel).replace("\\", "/") == target_folder:
                 skipped.append({"cid": cid, "filename": f.name, "reason": "already_in_folder"})
             elif new_path.exists():
                 skipped.append({"cid": cid, "filename": f.name, "reason": "file_exists"})
@@ -850,7 +850,8 @@ def move_md_file(peer_id: int, cid: int):
         target_depth = len(target_folder.split("/")) if target_folder else 0
         depth_diff = target_depth - current_depth
 
-        if depth_diff == 0:
+        current_rel = str(current_md_file_dir).replace("\\", "/")
+        if current_rel == target_folder:
             return jsonify({"success": False, "error": "File is already in this folder"}), 409
 
         new_path = target_dir / f.name
