@@ -198,6 +198,13 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
                 _add_row(f"| Аватар автора поста | | {_url_cell(att.author.photo_url)} |")
             post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
             _add_row(f"| Ссылка на пост | | {_url_cell(post_url)} |")
+            for ow in att.original_walls:
+                if ow.author and ow.author.photo_url:
+                    _add_row(f"| Аватар автора оригинального поста | | {_url_cell(ow.author.photo_url)} |")
+                orig_post_url = f"https://vk.com/wall{ow.owner_id}_{ow.id}"
+                _add_row(f"| Ссылка на оригинальный пост | | {_url_cell(orig_post_url)} |")
+                for child in ow.children:
+                    _walk_attachment(child)
             for child in att.children:
                 _walk_attachment(child)
         elif isinstance(att, DocAttachment):
@@ -280,10 +287,17 @@ def _render_link(att: LinkAttachment) -> str:
 
 
 def _render_wall(att: WallAttachment) -> list:
-    post_url = f"https://vk.com/wall{att.owner_id}_{att.id}"
     lines = ["", "### Запись на стене", ""]
     lines.append(_render_author_compact(att.owner_id, att.author))
     lines.append("")
+
+    if att.original_walls:
+        lines.append("**Переслано из:**")
+        lines.append("")
+        for ow in att.original_walls:
+            lines.extend(_render_wall(ow))
+        return lines
+
     text = att.text
     children = att.children
 

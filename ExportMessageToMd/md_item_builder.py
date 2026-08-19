@@ -82,7 +82,7 @@ def build_md_items(
         item.heading = _compute_heading(text, cid)
 
         if len(walls) == 1 and not text:
-            wall_text = walls[0].text
+            wall_text = _get_wall_text(walls[0])
             item.filename = _compute_filename(
                 text, resolved_attachments, json_stem, cid,
                 md_dir_abs_len, extra_suffix_len=8 if wall_text else 0,
@@ -99,7 +99,7 @@ def build_md_items(
 
     result = []
     for i, wall in enumerate(walls, 1):
-        wall_text = wall.text
+        wall_text = _get_wall_text(wall)
         item = _make_item(
             cid, from_id, date, text, others + [wall],
             resolved_forwarded, json_filename, author,
@@ -313,6 +313,11 @@ def _resolve_wall(
     config: Config,
     logger: BaseLogger,
 ) -> WallAttachment:
+    original_walls = [
+        _resolve_wall(ch, cid_raw_dir, cid_large_dir, md_dir, url_to_relpath, authors, config, logger)
+        for ch in data.get("copy_history", [])
+    ]
+
     owner_id = data.get("owner_id")
     children = [
         _resolve_attachment(a, cid_raw_dir, cid_large_dir, md_dir, url_to_relpath, authors, config, logger)
@@ -325,7 +330,18 @@ def _resolve_wall(
         text=(data.get("text") or "").strip(),
         children=children,
         author=author,
+        original_walls=original_walls,
     )
+
+
+def _get_wall_text(wall: WallAttachment) -> str:
+    if wall.text:
+        return wall.text
+    if wall.original_walls:
+        if len(wall.original_walls) == 1:
+            return wall.original_walls[0].text
+        return f"{len(wall.original_walls)} постов"
+    return ""
 
 
 def _download_to_raw(
