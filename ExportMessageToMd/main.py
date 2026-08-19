@@ -88,8 +88,10 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
 
         dialog_dir.mkdir(parents=True, exist_ok=True)
 
+        yield "  Скачивание аватаров авторов..."
         url_to_relpath: dict[str, str] = {}
         ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir), logger)
+        yield "  Аватары авторов скачены."
 
         filtered_items = [item for item in items if not _is_msg_filtered(item, peer_id, config)]
         created, overwritten, skipped = extract_items_from_data(
