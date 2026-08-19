@@ -178,6 +178,8 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 
 ### ExportMessageToMd/md_item_builder.py
 - `build_md_items(fwd, cid, root_cid, json_filename, md_dir, little_raw_data_dir, large_raw_data_dir, authors, config, url_to_relpath, logger)` — reads JSON dict, creates `list[MdItem]`. Recursively processes `fwd_messages` and `reply_message` (single object; resolved recursively like forwarded, stored in `MdItem.reply` as `list[MdItem]`). Downloads photos/videos/stickers/docs immediately. `cid` and `root_cid` are passed from caller (main.py). Root messages save to `RawData/{cid}/`, forwarded messages save to `RawData/{root_cid}/{cid}/`, reply messages save to `RawData/{root_cid}/{reply_cid}/`. Reply without `conversation_message_id` is skipped with a warning.
+- `_resolve_wall(data, ...)` — resolves wall post into `WallAttachment`. Recursively processes `copy_history` array: each entry is resolved as a nested `WallAttachment` and stored in `original_walls`. Supports multiple reposts (repost of repost chain).
+- `_get_wall_text(wall)` — returns text for filename computation. Priority: `wall.text` → if 1 `original_walls`: `original_walls[0].text` → if N `original_walls`: `"{N} постов"` → empty.
 - **Filename rules**:
   - With text: `{first_sentence}.Id{cid}.md`
   - Without text: `{AttachmentType}.{date}.Id{cid}.md` (prefix: Photo/Video/ShortVideo/Link/Article/Doc/Audio/Sticker/Media)
@@ -191,14 +193,16 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `_build_md_lines(item, level)` — private recursive dispatcher, returns `list[str]` without Sources
 - `_build_md_message_lines(item, tag, level)` — renders regular message to `list[str]`, calls `_build_md_lines(child, level + 2)` for forwarded messages. If `item.reply` present, renders `## Ответ на сообщение` block before text (all reply parts via `_build_md_lines(reply_item, level + 2)`); the single-attachment fast-path is disabled when a reply exists
 - `_build_md_wall_message_lines(item, tag, level)` — renders wall-split message to `list[str]`, no Sources
-- `_render_author_compact(from_id, author, date)` — renders author info as multi-line formatted `<table>` HTML block with indentation (2-space indented nested tags, `<br>\n` between parts)
+- `_render_author_compact(from_id, author, date)` — renders author info. When `author=None` and `date=None`, returns `**Сообщество/Пользователь** (Id: N)` without HTML table. Otherwise renders as multi-line formatted `<table>` HTML block with indentation (2-space indented nested tags, `<br>\n` between parts)
+- `_render_wall(att)` — renders wall post. If `att.original_walls` is non-empty, renders reposter info + `**Переслано из:**` label + recursively renders each original wall. Otherwise renders text and children with single-child fast-path.
 - `_rel_cell(result)` — maps `BaseDownloadResult` to Sources table cell: `SuccessDownloadResult` → link, `ErrorDownloadResult` → "Ошибка скачивания", `NoDownloadResult` → empty. Raises `TypeError` for unknown types.
-- `_append_sources_table(lines, item)` — builds one consolidated Sources table with `seen` set for deduplication. JSON file row added once before `_walk()`. `_walk()` recursively processes forwarded and reply messages via `_add_row()`.
+- `_append_sources_table(lines, item)` — builds one consolidated Sources table with `seen` set for deduplication. JSON file row added once before `_walk()`. `_walk()` recursively processes forwarded and reply messages via `_add_row()`. For `WallAttachment` with `original_walls`, adds original author avatar, original post URL, and walks original wall's children.
 
 ### ExportMessageToMd/MdItem.py
 - **Download result pattern**: `BaseDownloadResult` → `NoDownloadResult` (no URL) | `ErrorDownloadResult` (download failed) | `SuccessDownloadResult(local_path: str)`
 - `PhotoAttachment`, `DocAttachment`, `StickerAttachment` — field `download_result: BaseDownloadResult` (default `NoDownloadResult`)
 - `VideoAttachment` — two fields: `mp4_download_result` + `preview_download_result`
+- `WallAttachment` — field `original_walls: List["WallAttachment"]` (default `[]`). Recursively resolved from `copy_history` array in VK wall post data. Supports nested reposts (repost of repost).
 - `MdItem.reply: Optional[List[MdItem]]` — resolved `reply_message` parts (default `None`)
 
 ## WebApp
