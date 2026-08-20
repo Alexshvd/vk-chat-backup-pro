@@ -1,7 +1,7 @@
 # VkChatBackupCommunity
 
 ## Goal
-Read local `messages.json` files, extract all messages into individual JSON files, resolve attachments (photos, videos, stickers, links, docs, audio, wall posts), download media files, render as Markdown with author info and sources table.
+Read local `messages.json` files, extract all messages into individual JSON files, resolve attachments (photos, videos, stickers, links, docs, audio, wall posts, articles), download media files, render as Markdown with author info and sources table.
 
 ## Project Structure
 
@@ -20,7 +20,7 @@ Read local `messages.json` files, extract all messages into individual JSON file
 │
 ├── ExportMessageToMd/
 │   ├── main.py               # Generator: parse sources → extract → build → render → write
-│   ├── MdItem.py             # DTO: BaseDownloadResult + 3 subclasses (NoDownload/Error/Success) + BaseAttachmentItem + 7 subclasses + MdItem
+│   ├── MdItem.py             # DTO: BaseDownloadResult + 3 subclasses (NoDownload/Error/Success) + BaseAttachmentItem + 8 subclasses + MdItem
 │   ├── md_item_builder.py    # build_md_items(): JSON → MdItem, resolves attachments
 │   ├── md_renderer.py        # render_md_item(): MdItem → Markdown (pure, no I/O)
 │   ├── export_fwd.py         # extract_items_from_data(items, output_dir)
@@ -146,7 +146,7 @@ dist/VkChatBackup/
 
 Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/videos/docs immediately. Step 5 is pure rendering (no I/O).
 
-`main(config, peer_ids, logger)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display.
+`main(config, peer_ids, logger)` is a **generator function** — it `yield`s log messages instead of `print()`. Both CLI and Web iterate over it the same way. Web uses `stream_with_context` for real-time progress display. During avatar downloading, yields "Скачивание аватаров авторов..." and "Аватары авторов скачены."
 
 ## Module Details
 
@@ -195,13 +195,18 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `_build_md_wall_message_lines(item, tag, level)` — renders wall-split message to `list[str]`, no Sources
 - `_render_author_compact(from_id, author, date)` — renders author info. When `author=None` and `date=None`, returns `**Сообщество/Пользователь** (Id: N)` without HTML table. Otherwise renders as multi-line formatted `<table>` HTML block with indentation (2-space indented nested tags, `<br>\n` between parts)
 - `_render_wall(att)` — renders wall post. If `att.original_walls` is non-empty, renders reposter info + `**Переслано из:**` label + recursively renders each original wall. Otherwise renders text and children with single-child fast-path.
+- `_render_photo(att)` — returns `list[str]`: renders photo as `<img>` with caption (`att.text`) below if present. Newlines in caption converted to `<br>`.
+- `_render_attachment(att)` — dispatches by `isinstance`. `DocAttachment` with image extensions (`gif`, `png`, `jpg`, `jpeg`, `webp`) renders as `<img>` (same as photo). `ArticleAttachment` renders: preview image + title link + `**Автор:**` + `lead_description` in blockquote, each on separate line.
 - `_rel_cell(result)` — maps `BaseDownloadResult` to Sources table cell: `SuccessDownloadResult` → link, `ErrorDownloadResult` → "Ошибка скачивания", `NoDownloadResult` → empty. Raises `TypeError` for unknown types.
-- `_append_sources_table(lines, item)` — builds one consolidated Sources table with `seen` set for deduplication. JSON file row added once before `_walk()`. `_walk()` recursively processes forwarded and reply messages via `_add_row()`. For `WallAttachment` with `original_walls`, adds original author avatar, original post URL, and walks original wall's children.
+- `_append_sources_table(lines, item)` — builds one consolidated Sources table with `seen` set for deduplication. JSON file row added once before `_walk()`. `_walk()` recursively processes forwarded and reply messages via `_add_row()`. For `WallAttachment` with `original_walls`, adds original author avatar, original post URL, and walks original wall's children. `ArticleAttachment` adds article URL and author avatar URL.
 
 ### ExportMessageToMd/MdItem.py
 - **Download result pattern**: `BaseDownloadResult` → `NoDownloadResult` (no URL) | `ErrorDownloadResult` (download failed) | `SuccessDownloadResult(local_path: str)`
-- `PhotoAttachment`, `DocAttachment`, `StickerAttachment` — field `download_result: BaseDownloadResult` (default `NoDownloadResult`)
+- `PhotoAttachment` — fields: `original_url: str`, `text: str = ""` (caption from VK photo `text` field), `download_result: BaseDownloadResult`
+- `DocAttachment` — fields: `url: str`, `title: str`, `ext: str = ""` (file extension, e.g. `"gif"`), `download_result: BaseDownloadResult`
+- `StickerAttachment` — field `download_result: BaseDownloadResult` (default `NoDownloadResult`)
 - `VideoAttachment` — two fields: `mp4_download_result` + `preview_download_result`
+- `ArticleAttachment` — fields: `url`, `title`, `subtitle`, `lead_description`, `owner_id`, `owner_name`, `owner_photo_url`, `photo_download_result`. Resolved from VK `"article"` attachment type with preview image download.
 - `WallAttachment` — field `original_walls: List["WallAttachment"]` (default `[]`). Recursively resolved from `copy_history` array in VK wall post data. Supports nested reposts (repost of repost).
 - `MdItem.reply: Optional[List[MdItem]]` — resolved `reply_message` parts (default `None`)
 
@@ -266,10 +271,11 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - **Подсветка over-limit вложений**: при выборе сообщения в over-limit панели, `currentOverLimitAttachments` устанавливается из `data-over-limit-attachments`. В `renderGroup` файлы с именами из этого списка отображаются с классом `.attach-over-limit` (жёлтый фон `#fff3cd`, полоса `#ffc107`) и индикатором `(+N)` excess. После переименования вложения `renameAttachment` удаляет файл из `currentOverLimitAttachments`, обновляет счётчик в `.meta` активного элемента и перерисовывает вложения.
 - **Файлы вложений**: группируются по родительской папке. У каждой группы — заголовок с абсолютным путём, кнопка «Скопировать» (копирует путь в буфер обмена), кнопка «Открыть» (открывает папку в файловом менеджере через `/open-folder`). Файлы внутри группы сдвинуты `padding-left: 16px`, маркеры `disc` через `::before`.
 - **Sticky-заголовок контента**: `content-header` (название файла + кнопки редактирования/удаления) закреплён вверху при прокрутке (`position: sticky`), фон `#f0f4fa`.
-- **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`). Проверка длины пути (макс. 254 символа). Если файл уже в целевой папке — возвращается ошибка "File is already in this folder". Для предотвращения конфликта позиционирования после batch-move в `moveSelected()` явно сбрасывается `panel.style.left = 'auto'`.
+- **Перемещение MD-файлов**: выпадающий panel (`position: fixed`) под кнопкой 📁 показывает список подпапок из `MdFiles/`. Корневая папка `/` всегда первая. Текущая папка файла отмечена красной стрелкой `→`. Можно создать новую папку (включая вложенные `a/b/c`). Запрещены `..` как сегмент пути и спецсимволы `\*?:"<>|`. При перемещении автоматически перезаписываются относительные ссылки в MD-файле (`_rewrite_links_for_move`). Проверка длины пути (макс. 254 символа). Если файл уже в целевой папке — возвращается ошибка "File is already in this folder" (сравнение по пути, не по глубине). Для предотвращения конфликта позиционирования после batch-move в `moveSelected()` явно сбрасывается `panel.style.left = 'auto'`.
 - **Отображение вложенности**: в левой колонке каждого сообщения в правом верхнем углу отображается путь подпапки (`rel-dir`) серым цветом мелким шрифтом. Пути нормализуются к прямым слешам (`/`) на всех платформах. `.rel-dir` span рендерится **всегда** (первым внутри `.info`, перед `.fname`) с пустым значением для корневых сообщений; пустой span скрывается CSS `.rel-dir:empty { display: none }`. При перемещении/батч-перемещении JS обновляет только `textContent` существующего span (`item.querySelector('.rel-dir').textContent = folder`) — создание/удаление элемента не происходит, поэтому позиция (сверху слева) совпадает с шаблоном после перезагрузки.
 - **Фильтр по папкам**: кнопка с CSS-стрелкой dropdown в тулбаре (CSS Grid layout, 3 колонки × 3 строки). Выпадающий список папок (переиспользует стили `.move-panel`). Чекбокс "показывать подпапки" включён по умолчанию. Фильтрация клиентская через `data-rel-dir` атрибут.
-- **Тулбар (CSS Grid)**: `grid-template-columns: auto 1fr auto; grid-template-rows: auto auto auto`. Row 1: filter-btn (col 1/3, stretch, text-align left) + filterNested (col 3, center). Row 2: delete (col 1) + sort-select (col 2, center) + dir-btn (col 3, center). Row 3: move (col 1) + empty col 2-3. `#selectedCount` снаружи `.toolbar`. Все кнопки/селект одного стиля (`padding: 6px 14px; border-radius: 6px; font-size: 0.9rem`).
+- **Тулбар (CSS Grid)**: `grid-template-columns: auto 1fr auto; grid-template-rows: auto auto auto auto`. Row 1: filter-btn (col 1/3, stretch, text-align left) + filterNested (col 3, center). Row 2: delete (col 1) + sort-select (col 2, center) + dir-btn (col 3, center). Row 3: move (col 1) + empty col 2-3. Row 4: selectAll checkbox (col 1/4, full width) — «Выбрать все». `#selectedCount` снаружи `.toolbar`. Все кнопки/селект одного стиля (`padding: 6px 14px; border-radius: 6px; font-size: 0.9rem`).
+- **Select All**: `toggleSelectAll()` checks/unchecks only visible (filtered) `.msg-item` checkboxes. `updateBatchButton()` syncs master checkbox state: checked if all visible items are checked. Reset automatically after batch operations via `updateBatchButton()`.
 - **Батчевое перемещение (batch-move)**: `POST /dialog/<peer_id>/batch-move` — двухпроходная валидация (все пути → OK-файлы). Сервер возвращает `{success, skipped}`. На фронте: `batchMove()` собирает выбранные CID, открывает move-panel под кнопкой «Переместить в»; `batchMoveToFolder(folder)` отправляет запрос, обновляет `dataset.relDir` DOM-элементов, добавляет skip-бэйджи с авто-исчезновением через 3с, снимает чекбоксы и вызывает `applyFilter()` + `applySort()`. При over-limit (>254) — вход в rename-mode (`overLimitMode = 'batch-move'`), retry через `retryBatchMove()`.
 
 ## Зависимости
