@@ -219,7 +219,9 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
         elif isinstance(att, StickerAttachment):
             _add_row(f"| Стикер | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
         elif isinstance(att, ArticleAttachment):
-            _add_row(f"| Статья | {_rel_cell(att.photo_download_result)} | {_url_cell(att.url)} |")
+            _add_row(f"| Статья | | {_url_cell(att.url)} |")
+            if att.owner_photo_url:
+                _add_row(f"| Аватар автора статьи | | {_url_cell(att.owner_photo_url)} |")
 
     def _url_cell(url: str) -> str:
         display = url if len(url) <= 80 else "url ссылка"
@@ -259,14 +261,16 @@ def _render_attachment(att):
         lines = []
         if isinstance(att.photo_download_result, SuccessDownloadResult):
             lines.append(f'<a href="{att.url}"><img src="{att.photo_download_result.local_path}" width="300" alt="{att.title}"></a>')
+            lines.append("")
         if att.url:
             lines.append(f"**Статья:** [{att.title}]({att.url})")
         else:
             lines.append(f"**Статья:** {att.title}")
         if att.owner_name:
-            lines.append(f"*{att.owner_name}*")
+            lines.append(f"**Автор:** {att.owner_name}")
         if att.lead_description:
-            lines.append(f"\n> {att.lead_description}")
+            lines.append("")
+            lines.append(f"> {att.lead_description}")
         return lines
     return [f"**{type(att).__name__}**"]
 
