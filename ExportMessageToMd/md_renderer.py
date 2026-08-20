@@ -232,7 +232,7 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
 
 def _render_attachment(att):
     if isinstance(att, PhotoAttachment):
-        return [_render_photo(att)]
+        return _render_photo(att)
     if isinstance(att, VideoAttachment):
         return _render_video(att)
     if isinstance(att, LinkAttachment):
@@ -276,12 +276,18 @@ def _render_attachment(att):
     return [f"**{type(att).__name__}**"]
 
 
-def _render_photo(att: PhotoAttachment) -> str:
+def _render_photo(att: PhotoAttachment) -> list:
+    lines = []
     if not att.original_url:
-        return "**Фото:** нет данных"
-    if isinstance(att.download_result, SuccessDownloadResult):
-        return f'**Фото:** <a href="{att.download_result.local_path}"><img src="{att.download_result.local_path}" width="300" alt="Фото"></a>'
-    return f"**Фото:** [ссылка]({att.original_url})"
+        lines.append("**Фото:** нет данных")
+    elif isinstance(att.download_result, SuccessDownloadResult):
+        lines.append(f'**Фото:** <a href="{att.download_result.local_path}"><img src="{att.download_result.local_path}" width="300" alt="Фото"></a>')
+    else:
+        lines.append(f"**Фото:** [ссылка]({att.original_url})")
+    if att.text:
+        lines.append("")
+        lines.append(att.text.replace("\n", "<br>\n"))
+    return lines
 
 
 def _render_video(att: VideoAttachment) -> list:

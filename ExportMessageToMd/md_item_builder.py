@@ -195,7 +195,7 @@ def _resolve_photo(
     else:
         path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger)
         download_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
-    return PhotoAttachment(original_url=url, download_result=download_result)
+    return PhotoAttachment(original_url=url, text=photo.get("text", ""), download_result=download_result)
 
 
 def _resolve_video(

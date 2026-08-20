@@ -30,6 +30,7 @@ class BaseAttachmentItem:
 @dataclass
 class PhotoAttachment(BaseAttachmentItem):
     original_url: str
+    text: str = ""
     download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 
