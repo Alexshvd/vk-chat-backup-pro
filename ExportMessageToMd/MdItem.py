@@ -72,6 +72,18 @@ class StickerAttachment(BaseAttachmentItem):
 
 
 @dataclass
+class ArticleAttachment(BaseAttachmentItem):
+    url: str = ""
+    title: str = ""
+    subtitle: str = ""
+    lead_description: str = ""
+    owner_id: int = 0
+    owner_name: str = ""
+    owner_photo_url: str = ""
+    photo_download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
+
+
+@dataclass
 class WallAttachment(BaseAttachmentItem):
     owner_id: Any = None
     id: Any = None

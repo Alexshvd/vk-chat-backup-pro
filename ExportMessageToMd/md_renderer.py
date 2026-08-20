@@ -5,6 +5,7 @@ from MdItem import (
     MdItem,
     PhotoAttachment, VideoAttachment, LinkAttachment,
     DocAttachment, AudioAttachment, StickerAttachment, WallAttachment,
+    ArticleAttachment,
     BaseDownloadResult, NoDownloadResult, ErrorDownloadResult, SuccessDownloadResult,
 )
 
@@ -217,6 +218,8 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
             _add_row(f"| Аудио | | {att.artist} — {att.title} |")
         elif isinstance(att, StickerAttachment):
             _add_row(f"| Стикер | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
+        elif isinstance(att, ArticleAttachment):
+            _add_row(f"| Статья | {_rel_cell(att.photo_download_result)} | {_url_cell(att.url)} |")
 
     def _url_cell(url: str) -> str:
         display = url if len(url) <= 80 else "url ссылка"
@@ -252,6 +255,19 @@ def _render_attachment(att):
         if isinstance(att.download_result, SuccessDownloadResult):
             return [f"**Стикер:** ![]({att.download_result.local_path})"]
         return [f"**Стикер:**"]
+    if isinstance(att, ArticleAttachment):
+        lines = []
+        if isinstance(att.photo_download_result, SuccessDownloadResult):
+            lines.append(f'<a href="{att.url}"><img src="{att.photo_download_result.local_path}" width="300" alt="{att.title}"></a>')
+        if att.url:
+            lines.append(f"**Статья:** [{att.title}]({att.url})")
+        else:
+            lines.append(f"**Статья:** {att.title}")
+        if att.owner_name:
+            lines.append(f"*{att.owner_name}*")
+        if att.lead_description:
+            lines.append(f"\n> {att.lead_description}")
+        return lines
     return [f"**{type(att).__name__}**"]
 
 

@@ -8,6 +8,7 @@ from MdItem import (
     BaseAttachmentItem, MdItem,
     PhotoAttachment, VideoAttachment, LinkAttachment,
     DocAttachment, AudioAttachment, StickerAttachment, WallAttachment,
+    ArticleAttachment,
     NoDownloadResult, ErrorDownloadResult, SuccessDownloadResult,
 )
 from author_resolver import AuthorInfo
@@ -174,6 +175,8 @@ def _resolve_attachment(
         return _resolve_audio(att.get("audio", {}))
     if t == "sticker":
         return _resolve_sticker(att.get("sticker", {}), cid_raw_dir, md_dir, url_to_relpath, logger)
+    if t == "article":
+        return _resolve_article(att.get("article", {}), cid_raw_dir, md_dir, url_to_relpath, logger)
     return BaseAttachmentItem()
 
 
@@ -304,6 +307,31 @@ def _resolve_sticker(
         path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger)
         download_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
     return StickerAttachment(original_url=url, download_result=download_result)
+
+
+def _resolve_article(
+    article: dict, cid_raw_dir: str, md_dir: str,
+    url_to_relpath: Dict[str, str], logger: BaseLogger,
+) -> ArticleAttachment:
+    photo_url = ""
+    sizes = article.get("photo", {}).get("sizes", [])
+    if sizes:
+        biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
+        photo_url = biggest.get("url", "")
+    photo_download = NoDownloadResult()
+    if photo_url:
+        path = _download_to_raw(photo_url, cid_raw_dir, md_dir, url_to_relpath, logger)
+        photo_download = SuccessDownloadResult(path) if path else ErrorDownloadResult()
+    return ArticleAttachment(
+        url=article.get("url", ""),
+        title=article.get("title", "Статья"),
+        subtitle=article.get("subtitle", ""),
+        lead_description=article.get("lead_description", ""),
+        owner_id=article.get("owner_id", 0),
+        owner_name=article.get("owner_name", ""),
+        owner_photo_url=article.get("owner_photo", ""),
+        photo_download_result=photo_download,
+    )
 
 
 def _resolve_wall(
