@@ -267,6 +267,7 @@ def _render_attachment(att):
         else:
             lines.append(f"**Статья:** {att.title}")
         if att.owner_name:
+            lines.append("")
             lines.append(f"**Автор:** {att.owner_name}")
         if att.lead_description:
             lines.append("")
