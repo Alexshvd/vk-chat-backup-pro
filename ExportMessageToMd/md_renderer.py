@@ -235,6 +235,11 @@ def _render_attachment(att):
     if isinstance(att, WallAttachment):
         return _render_wall(att)
     if isinstance(att, DocAttachment):
+        if att.ext in ("gif", "png", "jpg", "jpeg", "webp"):
+            if isinstance(att.download_result, SuccessDownloadResult):
+                return [f'**Фото:** <a href="{att.download_result.local_path}"><img src="{att.download_result.local_path}" width="300" alt="{att.title}"></a>']
+            if att.url:
+                return [f"**Фото:** [ссылка]({att.url})"]
         title = att.title
         if isinstance(att.download_result, SuccessDownloadResult):
             return [f"**Документ:** [{title}]({att.download_result.local_path})"]

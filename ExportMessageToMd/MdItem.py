@@ -55,6 +55,7 @@ class LinkAttachment(BaseAttachmentItem):
 class DocAttachment(BaseAttachmentItem):
     url: str = ""
     title: str = ""
+    ext: str = ""
     download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 

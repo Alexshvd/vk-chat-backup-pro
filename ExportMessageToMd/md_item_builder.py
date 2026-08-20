@@ -282,7 +282,7 @@ def _resolve_doc(
         path = _download_to_raw(url, cid_raw_dir, md_dir, url_to_relpath, logger,
                                 force_ext=doc.get("ext", ""), force_name=title)
         download_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
-    return DocAttachment(url=url, title=title, download_result=download_result)
+    return DocAttachment(url=url, title=title, ext=doc.get("ext", ""), download_result=download_result)
 
 
 def _resolve_audio(audio: dict) -> AudioAttachment:
