@@ -63,7 +63,8 @@
 
 ### Сборка бинарника (опционально)
 
-Если хотите собрать бинарник самостоятельно, используйте скрипт ``build_exe.bat``.<br>
+Для сборки нужен PyInstaller — он входит в `requirements.txt`, поэтому достаточно установить зависимости (`pip install -r requirements.txt`).<br>
+Скрипт `build_exe.bat` берёт PyInstaller из `.venv`, а если его там нет — глобальный.<br>
 Результат: `dist/VkChatBackup/VkChatBackup.exe` + `_internal/` + `config.json`.
 
 ### Флаги запуска

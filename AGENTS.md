@@ -9,7 +9,7 @@ Read local `messages.json` files, extract all messages into individual JSON file
 ├── run.py                    # Entry point: cli / web modes
 ├── config.json               # Ready-made config (tracked, user-editable)
 ├── README.md                 # GitHub README (RU)
-├── requirements.txt          # requests, flask, mistune
+├── requirements.txt          # requests, flask, mistune, pyinstaller
 ├── .gitignore
 ├── AGENTS.md
 │
@@ -101,13 +101,13 @@ python run.py --mode web --config config.json --no-browser
 
 ## Сборка exe (портативная версия, без установки Python)
 
-Сборка через **PyInstaller** из venv (Python 3.12, там установлены flask/mistune/requests). Одним скриптом:
+Сборка через **PyInstaller** из venv (Python 3.12; зависимости ставятся из `requirements.txt` — requests/flask/mistune/pyinstaller, pyinstaller нужен только для сборки). Одним скриптом:
 
 ```sh
 build_exe.bat
 ```
 
-Скрипт: выбирает PyInstaller (`.venv` → глобальный), очищает промежуточные файлы (`build/`) и предыдущую сборку (`dist/VkChatBackup/`), собирает onedir и **автоматически копирует** `config.json` в `dist\VkChatBackup\`. Если PyInstaller не установлен — ошибка с подсказкой `.venv\Scripts\pip install pyinstaller`.
+Скрипт: выбирает PyInstaller (`.venv` → глобальный), очищает промежуточные файлы (`build/`) и предыдущую сборку (`dist/VkChatBackup/`), собирает onedir и **автоматически копирует** `config.json` в `dist\VkChatBackup\`. PyInstaller входит в `requirements.txt`; если он всё же не установлен — ошибка с подсказкой `.venv\Scripts\pip install pyinstaller`.
 
 Эквивалентная команда вручную:
 ```sh
