@@ -96,17 +96,17 @@
   .attach-group-header button:hover { background: #e0e0e0; }
   .attach-group ul { list-style: disc; padding-left: 16px; margin: 0; }
   .attach-group li::before { content: "•"; flex-shrink: 0; }
-  .move-panel { position: fixed; z-index: 1000; width: 280px; max-height: 300px; overflow-y: auto; background: #f0f7ff; border: 1px solid #d0dfe8; border-radius: 8px; padding: 6px 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
-  .move-panel-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+  .move-panel { position: fixed; z-index: 1000; display: flex; flex-direction: column; width: 280px; min-width: 240px; min-height: 140px; resize: both; overflow: auto; background: #f0f7ff; border: 1px solid #d0dfe8; border-radius: 8px; padding: 6px 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+  .move-panel-header { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
   .move-panel-close { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #555; padding: 0 4px; }
-  .move-panel-list { max-height: 200px; overflow-y: auto; }
+  .move-panel-list { flex: 1 1 auto; min-height: 60px; overflow-y: auto; }
   .move-panel-item { padding: 3px 8px; cursor: pointer; border-radius: 4px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
   .move-panel-item:hover { background: #dce6f5; }
   .move-panel-item::before { content: "\1F4C2"; }
   .move-panel-root { font-weight: 600; }
   .move-panel-current { background: #dce6f5; font-weight: 600; }
   .move-panel-current::before { content: "\2192" !important; color: #e74c3c; font-size: 1.5em; }
-  .move-panel-new { display: flex; gap: 6px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d0dfe8; }
+  .move-panel-new { flex-shrink: 0; display: flex; gap: 6px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #d0dfe8; }
   .move-panel-new input { flex: 1; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
   .move-panel-new button { background: #27ae60; color: #fff; border: none; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 0.85rem; }
 </style>
@@ -242,10 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─── Filter ────────────────────────────────────────
 function toggleFilterPanel() {
   const panel = document.getElementById('filterPanel');
-  if (panel.style.display === 'block') { closeFilterPanel(); return; }
+  if (panel.style.display === 'flex') { closeFilterPanel(); return; }
   const list = document.getElementById('filterFolderList');
   list.innerHTML = '<div class="loading">Загрузка...</div>';
-  panel.style.display = 'block';
+  panel.style.display = 'flex';
   const btn = document.getElementById('filterBtn');
   const rect = btn.getBoundingClientRect();
   panel.style.top = (rect.bottom + 4) + 'px';
@@ -308,7 +308,7 @@ function applyFilter() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const fp = document.getElementById('filterPanel');
-    if (fp.style.display === 'block') { closeFilterPanel(); }
+    if (fp.style.display === 'flex') { closeFilterPanel(); }
   }
 });
 
@@ -689,12 +689,12 @@ function renameSelected() {
 function moveSelected() {
   if (!selectedCid) return;
   const panel = document.getElementById('movePanel');
-  if (panel.style.display === 'block') { closeMovePanel(); return; }
+  if (panel.style.display === 'flex') { closeMovePanel(); return; }
   const list = document.getElementById('moveFolderList');
   const input = document.getElementById('moveNewFolder');
   list.innerHTML = '<div class="loading">Загрузка...</div>';
   input.value = '';
-  panel.style.display = 'block';
+  panel.style.display = 'flex';
   const btn = document.querySelector('.btn-move');
   const rect = btn.getBoundingClientRect();
   panel.style.top = (rect.bottom + 4) + 'px';
@@ -731,12 +731,12 @@ function batchMove() {
   });
 
   const panel = document.getElementById('movePanel');
-  if (panel.style.display === 'block') { closeMovePanel(); return; }
+  if (panel.style.display === 'flex') { closeMovePanel(); return; }
   const list = document.getElementById('moveFolderList');
   const input = document.getElementById('moveNewFolder');
   list.innerHTML = '<div class="loading">Загрузка...</div>';
   input.value = '';
-  panel.style.display = 'block';
+  panel.style.display = 'flex';
   const btn = document.getElementById('btnBatchMove');
   const rect = btn.getBoundingClientRect();
   panel.style.top = (rect.bottom + 4) + 'px';
