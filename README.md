@@ -29,7 +29,7 @@
 
 <div align="center">
   
-  ![Скриншот веб-редактора](docs/screenshots/editor.png)
+  ![Gif веб-редактора](https://drive.google.com/uc?export=view&id=1C0bqUrfx_pxnxZLNjxK_wPQoijLfnC6A)
 </div>
 
 **Возможности:**
