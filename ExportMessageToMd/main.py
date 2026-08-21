@@ -79,12 +79,14 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         items = list(items_dict.values())
         yield f"\n=== Диалог {peer_id} (сообщений: {len(items)}) ==="
 
-        dialog_dir = dialog_dirs.get(peer_id) or (dialogs_dir / f"dialog_{peer_id}")
-        folder_name = dialog_dir.name
+        dialog_dir = dialog_dirs.get(peer_id)
+        if dialog_dir is None:
+            custom = config.dialog_name_by_peer_id.get(peer_id)
+            dialog_dir = dialogs_dir / (custom if custom else f"dialog_{peer_id}")
         little_raw_data_dir = dialog_dir / "RawData"
         original_messages_dir = dialog_dir / "OriginalMessages"
         md_dir = dialog_dir / "MdFiles"
-        large_raw_data_dir = large_root / folder_name
+        large_raw_data_dir = large_root / f"dialog_{peer_id}"
 
         dialog_dir.mkdir(parents=True, exist_ok=True)
 
