@@ -166,13 +166,15 @@ Step 4 resolves all attachments into typed DTOs and downloads photos/stickers/vi
 - `download_short_video` / `download_long_video` / `long_video_threshold` — video download flags
 - `overwrite_existing_md` — if `true`, re-converts messages with existing MD files (deletes old MD + RawData + LargeRawData first); if `false` (default), skips already converted messages
 - `overwrite_existing_original_message_json` — if `true`, overwrites existing OriginalMessages JSON files; if `false` (default), skips already extracted messages
-- `dialog_name_by_peer_id` — custom folder names: `{peer_id: "folder_name"}`. If set, dialog folder is named `{folder_name}` instead of `dialog_{peer_id}`. Renamed via page `/dialog/<peer_id>` button. Only `Dialogs/` folder is renamed; `LargeRawData/` always uses `dialog_{peer_id}`.
+- `dialog_name_by_peer_id` — custom folder names: `{peer_id: "folder_name"}`. If set, dialog folder is named `{folder_name}` instead of `dialog_{peer_id}`. Applied both when creating the folder during export (incl. first export) and when renaming via page `/dialog/<peer_id>` button. Only `Dialogs/` folder is renamed; `LargeRawData/` always uses `dialog_{peer_id}`.
 - `min_cid_by_peer_id` — per-dialog filter: `{peer_id: min_cid}` (messages with cid <= min_cid are skipped)
 - `min_date_by_peer_id` — per-dialog filter: `{peer_id: "yyyy-mm-dd-hh-mm-ss"}` (messages with date <= filter are skipped)
 - If peer_id not in dict — filter disabled for that dialog
 
 ### ExportMessageToMd/main.py
 - Generator function `main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger)` — yields log messages as it processes. `peer_ids` filters which dialogs to export (None = all). `logger` receives warnings during execution.
+- Dialog folder resolution per peer_id: existing folder from `collect_dialog_dirs()` wins; if none, fallback = `config.dialog_name_by_peer_id[peer_id]` or `dialog_{peer_id}` (custom name entered on `/export` before first export creates the custom-named folder).
+- `large_raw_data_dir` is always `LargeRawData/dialog_{peer_id}` regardless of the Dialogs folder name.
 - Used both by CLI (`run.py --mode cli`) and web (`POST /export/generate`)
 - Can be run standalone: `python ExportMessageToMd/main.py --config ../config.json`
 
