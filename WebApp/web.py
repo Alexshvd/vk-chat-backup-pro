@@ -379,6 +379,11 @@ def save_filters():
         cid = item.get("min_cid", "")
         date = item.get("min_date", "")
         dialog_name = item.get("dialog_name", "")
+        if dialog_name and re.search(r'[\\/:*?"<>|]', dialog_name):
+            return jsonify({
+                "ok": False,
+                "errors": {peer_id_str: "Недопустимые символы в названии папки (\\/:*?\"<>|)"},
+            }), 400
         if cid != "":
             raw["min_cid_by_peer_id"][peer_id_str] = int(cid)
         if date:
@@ -720,6 +725,8 @@ def rename_md_file(peer_id: int, cid: int):
     new_name = data.get("filename", "").strip()
     if not new_name:
         return jsonify({"success": False, "error": "filename is required"}), 400
+    if re.search(r'[\\/:*?"<>|]', new_name):
+        return jsonify({"success": False, "error": "Недопустимые символы в имени (\\/:*?\"<>|)"}), 400
 
     dialog_dir = _get_dialog_dir(peer_id)
     md_dir = dialog_dir / "MdFiles"
@@ -940,6 +947,8 @@ def rename_attachment(peer_id: int, cid: int):
     storage = data.get("storage", "raw")
     if not old_name or not new_name:
         return jsonify({"success": False, "error": "old_name and new_name are required"}), 400
+    if re.search(r'[\\/:*?"<>|]', new_name):
+        return jsonify({"success": False, "error": "Недопустимые символы в имени (\\/:*?\"<>|)"}), 400
 
     if Path(old_name).suffix.lower() != Path(new_name).suffix.lower():
         return jsonify({"success": False, "error": "Cannot change file extension"}), 400

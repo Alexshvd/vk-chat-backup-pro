@@ -216,6 +216,7 @@
           <label style="font-size: 0.85rem; color: #666;">Название папки:
             <input type="text" data-peer="{{ peer_id }}" data-field="dialog_name" value="{{ dialog_names.get(peer_id, '') }}" placeholder="dialog_{{ peer_id }}" {% if folder_exists_by_peer_id.get(peer_id, False) %}disabled title="Папка уже существует. Переименование доступно на странице диалога"{% endif %} style="width: 220px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; {% if folder_exists_by_peer_id.get(peer_id, False) %}background: #f0f0f0; color: #999;{% endif %}">
           </label>
+          <span class="dlg-name-error" style="display:none;font-size:0.75rem;color:#e74c3c;"></span>
           {% if folder_exists_by_peer_id.get(peer_id, False) %}
           <span style="font-size: 0.75rem; color: #999;">переименование на странице диалога</span>
           {% endif %}
@@ -247,6 +248,59 @@ function toggleAll(master) {
   });
 }
 
+var FORBIDDEN_NAME_CHARS = '\\/:*?"<>|';
+
+function findForbiddenChars(val) {
+  var found = [];
+  for (var i = 0; i < val.length; i++) {
+    var ch = val.charAt(i);
+    if (FORBIDDEN_NAME_CHARS.indexOf(ch) !== -1 && found.indexOf(ch) === -1) found.push(ch);
+  }
+  return found;
+}
+
+function validateDialogName(inp) {
+  var bad = findForbiddenChars(inp.value);
+  var errEl = inp.closest('div').querySelector('.dlg-name-error');
+  if (bad.length) {
+    errEl.textContent = (bad.length === 1 ? 'Запрещённый символ: ' : 'Запрещённые символы: ') + bad.join(' ');
+    errEl.style.display = '';
+    inp.style.borderColor = '#e74c3c';
+  } else {
+    errEl.style.display = 'none';
+    inp.style.borderColor = '';
+  }
+  var group = inp.closest('.peer-group');
+  var saveBtn = group ? group.querySelector('button[type="button"]') : null;
+  if (saveBtn && !inp.disabled) saveBtn.disabled = bad.length > 0;
+  return bad.length === 0;
+}
+
+function hasInvalidDialogNames() {
+  var inputs = document.querySelectorAll('input[data-field="dialog_name"]');
+  for (var i = 0; i < inputs.length; i++) {
+    if (!inputs[i].disabled && !validateDialogName(inputs[i])) return true;
+  }
+  return false;
+}
+
+function showSaveFiltersError(errors) {
+  Object.keys(errors || {}).forEach(function(pid) {
+    var inp = document.querySelector('input[data-field="dialog_name"][data-peer="' + pid + '"]');
+    if (!inp) return;
+    var errEl = inp.closest('div').querySelector('.dlg-name-error');
+    errEl.textContent = errors[pid];
+    errEl.style.display = '';
+    inp.style.borderColor = '#e74c3c';
+  });
+}
+
+document.querySelectorAll('input[data-field="dialog_name"]').forEach(function(inp) {
+  if (inp.disabled) return;
+  validateDialogName(inp);
+  inp.addEventListener('input', function() { validateDialogName(inp); });
+});
+
 function collectFilters() {
   var filters = {};
   document.querySelectorAll('input[data-peer]').forEach(function(inp) {
@@ -261,13 +315,23 @@ function collectFilters() {
 }
 
 function saveFilters(btn) {
+  if (hasInvalidDialogNames()) return;
   btn.textContent = 'Сохранение...';
   btn.disabled = true;
   fetch('/export/save-filters', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({filters: collectFilters()})
-  }).then(function(r) { return r.json(); }).then(function() {
+  }).then(function(r) {
+    return r.json().then(function(j) { return {ok: r.ok, j: j}; });
+  }).then(function(res) {
+    if (!res.ok) {
+      showSaveFiltersError(res.j.errors);
+      btn.textContent = 'Ошибка сохранения';
+      btn.style.background = '#e74c3c';
+      setTimeout(function() { btn.textContent = 'Сохранить фильтры'; btn.style.background = '#6c757d'; btn.disabled = false; }, 2500);
+      return;
+    }
     btn.textContent = 'Сохранено';
     btn.style.background = '#28a745';
     setTimeout(function() { btn.textContent = 'Сохранить фильтры'; btn.style.background = '#6c757d'; btn.disabled = false; }, 1500);
@@ -276,6 +340,7 @@ function saveFilters(btn) {
 
 document.getElementById('generateForm').addEventListener('submit', function(e) {
   e.preventDefault();
+  if (hasInvalidDialogNames()) return;
   var form = this;
   var btn = document.getElementById('btnGenerate');
   btn.disabled = true;
@@ -284,7 +349,15 @@ document.getElementById('generateForm').addEventListener('submit', function(e) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({filters: collectFilters()})
-  }).then(function(r) { return r.json(); }).then(function() {
+  }).then(function(r) {
+    return r.json().then(function(j) { return {ok: r.ok, j: j}; });
+  }).then(function(res) {
+    if (!res.ok) {
+      showSaveFiltersError(res.j.errors);
+      btn.disabled = false;
+      btn.textContent = 'Сформировать MD';
+      return;
+    }
     btn.textContent = 'Генерация...';
     form.submit();
   });

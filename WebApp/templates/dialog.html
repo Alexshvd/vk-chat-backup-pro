@@ -70,6 +70,7 @@
   .rename-save-btn:hover { background: #e8f8f0; }
   .rename-save-btn:disabled { opacity: 0.4; cursor: default; background: none; }
   .char-count { font-size: 0.75rem; color: #888; margin-top: 2px; }
+  .rename-error { font-size: 0.75rem; color: #e74c3c; margin-top: 2px; }
   .over-limit-bar { display: flex; gap: 8px; padding: 6px 0; margin-bottom: 4px; }
   .over-limit-bar button { padding: 6px 14px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; border: 1px solid; }
   .over-limit-bar .over-limit-back { background: #fff3cd; border-color: #ffc107; color: #856404; }
@@ -233,6 +234,18 @@ let currentOverLimitAttachments = [];
 let batchMoveCids = [];
 let batchMoveTargetFolder = '';
 let overLimitMode = 'rename';
+
+const FORBIDDEN_NAME_CHARS = '\\/:*?"<>|';
+function findForbiddenChars(val) {
+  const found = [];
+  for (const ch of val) {
+    if (FORBIDDEN_NAME_CHARS.includes(ch) && !found.includes(ch)) found.push(ch);
+  }
+  return found;
+}
+function forbiddenCharsMessage(chars) {
+  return (chars.length === 1 ? 'Запрещённый символ: ' : 'Запрещённые символы: ') + chars.join(' ');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   applySort();
@@ -597,31 +610,37 @@ function renameSelected() {
       counter.className = 'char-count';
       counter.textContent = `${currentText.length}/${maxMd}`;
 
+      const errDiv = document.createElement('div');
+      errDiv.className = 'rename-error';
+      errDiv.style.display = 'none';
+
       const saveBtn = document.createElement('button');
       saveBtn.textContent = '✓';
       saveBtn.className = 'rename-save-btn';
       saveBtn.title = 'Сохранить';
 
-      if (currentText.length > maxMd) {
-        counter.style.color = '#e74c3c';
-        saveBtn.disabled = true;
-      }
-
-      input.addEventListener('input', () => {
+      const updateState = () => {
         const len = input.value.length;
         counter.textContent = `${len}/${maxMd}`;
-        if (len > maxMd) {
-          counter.style.color = '#e74c3c';
-          saveBtn.disabled = true;
-        } else {
-          counter.style.color = '';
-          saveBtn.disabled = false;
-        }
-      });
+        const errs = [];
+        const badChars = findForbiddenChars(input.value);
+        if (badChars.length) errs.push(forbiddenCharsMessage(badChars));
+        if (!input.value.trim()) errs.push('Имя не может быть пустым');
+        const tooLong = len > maxMd;
+        counter.style.color = tooLong ? '#e74c3c' : '';
+        if (tooLong) errs.push('Имя слишком длинное');
+        errDiv.textContent = errs.join('; ');
+        errDiv.style.display = errs.length ? '' : 'none';
+        input.style.borderColor = errs.length ? '#e74c3c' : '';
+        saveBtn.disabled = errs.length > 0;
+      };
+      updateState();
+      input.addEventListener('input', updateState);
 
       filenameEl.textContent = '';
       filenameEl.appendChild(input);
       filenameEl.appendChild(counter);
+      filenameEl.appendChild(errDiv);
       filenameEl.appendChild(saveBtn);
       input.focus();
       input.select();
@@ -629,6 +648,7 @@ function renameSelected() {
       const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
 
       const finish = (save) => {
+        if (save && saveBtn.disabled) return;
         if (!save) {
           filenameEl.textContent = fullName;
           cleanup();
@@ -965,31 +985,37 @@ function renameAttachment(cid, oldName, storage, btnEl) {
       counter.className = 'char-count';
       counter.textContent = `${baseName.length}/${maxAttach}`;
 
+      const errDiv = document.createElement('div');
+      errDiv.className = 'rename-error';
+      errDiv.style.display = 'none';
+
       const saveBtn = document.createElement('button');
       saveBtn.textContent = '✓';
       saveBtn.className = 'rename-save-btn';
       saveBtn.title = 'Сохранить';
 
-      if (baseName.length > maxAttach) {
-        counter.style.color = '#e74c3c';
-        saveBtn.disabled = true;
-      }
-
-      input.addEventListener('input', () => {
+      const updateState = () => {
         const len = input.value.length;
         counter.textContent = `${len}/${maxAttach}`;
-        if (len > maxAttach) {
-          counter.style.color = '#e74c3c';
-          saveBtn.disabled = true;
-        } else {
-          counter.style.color = '';
-          saveBtn.disabled = false;
-        }
-      });
+        const errs = [];
+        const badChars = findForbiddenChars(input.value);
+        if (badChars.length) errs.push(forbiddenCharsMessage(badChars));
+        if (!input.value.trim()) errs.push('Имя не может быть пустым');
+        const tooLong = len > maxAttach;
+        counter.style.color = tooLong ? '#e74c3c' : '';
+        if (tooLong) errs.push('Имя слишком длинное');
+        errDiv.textContent = errs.join('; ');
+        errDiv.style.display = errs.length ? '' : 'none';
+        input.style.borderColor = errs.length ? '#e74c3c' : '';
+        saveBtn.disabled = errs.length > 0;
+      };
+      updateState();
+      input.addEventListener('input', updateState);
 
       nameEl.textContent = '';
       nameEl.appendChild(input);
       nameEl.appendChild(counter);
+      nameEl.appendChild(errDiv);
       nameEl.appendChild(saveBtn);
       input.focus();
       input.select();
@@ -997,6 +1023,7 @@ function renameAttachment(cid, oldName, storage, btnEl) {
       const cleanup = () => { if (saveBtn.parentNode) saveBtn.remove(); };
 
       const finish = (save) => {
+        if (save && saveBtn.disabled) return;
         if (!save) {
           nameEl.textContent = currentName;
           cleanup();
@@ -1113,6 +1140,29 @@ function renameFolder() {
   saveBtn.className = 'rename-save-btn';
   saveBtn.title = 'Сохранить';
 
+  const errDiv = document.createElement('div');
+  errDiv.className = 'rename-error';
+  errDiv.style.display = 'none';
+
+  const updateState = () => {
+    const val = input.value.trim();
+    const errs = [];
+    const badChars = findForbiddenChars(val);
+    if (badChars.length) {
+      errs.push(forbiddenCharsMessage(badChars));
+    } else if (val) {
+      const segments = val.split(/[\\/]/);
+      if (segments.some(s => s === '..')) errs.push('Сегмент пути не может быть ".."');
+      if (segments.some(s => !s)) errs.push('Имя не может содержать пустые сегменты');
+    }
+    errDiv.textContent = errs.join('; ');
+    errDiv.style.display = errs.length ? '' : 'none';
+    input.style.borderColor = errs.length ? '#e74c3c' : '';
+    saveBtn.disabled = errs.length > 0;
+  };
+  updateState();
+  input.addEventListener('input', updateState);
+
   const warnDiv = document.createElement('div');
   warnDiv.style.cssText = 'font-size:0.8rem;color:#8ab4f8;margin-top:6px;line-height:1.3;';
 
@@ -1128,12 +1178,14 @@ function renameFolder() {
   nameEl.textContent = '';
   nameEl.appendChild(input);
   nameEl.appendChild(saveBtn);
+  nameEl.appendChild(errDiv);
   nameEl.appendChild(warnDiv);
   btn.style.display = 'none';
   input.focus();
   input.select();
 
   const finish = (save) => {
+    if (save && saveBtn.disabled) return;
     if (!save) {
       nameEl.textContent = currentName;
       btn.style.display = '';
