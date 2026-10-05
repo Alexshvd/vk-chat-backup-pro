@@ -3,48 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VkChatBackup — Диалоги</title>
+<title>{{ app_name }} — Диалоги</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #222; }
   .container { max-width: 800px; margin: 0 auto; }
-  .nav { margin-bottom: 16px; display: flex; gap: 16px; font-size: 0.9rem; }
-  .nav a { color: #555; text-decoration: none; }
-  .nav a:hover { text-decoration: underline; }
   h1 { font-size: 1.5rem; margin-bottom: 20px; }
-  .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; gap: 16px; align-items: center; }
   .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  .card-title { font-size: 1.1rem; font-weight: 600; }
+  .card-title { font-size: 1.1rem; font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .dialog-avatar { position: relative; width: 56px; height: 56px; flex-shrink: 0; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #5181b8; color: white; font-size: 1.1rem; font-weight: 600; }
+  .dialog-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .card-link { text-decoration: none; color: inherit; display: block; }
-  .badge { background: #e0e0e0; padding: 2px 10px; border-radius: 12px; font-size: 0.85rem; color: #555; }
+  .badge { background: #e0e0e0; padding: 2px 10px; border-radius: 12px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
   .empty { color: #999; text-align: center; padding: 40px; }
+  .intro{line-height:1.6;color:#666}.extra{margin:-4px 0 18px 16px;font-size:.9rem}.extra summary{cursor:pointer;color:#666}.extra p{line-height:1.6}
+  @media(max-width:480px){body{padding:14px}.card{padding:12px;gap:10px}.dialog-avatar{width:44px;height:44px;font-size:1rem}.card-title{font-size:1rem}.badge{font-size:.75rem;padding:2px 7px}}
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-<body>
+<body class="has-app-navigation app-page">
+{% with active_page='dialogs' %}{% include 'navigation.html' %}{% endwith %}
 <div class="container">
-  <div class="nav">
-    <a href="/main">Главная</a>
-    <a href="/dialogs">Диалоги</a>
-    <a href="/export">Экспорт</a>
-    <a href="/settings">Настройки</a>
-  </div>
-  <h1>VkChatBackup — Диалоги</h1>
+  <h1>Сохранённые диалоги</h1>
+  <p class="intro">Нажмите на имя, чтобы открыть переписку. Чтобы сохранить ещё один диалог, перейдите в <a href="/export">«Скачать диалог»</a>.</p>
   {% if dialogs %}
     {% for d in dialogs %}
-      <a href="/dialog/{{ d.peer_id }}" class="card-link">
+      <a href="/chat/{{ d.peer_id }}" class="card-link">
         <div class="card">
-          <span class="card-title">
-            <div>{{ d.name }} (peer_id: {{ d.peer_id }})</div>
-            {% if d.last_message_name %}
-            <div style="font-size: 0.85rem; color: #555; font-weight: 400;">Последние сообщение: {{ d.last_message_name }}</div>
-            {% endif %}
+          {% set words = d.name.split() %}
+          <span class="dialog-avatar" aria-hidden="true">
+            <span>{{ ((words[0][0] ~ words[1][0]) if words|length > 1 else d.name[:2])|upper }}</span>
+            {% if d.avatar %}<img src="{{ d.avatar }}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;">{% endif %}
           </span>
+          <div class="card-title">
+            <div>{{ d.name }}</div>
+            {% if d.last_message_name %}
+            <div style="font-size: 0.85rem; color: #555; font-weight: 400;">{{ d.last_message_name }}</div>
+            {% endif %}
+          </div>
           <div class="badge" style="display: flex; flex-direction: column; align-items: center;"><span>сообщений:</span><span>{{ d.count }}</span></div>
         </div>
       </a>
+      <details class="extra disclosure"><summary>Дополнительно</summary><p><a href="/dialog/{{ d.peer_id }}">Редактор файлов</a> — переименование, перемещение и удаление сохранённых файлов.</p></details>
     {% endfor %}
   {% else %}
-    <div class="empty">Нет диалогов. Убедитесь, что export_root указан верно.</div>
+    <div class="empty">Здесь пока нет переписки.<br><a href="/export">Скачайте первый диалог из ВК →</a></div>
   {% endif %}
 </div>
 </body>

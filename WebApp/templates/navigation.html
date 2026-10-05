@@ -1,0 +1,12 @@
+<header class="app-header">
+  <nav class="app-nav" aria-label="Основное меню">
+    {% for key, href, label in [('main', '/main', 'Главная'), ('dialogs', '/dialogs', 'Диалоги'), ('export', '/export', 'Скачать диалог'), ('settings', '/settings', 'Настройки')] %}
+    <a href="{{ href }}"{% if active_page == key %} class="is-active" aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <div class="app-support">
+    <span>{{ app_name }} · {{ app_version }}</span>
+    <a href="{{ bug_report_url }}" target="_blank" rel="noopener noreferrer">Сообщить об ошибке</a>
+    <a href="{{ feature_request_url }}" target="_blank" rel="noopener noreferrer">Предложить улучшение</a>
+  </div>
+</header>

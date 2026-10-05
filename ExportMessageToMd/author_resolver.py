@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from download_media import download_file
 from config_loader import path_rel
 from Loggers.base_logger import BaseLogger
+from media_store import shared_avatars
 
 
 @dataclass
@@ -72,6 +73,8 @@ def ensure_author_avatars(
     md_dir: str,
     logger: BaseLogger,
 ) -> None:
+    archive_root = Path(authors_dir).resolve().parents[2]
+    mapped_avatars = shared_avatars(archive_root)
     for author_id, info in authors.items():
         if not info.photo_url:
             continue
@@ -83,6 +86,9 @@ def ensure_author_avatars(
         ext = _get_ext_from_url(info.photo_url)
         filename = f"{author_id}.{ext}"
         filepath = Path(authors_dir) / filename
+
+        if not filepath.exists() and author_id in mapped_avatars:
+            filepath = mapped_avatars[author_id]
 
         if filepath.exists():
             relpath = path_rel(str(filepath), md_dir)

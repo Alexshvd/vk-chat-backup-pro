@@ -21,6 +21,8 @@ rmdir /s /q dist\VkChatBackup 2>nul
 %PYI% --onedir --console --noconfirm --clean ^
   --name VkChatBackup ^
   --add-data "WebApp/templates;WebApp/templates" ^
+  --add-data "BrowserExtension;BrowserExtension" ^
+  --add-data "WebApp/static;WebApp/static" ^
   --paths WebApp --paths ExportMessageToMd --paths Config run.py
 if errorlevel 1 (
   echo [ERROR] Build failed.

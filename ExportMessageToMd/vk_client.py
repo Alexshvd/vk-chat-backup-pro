@@ -5,6 +5,7 @@ from typing import Dict
 import requests
 
 from Loggers.base_logger import BaseLogger
+from download_media import DOWNLOAD_HEADERS
 
 
 def _parse_video_embed(text: str, logger: BaseLogger) -> Dict[str, str]:
@@ -37,8 +38,10 @@ def _parse_video_embed(text: str, logger: BaseLogger) -> Dict[str, str]:
                                 blob = text[brace : i + 1]
                                 try:
                                     files = json.loads(blob)
-                                    result = {k: v for k, v in files.items() if k.startswith("mp4_")}
+                                    result = {k: v for k, v in files.items() if k.startswith("mp4_") or k == "src"}
                                     if result:
+                                        if files.get("failover_host"):
+                                            result["failover_host"] = files["failover_host"]
                                         return result
                                 except json.JSONDecodeError as ex:
                                     logger.LogWarning("Ошибка парсинга apiPrefetchCache", ex)
@@ -50,7 +53,10 @@ def _parse_video_embed(text: str, logger: BaseLogger) -> Dict[str, str]:
         raw = raw.replace('\\/', '/').replace('\\u0026', '&')
         try:
             files = json.loads(raw)
-            return {k: v for k, v in files.items() if k.startswith("mp4_")}
+            result = {k: v for k, v in files.items() if k.startswith("mp4_") or k == "src"}
+            if result and files.get("failover_host"):
+                result["failover_host"] = files["failover_host"]
+            return result
         except json.JSONDecodeError as ex:
             logger.LogWarning("Ошибка парсинга regex fallback", ex)
 
@@ -62,7 +68,7 @@ def get_video_embed_urls(owner_id: int, video_id: int, logger: BaseLogger) -> Di
         "https://vk.com/video_ext.php",
         params={"oid": owner_id, "id": video_id},
         timeout=30,
-        headers={"User-Agent": "Mozilla/5.0"},
+        headers=DOWNLOAD_HEADERS,
     )
     resp.raise_for_status()
     return _parse_video_embed(resp.text, logger)

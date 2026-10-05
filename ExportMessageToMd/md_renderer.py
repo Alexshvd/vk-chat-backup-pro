@@ -1,4 +1,5 @@
 from datetime import datetime
+from html import escape
 from typing import Any, Optional
 
 from MdItem import (
@@ -215,7 +216,7 @@ def _append_sources_table(lines: list, item: MdItem) -> None:
             if att.url:
                 _add_row(f"| Документ | {_rel_cell(att.download_result)} | {_url_cell(att.url)} |")
         elif isinstance(att, AudioAttachment):
-            _add_row(f"| Аудио | | {att.artist} — {att.title} |")
+            _add_row(audio_source_row(att))
         elif isinstance(att, StickerAttachment):
             _add_row(f"| Стикер | {_rel_cell(att.download_result)} | {_url_cell(att.original_url)} |")
         elif isinstance(att, ArticleAttachment):
@@ -252,7 +253,16 @@ def _render_attachment(att):
             return [f"**Документ:** [{title}]({att.url})"]
         return [f"**Документ:** {title}"]
     if isinstance(att, AudioAttachment):
-        return [f"**Аудио:** {att.artist} — {att.title}"]
+        label = "Голосовое сообщение" if att.is_voice else "Аудио"
+        title = " — ".join(filter(None, [att.artist, att.title]))
+        lines = [f"**{label}:** {title}"]
+        if isinstance(att.download_result, SuccessDownloadResult):
+            lines.append(f'<audio src="{escape(att.download_result.local_path, quote=True)}" controls preload="none"></audio>')
+        elif att.original_url:
+            lines.append(f"[Слушать онлайн]({att.original_url})")
+        else:
+            lines.append("Файл недоступен: ВК не передал ссылку на скачивание.")
+        return lines
     if isinstance(att, StickerAttachment):
         if isinstance(att.download_result, SuccessDownloadResult):
             return [f"**Стикер:** ![]({att.download_result.local_path})"]
@@ -274,6 +284,12 @@ def _render_attachment(att):
             lines.append(f"> {att.lead_description}")
         return lines
     return [f"**{type(att).__name__}**"]
+
+
+def audio_source_row(att):
+    kind = "Голосовое сообщение" if att.is_voice else "Аудио"
+    remote = f"[аудио]({att.original_url})" if att.original_url else ""
+    return f"| {kind} | {_rel_cell(att.download_result)} | {remote} |"
 
 
 def _render_photo(att: PhotoAttachment) -> list:

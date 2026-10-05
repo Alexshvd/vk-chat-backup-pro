@@ -6,21 +6,32 @@ import re
 import shutil
 import subprocess
 import sys
+import io
+import zipfile
+from urllib.parse import urlsplit
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, stream_with_context, url_for
+from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, send_file, stream_with_context, url_for
 from mistune import HTMLRenderer, create_markdown
 
 from config_loader import load_config
 from dialog_dirs import collect_dialog_dirs
+from chat_view import ChatArchive
+from dialog_media import media_library
 from Loggers.print_logger import PrintLogger
 from Loggers.buffer_logger import BufferLogger
 from Loggers.aggregation_logger import AggregationLogger
 from main import main as run_pipeline
+from audio_backfill import backfill_audio
+from media_store import MediaStore
+from vk_import import VkImportJobs, BrowserBridge
+from browser_launch import BROWSERS, browser_options, open_browser
+from video_cache import source_rows
+from app_info import APP_NAME, APP_VERSION, HELPER_VERSION, REPOSITORY_URL, bug_report_url, feature_request_url
 
-CID_PATTERN = re.compile(r"\.Id(\d+)(?:_part_\d+)?\.md$")
+CID_PATTERN = re.compile(r"(?:^|\.)Id(\d+)(?:_part_\d+)?\.md$")
 
 def _template_folder() -> str:
     if getattr(sys, "frozen", False):
@@ -28,7 +39,7 @@ def _template_folder() -> str:
     return str(Path(__file__).resolve().parent / "templates")
 
 
-app = Flask(__name__, template_folder=_template_folder())
+app = Flask(__name__, template_folder=_template_folder(), static_folder=str(Path(_template_folder()).parent / "static"))
 export_root_abs: Optional[Path] = None
 export_serve_abs: Optional[Path] = None
 large_root_abs: Optional[Path] = None
@@ -36,6 +47,13 @@ dialogs_dir_abs: Optional[Path] = None
 renderer = HTMLRenderer(escape=False)
 md = create_markdown(renderer=renderer, plugins=['table', 'strikethrough'])
 _config_path = ""
+
+
+@app.context_processor
+def public_product_info():
+    return dict(app_name=APP_NAME, app_version=APP_VERSION, helper_version=HELPER_VERSION,
+                repository_url=REPOSITORY_URL, bug_report_url=bug_report_url(),
+                feature_request_url=feature_request_url())
 
 
 def load_configs(config_path: str):
@@ -163,7 +181,24 @@ def _find_md_files(md_dir: Path, cid: int) -> list[Path]:
 
 
 
-def _get_attachment_size(md_dir: Path, raw_dir: Path, peer_id: int, cid: int) -> int:
+def _shared_media_files(md_files):
+    result = set()
+    shared = (large_root_abs / "SharedMedia").resolve()
+    for md_file in md_files:
+        try:
+            text = md_file.read_text(encoding="utf-8")
+            for label, relative, remote in source_rows(text):
+                if label.startswith("Аватар") or not relative:
+                    continue
+                path = (md_file.parent / relative).resolve()
+                if path.is_relative_to(shared) and path.is_file():
+                    result.add(path)
+        except OSError:
+            continue
+    return sorted(result)
+
+
+def _get_attachment_size(md_dir: Path, raw_dir: Path, peer_id: int, cid: int, md_files=None) -> int:
     total = 0
     cid_raw = raw_dir / str(cid)
     if cid_raw.is_dir():
@@ -175,6 +210,8 @@ def _get_attachment_size(md_dir: Path, raw_dir: Path, peer_id: int, cid: int) ->
         for f in cid_large.rglob("*"):
             if f.is_file():
                 total += f.stat().st_size
+    if md_files is not None:
+        total += sum(f.stat().st_size for f in _shared_media_files(md_files))
     return total
 
 
@@ -251,7 +288,7 @@ def _list_attachments(peer_id: int, cid: int) -> dict:
     raw_dir = dialog_dir / "RawData" / str(cid)
     large_dir = _get_dialog_large_raw_data_dir(peer_id) / str(cid)
 
-    files = {"raw": [], "large": []}
+    files = {"raw": [], "large": [], "shared": []}
     if raw_dir.is_dir():
         for f in sorted(raw_dir.rglob("*")):
             if f.is_file():
@@ -260,6 +297,8 @@ def _list_attachments(peer_id: int, cid: int) -> dict:
         for f in sorted(large_dir.rglob("*")):
             if f.is_file():
                 files["large"].append({"name": f.name, "size": f.stat().st_size, "path": str(f)})
+    for f in _shared_media_files(_find_md_files(dialog_dir / "MdFiles", cid)):
+        files["shared"].append({"name": f.name, "size": f.stat().st_size, "path": str(f)})
     return files
 
 
@@ -429,6 +468,171 @@ def run_export():
 
 # ─── Routes (Main) ────────────────────────────────────────────
 
+def _vk_local_request():
+    origin = request.headers.get("Origin")
+    if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+        abort(403)
+    if request.headers.get("Sec-Fetch-Site") == "cross-site":
+        abort(403)
+
+
+@app.route("/api/vk/import", methods=["POST"])
+def start_vk_import():
+    _vk_local_request()
+    data = request.get_json() or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "Некорректные параметры загрузки."}), 400
+    try:
+        browser_id = data.get("browser")
+        if browser_id is not None and (not isinstance(browser_id, str) or browser_id not in BROWSERS):
+            raise ValueError("Выберите браузер из списка.")
+        job_id = VkImportJobs(_config_path).start(data.get("link"), login_only=data.get("login_only") is True, browser_id=browser_id)
+        return jsonify({"id": job_id}), 202
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 409
+    except OSError:
+        return jsonify({"error": "Не удалось запустить загрузку. Проверьте установку приложения."}), 500
+
+
+@app.route("/browser-connect")
+def browser_connect_page():
+    browser_id = request.args.get("browser", "default")
+    if browser_id not in BROWSERS:
+        abort(400)
+    root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
+    return render_template("browser_connect.html", browser_id=browser_id, browser_info=BROWSERS[browser_id],
+                           helper_path=str(root / "BrowserExtension"))
+
+
+@app.route("/api/vk/browser/options")
+def vk_browser_options():
+    return jsonify(browser_options())
+
+
+@app.route("/browser-helper/<family>.zip")
+def download_browser_helper(family):
+    if family not in ("chromium", "firefox"):
+        abort(404)
+    root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
+    extension = root / "BrowserExtension"
+    manifest = _json.loads((extension / "manifest.json").read_text(encoding="utf-8"))
+    if family == "firefox":
+        manifest.pop("minimum_chrome_version", None)
+        manifest["background"] = {"scripts": ["background.js"]}
+        manifest["browser_specific_settings"] = {"gecko": {"id": "vk-chat-backup@local.invalid", "strict_min_version": "128.0"}}
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("manifest.json", _json.dumps(manifest, ensure_ascii=False, indent=2))
+        for name in ("background.js", "connect.js"):
+            archive.writestr(name, (extension / name).read_bytes())
+    output.seek(0)
+    return send_file(output, mimetype="application/zip", as_attachment=True, download_name=f"vk-chat-backup-{family}.zip")
+
+
+@app.route("/api/vk/browser/status")
+def vk_browser_status():
+    response = jsonify(BrowserBridge(_config_path).status())
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/vk/browser/connect", methods=["POST"])
+def vk_browser_connect():
+    _vk_local_request()
+    bridge = BrowserBridge(_config_path)
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        abort(400)
+    browser_id = data.get("browser", "default")
+    if not isinstance(browser_id, str) or browser_id not in BROWSERS:
+        return jsonify({"error": "Выберите браузер из списка."}), 400
+    host = urlsplit(request.host_url)
+    if host.hostname not in ("localhost", "127.0.0.1", "::1"):
+        abort(403)
+    nonce = bridge.create_pairing(browser_id)
+    url = f"http://127.0.0.1:{host.port or 80}/browser-connect?browser={browser_id}#" + nonce
+    # The page navigates its own tab, keeping the browser and logged-in profile.
+    # Never ask Windows to launch a default or separate browser for pairing.
+    return jsonify({"url": url, "opened": False})
+
+
+@app.route("/api/vk/bridge/pair", methods=["POST"])
+def vk_bridge_pair():
+    data = request.get_json() or {}
+    if not isinstance(data, dict):
+        abort(400)
+    try:
+        token = BrowserBridge(_config_path).pair(data.get("nonce"), data.get("browser"))
+    except PermissionError:
+        abort(403)
+    return jsonify({"token": token})
+
+
+def _authorized_bridge():
+    bridge = BrowserBridge(_config_path)
+    value = request.headers.get("Authorization", "")
+    if not value.startswith("Bearer "):
+        abort(403)
+    try:
+        bridge.authorize(value[7:])
+    except PermissionError:
+        abort(403)
+    return bridge
+
+
+@app.route("/api/vk/bridge/pending")
+def vk_bridge_pending():
+    response = jsonify({"command": _authorized_bridge().pending()})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/vk/bridge/response", methods=["POST"])
+def vk_bridge_response():
+    bridge = _authorized_bridge()
+    if request.content_length and request.content_length > 32 * 1024 * 1024:
+        abort(413)
+    data = request.get_json() or {}
+    if not isinstance(data, dict):
+        abort(400)
+    try:
+        bridge.respond(data)
+    except ValueError:
+        abort(409)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/vk/import/latest")
+def latest_vk_import():
+    response = jsonify(VkImportJobs(_config_path).latest())
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/vk/import/<job_id>")
+def vk_import_status(job_id):
+    try:
+        status = VkImportJobs(_config_path).status(job_id)
+    except ValueError:
+        abort(404)
+    if status is None:
+        abort(404)
+    response = jsonify(status)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/vk/import/<job_id>/cancel", methods=["POST"])
+def cancel_vk_import(job_id):
+    _vk_local_request()
+    try:
+        VkImportJobs(_config_path).cancel(job_id)
+    except ValueError:
+        abort(404)
+    return jsonify({"ok": True})
+
 @app.route("/api/list-dirs")
 def api_list_dirs():
     path_str = request.args.get("path", "").strip()
@@ -467,6 +671,7 @@ def save_settings():
     data = request.get_json(force=True)
     allowed = {
         "export_root", "download_short_video", "download_long_video",
+        "download_audio", "download_voice_messages",
         "long_video_threshold", "overwrite_existing_md",
         "overwrite_existing_original_message_json",
     }
@@ -479,6 +684,28 @@ def save_settings():
         _json.dump(raw, f, ensure_ascii=False, indent=2)
     load_configs(_config_path)
     return jsonify({"ok": True})
+
+
+@app.route("/export/audio", methods=["POST"])
+def download_archive_audio():
+    config = load_config(_config_path)
+
+    def generate():
+        logger = BufferLogger()
+        yield '<!doctype html><html lang="ru"><meta charset="utf-8"><title>Скачивание аудио</title><body style="font:16px system-ui;padding:24px"><h1>Скачивание аудио</h1><pre style="white-space:pre-wrap">'
+        try:
+            for message in backfill_audio(config, logger):
+                yield html.escape(message) + "\n"
+                for warning in logger.ConsumeMessages():
+                    yield html.escape(warning) + "\n"
+            with MediaStore(config.export_root) as store:
+                result = store.consolidate(config)
+            yield f"Общие медиа: объединено групп {result['groups']}.\n"
+        except Exception as error:
+            yield "Ошибка: " + html.escape(str(error)) + "\n"
+        yield '</pre><a href="/dialogs">Открыть диалоги</a> · <a href="/settings">Настройки</a></body></html>'
+
+    return Response(stream_with_context(generate()), mimetype="text/html")
 
 
 @app.route("/")
@@ -499,38 +726,43 @@ def main_page():
 
 @app.route("/dialogs")
 def dialog_list():
-    dialogs = []
-    if not dialogs_dir_abs.is_dir():
-        return render_template("dialogs.html", dialogs=[])
+    archive = ChatArchive(load_config(_config_path))
+    return render_template("dialogs.html", dialogs=archive.dialogs())
+
+
+@app.route("/chat/<int:peer_id>")
+def chat_page(peer_id: int):
+    return render_template("chat.html", peer_id=peer_id)
+
+
+@app.route("/api/chat/<int:peer_id>")
+def chat_data(peer_id: int):
+    archive = ChatArchive(load_config(_config_path))
+    data = archive.conversation(peer_id)
+    if data is None:
+        abort(404)
+    response = jsonify(data)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route('/chat/<int:peer_id>/attachments')
+def chat_attachments_page(peer_id: int):
+    return render_template('media_library.html', peer_id=peer_id)
+
+
+@app.route('/api/chat/<int:peer_id>/attachments')
+def chat_attachments_data(peer_id: int):
     config = load_config(_config_path)
-    dialog_dirs = collect_dialog_dirs(dialogs_dir_abs, config)
-    for pid in sorted(dialog_dirs.keys()):
-        d = dialog_dirs[pid]
-        md_dir = d / "MdFiles"
-        count = len([f for f in md_dir.rglob("*.md")]) if md_dir.is_dir() else 0
-
-        last_message_name = ""
-        if md_dir.is_dir():
-            last_cid = 0
-            last_filename = ""
-            for f in md_dir.rglob("*.md"):
-                if f.is_file():
-                    m = CID_PATTERN.search(f.name)
-                    if m:
-                        cid = int(m.group(1))
-                        if cid > last_cid:
-                            last_cid = cid
-                            last_filename = f.name
-            if last_filename:
-                last_message_name = last_filename
-
-        dialogs.append({
-            "peer_id": pid,
-            "name": _get_dialog_name(pid),
-            "count": count,
-            "last_message_name": last_message_name,
-        })
-    return render_template("dialogs.html", dialogs=dialogs)
+    conversation = ChatArchive(config, peer_id=peer_id).conversation(peer_id)
+    if conversation is None:
+        abort(404)
+    data = media_library(config, peer_id, conversation)
+    if data is None:
+        abort(404)
+    response = jsonify(data)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @app.route("/dialog/<int:peer_id>")
@@ -553,7 +785,7 @@ def dialog_messages(peer_id: int):
             cid = int(m.group(1))
             heading = f.name
             size = f.stat().st_size
-            attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid)
+            attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid, [f])
             rel_dir = str(f.parent.relative_to(md_dir)).replace("\\", "/") if str(f.parent.relative_to(md_dir)) != "." else ""
             messages.append({
                 "cid": cid,
@@ -649,7 +881,7 @@ def rename_dialog_folder(peer_id: int):
             continue
 
         size = md_file.stat().st_size
-        attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid)
+        attach_size = _get_attachment_size(md_dir, raw_dir, peer_id, cid, [md_file])
         sub = md_file.parent.relative_to(md_dir)
 
         item = {

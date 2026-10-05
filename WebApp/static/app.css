@@ -1,0 +1,116 @@
+:root {
+  --app-background: #f5f6f8;
+  --app-surface: #fff;
+  --app-text: #263445;
+  --app-muted: #596779;
+  --app-border: #dce1e6;
+  --app-primary: #376fa7;
+  --app-primary-hover: #2d5e90;
+  --app-radius: 12px;
+  --app-content-width: 1000px;
+}
+
+body.has-app-navigation {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--app-background);
+  color: var(--app-text);
+}
+.app-page { font-size: 16px; line-height: 1.5; }
+.app-page > .container { max-width: var(--app-content-width); }
+.app-page a:not(.card-link):not(.card-btn) { color: var(--app-primary); }
+.app-page h1 { font-size: 26px; line-height: 1.3; }
+.app-page .hero { padding: 24px 0 12px; }
+.app-page .hero h1 { font-size: 30px; color: var(--app-text); }
+.app-page .intro, .app-page .hero p, .app-page .quick-import p {
+  color: var(--app-muted); font-size: 16px; line-height: 1.6;
+}
+.app-page .card, .app-page .section, .setup-page > main {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px #26344508;
+}
+.app-page .card-link:hover .card { border-color: #b6c5d4; box-shadow: 0 2px 6px #2634450d; }
+.app-page .steps { gap: 16px; }
+.app-page .steps .card { margin-bottom: 0; }
+.app-page .card h2, .app-page .section h2 {
+  font-size: 20px; line-height: 1.4; color: var(--app-text);
+  margin: 0 0 16px; padding: 0; border: 0;
+}
+.app-page .card-body h3 { font-size: 18px; color: var(--app-text); }
+.app-page .card-body p { font-size: 15px; color: var(--app-muted); line-height: 1.6; }
+.app-page .card-num { background: var(--app-primary); }
+.app-page .badge { background: #f0f2f5; color: var(--app-muted); }
+.app-page .dialog-avatar { background: var(--app-primary); }
+
+.app-page button, .app-page .field button, .app-page .modal button,
+.app-page .vk-code-toolbar .btn-copy, .app-page .card-btn, .app-page .file-upload-button,
+.setup-page button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 10px 16px;
+  border: 1px solid var(--app-border); border-radius: 8px;
+  background: var(--app-surface); color: var(--app-text);
+  font: inherit; line-height: 1.4; cursor: pointer; text-decoration: none;
+}
+.app-page button:hover, .app-page .field button:hover, .app-page .modal button:hover,
+.app-page .vk-code-toolbar .btn-copy:hover, .app-page .file-upload-button:hover, .setup-page button:hover {
+  background: #f0f2f5; border-color: #b6c5d4;
+}
+.app-page .primary, .app-page .card-btn, .app-page .btn-save,
+.app-page .btn-generate, .app-page .modal .btn-select, .setup-page #retry {
+  background: var(--app-primary); color: #fff; border-color: var(--app-primary);
+}
+.app-page .primary:hover, .app-page .card-btn:hover, .app-page .btn-save:hover,
+.app-page .btn-generate:hover, .app-page .modal .btn-select:hover, .setup-page #retry:hover {
+  background: var(--app-primary-hover); border-color: var(--app-primary-hover); text-decoration: none;
+}
+.app-page button:disabled, .app-page .quick-actions #vkConnect:disabled {
+  background: #f0f2f5; border-color: var(--app-border); color: #657285;
+  cursor: default; opacity: 1;
+}
+.app-page button[data-state="success"] { background: #eaf5ee; border-color: #c5dfce; color: #23633c; }
+.app-page button[data-state="error"] { background: #fff0f0; border-color: #eac5c5; color: #a13232; }
+.app-page button:focus-visible, .app-page .card-btn:focus-visible,
+.app-page .file-upload-button:focus-visible, .app-page summary:focus-visible {
+  outline: 2px solid var(--app-primary); outline-offset: 3px;
+}
+.app-page input[type="text"], .app-page input[type="number"] {
+  min-height: 44px; padding: 10px 12px; border: 1px solid var(--app-border);
+  border-radius: 8px; background: var(--app-surface); color: var(--app-text); font: inherit;
+}
+.app-page input:focus-visible { outline: 2px solid var(--app-primary); outline-offset: 1px; }
+.app-page input[type="checkbox"] { accent-color: var(--app-primary); }
+.app-page input:disabled { background: #f0f2f5; color: #657285; }
+.app-page .field label { color: var(--app-text); font-size: 15px; }
+.app-page .field .hint { color: var(--app-muted); font-size: 14px; line-height: 1.5; margin-top: 6px; }
+.app-page .quick-steps { color: var(--app-text); }
+
+.app-page .disclosure {
+  background: var(--app-surface); border: 1px solid var(--app-border);
+  border-radius: var(--app-radius); padding: 0; margin: 16px 0;
+  color: var(--app-muted); line-height: 1.6;
+}
+.app-page .disclosure > summary {
+  padding: 16px 20px; margin: 0; border-radius: var(--app-radius);
+  background: transparent; color: var(--app-text); font-size: 15px;
+  font-weight: 600; cursor: pointer;
+}
+.app-page .disclosure[open] > summary { margin-bottom: 0; border-bottom: 1px solid var(--app-border); border-radius: var(--app-radius) var(--app-radius) 0 0; }
+.app-page .disclosure > p, .app-page .disclosure > pre { margin: 16px 20px; }
+.app-page .disclosure > .card, .app-page .disclosure > .section { margin: 16px; }
+.app-page .extra { margin: -4px 0 20px; }
+.app-page .extra > summary { padding: 10px 16px; }
+.app-page .help { margin-top: 20px; }
+.app-page .info-box { background: #f0f2f5; border-color: var(--app-border); color: var(--app-muted); }
+.app-page .vk-code-toolbar, .setup-page #status { background: #f0f2f5; border-color: var(--app-border); color: var(--app-muted); }
+.app-page .quick-import .invalid { border-color: #b33939; background: #fff7f7; }
+
+@media (max-width: 600px) {
+  .app-page .card, .app-page .section, .setup-page > main { padding: 18px; }
+  .app-page .steps .card-btn { margin-left: 0; width: 100%; }
+  .app-page .card-body { min-width: 0; }
+  .app-page .quick-actions button { flex: 1 1 180px; }
+  .app-page .disclosure > .card, .app-page .disclosure > .section { margin: 12px; }
+}

@@ -16,7 +16,11 @@ from download_media import download_file
 from vk_client import get_video_embed_urls
 from config import Config
 from Loggers.base_logger import BaseLogger
+from Loggers.context_logger import ContextLogger, attachment_description
 from config_loader import path_rel
+from audio_media import audio_payload, resolve_audio
+from photo_media import best_photo_url
+from video_cache import video_quality
 
 
 def build_md_items(
@@ -45,8 +49,12 @@ def build_md_items(
     author = authors.get(from_id) if from_id is not None else None
 
     raw_attachments = fwd.get("attachments", [])
+    peer = Path(large_raw_data_dir).name.removeprefix('dialog_')
+    context = f"Диалог {peer}; сообщение №{root_cid}"
+    if cid != root_cid:
+        context += f"; вложенное сообщение №{cid}"
     resolved_attachments = [
-        _resolve_attachment(a, cid_raw_dir, cid_large_dir, md_dir, url_to_relpath, authors, config, logger)
+        _resolve_attachment(a, cid_raw_dir, cid_large_dir, md_dir, url_to_relpath, authors, config, ContextLogger(logger, context))
         for a in raw_attachments
     ]
 
@@ -72,7 +80,7 @@ def build_md_items(
     walls = [a for a in resolved_attachments if isinstance(a, WallAttachment)]
     others = [a for a in resolved_attachments if not isinstance(a, WallAttachment)]
     json_stem = Path(json_filename).stem
-    md_dir_abs_len = len(os.path.abspath(md_dir))
+    md_dir_abs_len = _windows_length(os.path.abspath(md_dir))
 
     if len(walls) < 2:
         item = _make_item(
@@ -86,7 +94,7 @@ def build_md_items(
             wall_text = _get_wall_text(walls[0])
             item.filename = _compute_filename(
                 text, resolved_attachments, json_stem, cid,
-                md_dir_abs_len, extra_suffix_len=8 if wall_text else 0,
+                md_dir_abs_len, extra_suffix_len=len("Статья.") if wall_text else 0,
                 text_override=wall_text, logger=logger,
             )
             if wall_text:
@@ -109,7 +117,7 @@ def build_md_items(
         item.heading = _compute_heading(text, cid)
         item.filename = _compute_filename(
             text, others + [wall], json_stem, cid, md_dir_abs_len,
-            extra_suffix_len=len(f"_part_{i}") + (8 if wall_text else 0),
+            extra_suffix_len=len(f"_part_{i}") + (len("Статья.") if wall_text else 0),
             text_override=wall_text, logger=logger,
         )
         base = item.filename[:-3]
@@ -156,7 +164,11 @@ def _resolve_attachment(
     config: Config,
     logger: BaseLogger,
 ) -> BaseAttachmentItem:
+    logger = ContextLogger(logger, attachment_description(att))
     t = att.get("type")
+    audio = audio_payload(att)
+    if audio is not None:
+        return resolve_audio(audio[0], audio[1], cid_raw_dir, md_dir, url_to_relpath, config, logger)
     if t == "photo":
         return _resolve_photo(att.get("photo", {}), cid_raw_dir, md_dir, url_to_relpath, logger)
     if t in ("video", "short_video"):
@@ -171,8 +183,6 @@ def _resolve_attachment(
         return _resolve_wall(att.get(t, {}), cid_raw_dir, cid_large_dir, md_dir, url_to_relpath, authors, config, logger)
     if t == "doc":
         return _resolve_doc(att.get("doc", {}), cid_raw_dir, md_dir, url_to_relpath, logger)
-    if t == "audio":
-        return _resolve_audio(att.get("audio", {}))
     if t == "sticker":
         return _resolve_sticker(att.get("sticker", {}), cid_raw_dir, md_dir, url_to_relpath, logger)
     if t == "article":
@@ -184,12 +194,7 @@ def _resolve_photo(
     photo: dict, cid_raw_dir: str, md_dir: str,
     url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> PhotoAttachment:
-    sizes = photo.get("sizes", [])
-    if not sizes:
-        url = ""
-    else:
-        biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
-        url = biggest.get("url", "")
+    url = best_photo_url(photo)
     if not url:
         download_result = NoDownloadResult()
     else:
@@ -227,27 +232,40 @@ def _resolve_video(
     else:
         preview_result = NoDownloadResult()
 
-    mp4_url = None
+    mp4_url = _get_best_video_url(files)
+    download_files = files
+    video_cache = getattr(url_to_relpath, "video_cache", None)
+    cached = video_cache.find(video, video_quality(files)) if video_cache and _should_download_video(duration, config) else None
 
-    if owner_id and video_id:
+    if not cached and not mp4_url and owner_id and video_id:
         try:
             embed_files = get_video_embed_urls(owner_id, video_id, logger)
             mp4_url = _get_best_video_url(embed_files)
+            if mp4_url:
+                download_files = embed_files
         except Exception as ex:
             logger.LogWarning("Ошибка загрузки видео", ex)
 
     if not mp4_url:
         mp4_url = _get_best_video_url(files)
 
-    if mp4_url and _should_download_video(duration, config):
+    if cached:
+        mp4_result = SuccessDownloadResult(path_rel(str(cached), md_dir))
+        if mp4_url:
+            url_to_relpath[mp4_url] = mp4_result.local_path
+    elif mp4_url and _should_download_video(duration, config):
         if mp4_url in url_to_relpath:
             mp4_result = SuccessDownloadResult(url_to_relpath[mp4_url])
         else:
             try:
                 path = _download_to_raw(
-                    mp4_url, cid_large_dir, md_dir, url_to_relpath, logger, force_ext="mp4"
+                    mp4_url, cid_large_dir, md_dir, url_to_relpath, logger, force_ext="mp4",
+                    fallback_urls=_video_fallback_urls(mp4_url, download_files),
+                    target_file=video_cache.target(video, video_quality(download_files, mp4_url)) if video_cache else None,
                 )
                 mp4_result = SuccessDownloadResult(path) if path else ErrorDownloadResult()
+                if path and video_cache:
+                    video_cache.register(Path(md_dir) / path, video, video_quality(download_files, mp4_url))
             except Exception as ex:
                 logger.LogWarning("Ошибка скачивания видео", ex)
                 mp4_result = ErrorDownloadResult()
@@ -288,13 +306,6 @@ def _resolve_doc(
     return DocAttachment(url=url, title=title, ext=doc.get("ext", ""), download_result=download_result)
 
 
-def _resolve_audio(audio: dict) -> AudioAttachment:
-    return AudioAttachment(
-        artist=audio.get("artist", ""),
-        title=audio.get("title", ""),
-    )
-
-
 def _resolve_sticker(
     sticker: dict, cid_raw_dir: str, md_dir: str,
     url_to_relpath: Dict[str, str], logger: BaseLogger,
@@ -313,11 +324,7 @@ def _resolve_article(
     article: dict, cid_raw_dir: str, md_dir: str,
     url_to_relpath: Dict[str, str], logger: BaseLogger,
 ) -> ArticleAttachment:
-    photo_url = ""
-    sizes = article.get("photo", {}).get("sizes", [])
-    if sizes:
-        biggest = max(sizes, key=lambda s: s.get("width", 0) * s.get("height", 0))
-        photo_url = biggest.get("url", "")
+    photo_url = best_photo_url(article.get("photo", {}))
     photo_download = NoDownloadResult()
     if photo_url:
         path = _download_to_raw(photo_url, cid_raw_dir, md_dir, url_to_relpath, logger)
@@ -376,15 +383,21 @@ def _download_to_raw(
     url: str, target_dir: str,
     md_dir: str, url_to_relpath: Dict[str, str], logger: BaseLogger,
     force_ext: str = "", force_name: str = "",
+    fallback_urls: Optional[List[str]] = None,
+    target_file: Optional[Path] = None,
 ) -> str:
     if url in url_to_relpath:
         return url_to_relpath[url]
 
     ext = force_ext if force_ext else _get_ext(url)
     raw_dir = Path(target_dir)
-    raw_dir.mkdir(parents=True, exist_ok=True)
+    if target_file is None:
+        raw_dir.mkdir(parents=True, exist_ok=True)
 
-    if force_name:
+    if target_file is not None:
+        filepath = target_file
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+    elif force_name:
         name = _clean_filename(force_name)
         if name == "message.md":
             name = "документ"
@@ -404,7 +417,7 @@ def _download_to_raw(
             n += 1
         filepath = raw_dir / f"{n}.{ext}"
 
-    success = download_file(url, str(filepath), logger=logger)
+    success = download_file(url, str(filepath), logger=logger, fallback_urls=fallback_urls)
     if not success:
         return ""
     relpath = path_rel(str(filepath), md_dir)
@@ -427,10 +440,32 @@ def _should_download_video(duration: int, config: Config) -> bool:
 
 
 def _get_best_video_url(files: dict) -> Optional[str]:
-    for key in ("mp4_1080", "mp4_720", "mp4_480", "mp4_360", "mp4_240"):
-        if files.get(key):
-            return files[key]
+    candidates = []
+    for key, value in files.items():
+        match = re.fullmatch(r"mp4_(\d+)", key)
+        if match and isinstance(value, str):
+            parsed = urlparse(value)
+            if parsed.scheme in ("http", "https") and parsed.netloc:
+                candidates.append((int(match.group(1)), value))
+    if candidates:
+        return max(candidates, key=lambda candidate: candidate[0])[1]
+    source = files.get("src")
+    if isinstance(source, str):
+        parsed = urlparse(source)
+        if (parsed.scheme in ("http", "https") and parsed.netloc
+                and not parsed.path.lower().endswith((".m3u8", ".mpd"))):
+            return source
     return None
+
+
+def _video_fallback_urls(url: str, files: dict) -> List[str]:
+    host = files.get("failover_host")
+    parsed = urlparse(url)
+    if (not isinstance(host, str) or not re.fullmatch(r"vkvd\d+\.okcdn\.ru", host)
+            or not parsed.hostname or not parsed.hostname.endswith(".okcdn.ru")):
+        return []
+    fallback = parsed._replace(netloc=host).geturl()
+    return [fallback] if fallback != url else []
 
 
 def _compute_heading(text: str, cid: int) -> str:
@@ -446,7 +481,45 @@ def _calc_max_text_len(md_dir_abs_len: int, cid: int, extra_suffix_len: int) -> 
     max_filename = 254 - md_dir_abs_len - 1
     suffix = f".Id{cid}.md"
     max_text = max_filename - len(suffix) - extra_suffix_len
-    return max(max_text, 10)
+    return max(max_text, 0)
+
+
+def _windows_length(value: str) -> int:
+    return len(value.encode("utf-16-le")) // 2
+
+
+def _shorten_filename_text(value: str, limit: int) -> str:
+    if _windows_length(value) <= limit:
+        return value
+    marker = "..." if limit >= 3 else ""
+    budget = max(0, limit - len(marker))
+    result = []
+    for char in value:
+        width = _windows_length(char)
+        if width > budget:
+            break
+        result.append(char)
+        budget -= width
+    return "".join(result) + marker
+
+
+def fit_md_filename(name: str, md_dir_abs_len: int, extra_suffix_len: int = 0) -> str:
+    """Shorten only the human title, preserving CID and multipart suffixes."""
+    limit = min(255, 254 - md_dir_abs_len - 1 - extra_suffix_len)
+    if _windows_length(name) <= limit:
+        return name
+    match = re.search(r"(?:^|\.)Id\d+(?:_part_\d+)?\.md$", name)
+    if not match:
+        raise ValueError("Имя MD-файла не содержит идентификатора сообщения")
+    suffix = match.group()
+    stem = name[:match.start()]
+    budget = limit - _windows_length(suffix)
+    if budget < 1:
+        minimal = suffix.lstrip(".")
+        if _windows_length(minimal) > limit:
+            raise ValueError("Папка экспорта слишком глубока: сократите путь к ней")
+        return minimal
+    return _shorten_filename_text(stem, budget) + suffix
 
 
 def _compute_filename(
@@ -464,23 +537,18 @@ def _compute_filename(
     if source_text:
         first = _first_sentence(source_text)
         max_text = _calc_max_text_len(md_dir_abs_len, cid, extra_suffix_len)
-        if len(first) > max_text:
-            first = first[:max_text] + "..."
+        first = _shorten_filename_text(first, max_text)
         name = f"{first}.Id{cid}.md"
     else:
         prefix = _get_attachment_types(attachments)
         date_part = json_stem.rsplit("_", 1)[0] if "_" in json_stem else json_stem
         suffix = f".Id{cid}.md"
         max_date_len = 254 - md_dir_abs_len - 1 - len(prefix) - 1 - len(suffix) - extra_suffix_len
-        max_date_len = max(max_date_len, 10)
-        if len(date_part) > max_date_len:
-            date_part = date_part[:max_date_len] + "..."
+        max_date_len = max(max_date_len, 0)
+        date_part = _shorten_filename_text(date_part, max_date_len)
         name = f"{prefix}.{date_part}.Id{cid}.md"
     name = _clean_filename(name)
-    full_len = md_dir_abs_len + 1 + len(name)
-    if full_len > 254:
-        logger.LogWarning(f"Путь к MD-файлу превышает 254 символа ({full_len} символов): {name}")
-    return name
+    return fit_md_filename(name, md_dir_abs_len, extra_suffix_len)
 
 
 def _strip_leading_tags(text: str) -> str:

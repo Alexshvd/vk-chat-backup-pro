@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Подключение браузера — {{ app_name }}</title>
+<style>
+* { box-sizing: border-box; } body { font-family: system-ui,sans-serif; background:#f5f5f5; color:#222; margin:0; padding:28px 16px; }
+main { max-width:680px; margin:auto; background:white; padding:28px; border-radius:12px; box-shadow:0 2px 8px #0001; }
+h1 { font-size:1.5rem; margin-top:0; } p,li { line-height:1.6; } li { margin-bottom:12px; }
+code { background:#f1f3f5; padding:3px 6px; border-radius:4px; } a { color:#357abd; }
+#status { background:#eef5ff; padding:14px; border-radius:8px; } button { border:0; background:#4a90d9; color:white; padding:12px 18px; border-radius:6px; font:inherit; cursor:pointer; }
+[hidden] { display:none !important; }
+.copy-row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}.copy-row code{overflow-wrap:anywhere;flex:1;min-width:140px}.copy-row button{background:#edf3fa;color:#315f8c;padding:7px 12px;font-size:.9rem}details{margin:18px 0;color:#555}summary{cursor:pointer;font-weight:600}
+</style><link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="has-app-navigation setup-page">
+{% with active_page='export' %}{% include 'navigation.html' %}{% endwith %}
+<main>
+<h1>Подключите браузер один раз</h1>
+<p>Для скачивания переписки нужен помощник — маленькое расширение браузера. Оно получает сообщения из ВК и сохраняет их через приложение на вашем компьютере.</p>
+<p id="browserDetected">Определяю текущий браузер…</p>
+<p id="status" aria-live="polite">Проверяю помощник браузера…</p>
+<div id="setup">
+<div id="chromiumSetup" hidden>
+<ol>
+<li><b>Откройте настройки расширений.</b> Скопируйте адрес ниже, откройте новую вкладку, вставьте адрес в строку вверху браузера и нажмите Enter.<div class="copy-row"><code id="extensionPage"></code><button type="button" onclick="copySetupValue(this,'extensionPage')">Скопировать адрес</button></div></li>
+<li><b>Включите «Режим разработчика»</b> на открывшейся странице. Он нужен, чтобы установить помощник из папки на компьютере.</li>
+<li><b>Нажмите «Загрузить распакованное расширение».</b> В окне выбора найдите и выберите эту папку:<div class="copy-row"><code id="helperFolder">{{ helper_path }}</code><button type="button" onclick="copySetupValue(this,'helperFolder')">Скопировать путь</button></div>В Windows путь можно вставить в адресную строку окна выбора папки и нажать Enter.</li>
+<li><b>Вернитесь на эту страницу</b> и нажмите «Помощник установлен — подключить».</li>
+</ol>
+<details><summary>Дополнительно: если папки помощника нет</summary><p><a href="/browser-helper/chromium.zip">Скачайте помощник</a>, распакуйте ZIP-архив и на шаге 3 выберите полученную папку.</p></details>
+</div>
+<div id="firefoxSetup" hidden>
+<ol>
+<li><a href="/browser-helper/firefox.zip">Скачайте помощник для Firefox</a>.</li>
+<li>Откройте новую вкладку и вставьте в адресную строку <code>about:debugging#/runtime/this-firefox</code>. Нажмите Enter.</li>
+<li>Нажмите <b>«Загрузить временное дополнение»</b> и выберите скачанный ZIP.</li>
+<li>Вернитесь в эту вкладку и нажмите кнопку ниже.</li>
+</ol>
+<p style="color:#666;font-size:.9rem">После закрытия и повторного запуска Firefox помощник нужно установить снова.</p>
+</div>
+<div id="otherSetup" hidden><p>В этом браузере помощник пока не работает. Можно <a href="/export#manualExport">скачать файл сообщений вручную и добавить его в приложение</a>.</p></div>
+<button id="retry" type="button">Помощник установлен — подключить</button>
+<p style="color:#666;font-size:.9rem">Помощник читает выбранный диалог на vk.ru или vk.com и передаёт его приложению на этом компьютере. Используется ваш текущий вход в ВК.</p>
+<details><summary>Дополнительно: скачать без помощника</summary><p><a href="/export#manualExport">Открыть ручную выгрузку файла сообщений →</a></p></details>
+</div>
+<p><a href="/export">Вернуться к скачиванию диалога →</a></p>
+</main><script src="{{ url_for('static', filename='browser-detect.js') }}"></script><script>
+window.addEventListener('message', function(event) {
+  if (event.source !== window || event.origin !== location.origin || event.data?.type !== 'vk-backup-connected') return;
+  if (event.data.ok) {
+    document.getElementById('status').textContent = 'Готово! Браузер подключён. Нажмите «Вернуться к скачиванию диалога», вставьте ссылку на переписку и нажмите «Скачать диалог».';
+    document.getElementById('setup').hidden = true;
+  } else document.getElementById('status').textContent = 'Не удалось подключиться. Вернитесь к скачиванию диалога и ещё раз нажмите «Подключить браузер».';
+});
+VkBrowser.detect(navigator).then(function(detected) {
+  document.getElementById('browserDetected').textContent = detected.name + ' определён автоматически. Подключите помощник в этом браузере, где вы уже вошли в ВК.';
+  document.getElementById('extensionPage').textContent = detected.page;
+  document.getElementById('chromiumSetup').hidden = detected.family !== 'chromium';
+  document.getElementById('firefoxSetup').hidden = detected.family !== 'firefox';
+  document.getElementById('otherSetup').hidden = detected.family !== 'other';
+  document.getElementById('retry').hidden = detected.family === 'other';
+  setTimeout(function() {
+    if (!document.getElementById('setup').hidden) document.getElementById('status').textContent = detected.family === 'other' ? 'Доступна ручная выгрузка JSON.' : 'Помощник пока не подключён. Выполните шаги ниже.';
+  }, 3000);
+});
+document.getElementById('retry').addEventListener('click', function() { location.reload(); });
+async function copySetupValue(button, id) {
+  try { await navigator.clipboard.writeText(document.getElementById(id).textContent); button.textContent = 'Скопировано ✓'; }
+  catch (_) { button.textContent = 'Выделите и скопируйте текст рядом'; }
+}
+</script></body></html>

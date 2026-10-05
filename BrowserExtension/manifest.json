@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "VK Chat Backup Pro — помощник",
+  "version": "1.1.1",
+  "description": "Передаёт выбранную переписку ВК в локальное приложение VK Chat Backup Pro на вашем компьютере.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "scripting",
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://vk.ru/*",
+    "https://vk.com/*",
+    "https://www.vk.ru/*",
+    "https://www.vk.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "connect.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "homepage_url": "https://github.com/Alexshvd/vk-chat-backup-pro"
+}

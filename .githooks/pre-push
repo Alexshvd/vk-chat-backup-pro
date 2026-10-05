@@ -1,0 +1,12 @@
+#!/bin/sh
+if [ -x .venv/Scripts/python.exe ]; then
+    publication_python=.venv/Scripts/python.exe
+else
+    publication_python=python
+fi
+while read local_ref local_oid remote_ref remote_oid; do
+    case "$local_oid" in
+        0000000000000000000000000000000000000000) continue ;;
+    esac
+    "$publication_python" tools/check_publication.py --revision "$local_oid" || exit 1
+done

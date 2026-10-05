@@ -33,6 +33,8 @@ def load_config(path: str) -> Config:
         export_root=export_root,
         download_short_video=raw.get("download_short_video", True),
         download_long_video=raw.get("download_long_video", False),
+        download_audio=raw.get("download_audio", False),
+        download_voice_messages=raw.get("download_voice_messages", True),
         long_video_threshold=raw.get("long_video_threshold", 180),
         overwrite_existing_md=raw.get("overwrite_existing_md", False),
         overwrite_existing_original_message_json=raw.get("overwrite_existing_original_message_json", False),

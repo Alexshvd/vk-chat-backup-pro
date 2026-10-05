@@ -15,6 +15,10 @@ from md_renderer import render_md_item
 from md_item_builder import build_md_items
 from author_resolver import load_authors, ensure_author_avatars
 from Loggers.base_logger import BaseLogger
+from video_backfill import backfill_videos
+from photo_backfill import backfill_photos
+from video_cache import VideoCache, VideoPaths
+from media_store import MediaStore
 
 
 def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
@@ -28,6 +32,19 @@ def _is_msg_filtered(item: dict, peer_id: int, config: Config) -> bool:
 
 
 def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
+    yield "Проверяю уже скачанные видео во всех диалогах…"
+    with VideoCache(config.export_root, logger) as video_cache:
+        changed, indexed = video_cache.scan(config)
+        yield f"Индекс видео: {indexed}; проверено изменённых сообщений: {changed}."
+        yield from _generate(config, peer_ids, logger, video_cache)
+        yield "Объединяю одинаковые медиа в общем хранилище…"
+        with MediaStore(config.export_root) as media_store:
+            result = media_store.consolidate(config)
+        yield f"Общие медиа: объединено групп {result['groups']}; удалено повторных путей {result['removed_paths']}."
+        yield f"Видео использованы повторно: {video_cache.reused}; без повторного скачивания: {video_cache.reused_bytes / 1048576:.1f} МБ."
+
+
+def _generate(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger, video_cache):
     start_create_time = datetime.now()
 
     export_root = Path(config.export_root)
@@ -91,7 +108,7 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
         dialog_dir.mkdir(parents=True, exist_ok=True)
 
         yield "  Скачивание аватаров авторов..."
-        url_to_relpath: dict[str, str] = {}
+        url_to_relpath: dict[str, str] = VideoPaths(video_cache)
         ensure_author_avatars(authors, str(autor_images_dir), url_to_relpath, str(md_dir), logger)
         yield "  Аватары авторов скачены."
 
@@ -107,8 +124,8 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
 
         existing_md_by_cid: dict[int, str] = {}
         if md_dir.is_dir():
-            for md_file in md_dir.rglob("*.Id*.md"):
-                m = re.search(r'\.Id(\d+)\.md$', md_file.name)
+            for md_file in md_dir.rglob("*.md"):
+                m = re.search(r'(?:^|\.)Id(\d+)(?:_part_\d+)?\.md$', md_file.name)
                 if m:
                     existing_md_by_cid[int(m.group(1))] = str(md_file.relative_to(md_dir))
 
@@ -125,8 +142,11 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
                 if not config.overwrite_existing_md:
                     yield f"  Уже существует ({message_index + 1}/{len(message_files)} id={cid}): \"{existing_md_by_cid[cid]}\""
                     continue
-                (md_dir / existing_md_by_cid[cid]).unlink(missing_ok=True)
                 is_overwrite = True
+            video_cache.preserve_directory(large_raw_data_dir / str(cid))
+            video_cache.preserve_directory(little_raw_data_dir / str(cid))
+            if is_overwrite:
+                (md_dir / existing_md_by_cid[cid]).unlink(missing_ok=True)
             shutil.rmtree(little_raw_data_dir / str(cid), ignore_errors=True)
             shutil.rmtree(large_raw_data_dir / str(cid), ignore_errors=True)
             md_items = build_md_items(
@@ -146,6 +166,8 @@ def main(config: Config, peer_ids: Optional[set[int]], logger: BaseLogger):
 
         yield f"  Создано MD-файлов: {count}"
 
+    yield from backfill_photos(config, logger, peer_ids)
+    yield from backfill_videos(config, logger, peer_ids, video_cache=video_cache)
     yield f"\nГотово (Затраченое время = {datetime.now() - start_create_time})"
 
 

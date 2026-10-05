@@ -64,6 +64,10 @@ class DocAttachment(BaseAttachmentItem):
 class AudioAttachment(BaseAttachmentItem):
     artist: str = ""
     title: str = ""
+    original_url: str = ""
+    is_voice: bool = False
+    duration: int = 0
+    download_result: BaseDownloadResult = field(default_factory=NoDownloadResult)
 
 
 @dataclass

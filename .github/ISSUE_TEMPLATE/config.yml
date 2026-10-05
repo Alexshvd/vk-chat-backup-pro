@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Инструкция по запуску
+    url: https://github.com/Alexshvd/vk-chat-backup-pro#начните-здесь
+    about: Сначала посмотрите короткую инструкцию в README.
+  - name: Сообщить об уязвимости приватно
+    url: https://github.com/Alexshvd/vk-chat-backup-pro/security/advisories/new
+    about: Ошибки, которые раскрывают чужие данные или позволяют обойти защиту, отправляйте приватно.

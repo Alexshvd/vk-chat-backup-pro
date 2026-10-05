@@ -1,0 +1,5 @@
+#!/bin/sh
+if [ -x .venv/Scripts/python.exe ]; then
+    exec .venv/Scripts/python.exe tools/check_publication.py --index
+fi
+exec python tools/check_publication.py --index

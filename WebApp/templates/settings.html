@@ -3,15 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VkChatBackup — Настройки</title>
+<title>{{ app_name }} — Настройки</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #222; }
   .container { max-width: 800px; margin: 0 auto; }
   h1 { font-size: 1.5rem; margin-bottom: 20px; display: inline; }
-  .back-link { color: #555; text-decoration: none; font-size: 0.9rem; margin-right: 12px; }
-  .back-link:hover { text-decoration: underline; }
-  .header { margin-bottom: 20px; }
   .section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
   .section h2 { font-size: 1.1rem; margin: 0 0 16px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 8px; }
   .field { margin-bottom: 14px; }
@@ -34,6 +31,7 @@
   .btn-save { background: #2980b9; color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 1rem; cursor: pointer; }
   .btn-save:hover { background: #2471a3; }
   .btn-save:disabled { background: #ccc; cursor: default; }
+  .intro {line-height:1.6;color:#555;} .advanced {margin:18px 0;} .advanced>summary {padding:16px 20px;background:white;border-radius:8px;cursor:pointer;font-weight:600;} .advanced[open]>summary {margin-bottom:16px;} .hint {line-height:1.5;}
   .config-path { font-size: 0.8rem; color: #999; margin-top: 12px; }
   .modal-overlay { position: fixed; z-index: 999; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
   .modal { background: #fff; border-radius: 10px; padding: 20px; width: 520px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
@@ -52,59 +50,88 @@
   .modal .modal-actions .btn-cancel { background: #fff; }
   .modal .modal-actions .btn-cancel:hover { background: #f0f0f0; }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-<body>
+<body class="has-app-navigation app-page">
+{% with active_page='settings' %}{% include 'navigation.html' %}{% endwith %}
 <div class="container">
-  <div class="header">
-    <a href="/main" class="back-link">Главная</a>
-    <a href="/dialogs" class="back-link">Диалоги</a>
-    <a href="/export" class="back-link">Экспорт</a>
-    <h1>Настройки</h1>
-  </div>
+  <h1>Настройки</h1>
 
   {% if saved %}
   <div class="saved-msg">✓ Настройки сохранены</div>
   {% endif %}
 
+  <p class="intro">Выберите, что скачивать вместе с сообщениями, и нажмите «Сохранить настройки». Для обычного скачивания остальные параметры менять не нужно.</p>
   <form id="settingsForm">
     <div class="section">
-      <h2>Основные настройки</h2>
-
+      <h2>Что скачивать</h2>
+      <p class="intro">Фото, стикеры и доступные документы сохраняются автоматически.</p>
       <div class="field">
-        <label>Путь экспорта (export_root)</label>
+        <div class="checkbox-group"><input id="downloadVideo" type="checkbox"><label for="downloadVideo" style="margin:0;">Скачивать видео</label></div>
+        <div class="hint" id="videoChoiceHint">Чтобы смотреть сохранённые видео без интернета. Видео с YouTube останутся ссылками.</div>
+      </div>
+      <div class="field">
+        <div class="checkbox-group">
+          <input type="hidden" name="download_audio" value="false">
+          <input id="downloadMusic" type="checkbox" name="download_audio" value="true" {% if config.download_audio %}checked{% endif %}>
+          <label for="downloadMusic" style="margin:0;">Скачивать музыку</label>
+        </div>
+        <div class="hint">Чтобы слушать музыку без интернета, если запись доступна для скачивания.</div>
+      </div>
+      <div class="field">
+        <div class="checkbox-group">
+          <input type="hidden" name="download_voice_messages" value="false">
+          <input id="downloadVoice" type="checkbox" name="download_voice_messages" value="true" {% if config.download_voice_messages %}checked{% endif %}>
+          <label for="downloadVoice" style="margin:0;">Скачивать голосовые сообщения</label>
+        </div>
+        <div class="hint">Чтобы слушать голосовые сообщения без интернета.</div>
+      </div>
+
+    </div>
+    <details id="advancedSettings" class="advanced disclosure">
+      <summary>Расширенные настройки</summary>
+      <p class="intro">Папка хранения, выбор видео по длительности, повторная обработка и восстановление аудио.</p>
+      <div class="section"><h2>Где хранить переписку</h2>
+      <div class="field">
+        <label for="exportRootInput">Папка для сохранения переписки</label>
         <div class="browse-row">
           <input type="text" name="export_root" id="exportRootInput" value="{{ config.export_root }}">
           <button type="button" onclick="openDirBrowser()">📁 Обзор…</button>
         </div>
-        <div class="warning">⚠ При изменении пути экспорта необходимо вручную перенести папки <code>ExportMessages/</code> и <code>LargeRawData/</code> из старого пути в новый.</div>
+        <div class="warning">При смене папки уже скачанные диалоги не переносятся автоматически. Чтобы они оставались доступны, вручную перенесите папки <code>ExportMessages/</code> и <code>LargeRawData/</code> из старого пути в новый.</div>
       </div>
 
+      </div>
+      <div class="section"><h2>Выбор видео по длительности</h2><p class="intro">Например, 180 секунд — это 3 минуты. Если нужны все видео, включите оба пункта или «Скачивать видео» выше.</p>
       <div class="field">
         <div class="checkbox-group">
           <input type="hidden" name="download_short_video" value="false">
-          <input type="checkbox" name="download_short_video" value="true" {% if config.download_short_video %}checked{% endif %}>
-          <label style="margin:0;font-weight:600;font-size:0.9rem;">Скачивать короткие видео (download_short_video)</label>
+          <input id="downloadShort" type="checkbox" name="download_short_video" value="true" {% if config.download_short_video %}checked{% endif %}>
+          <label for="downloadShort" style="margin:0;font-weight:600;font-size:0.9rem;">Скачивать видео короче указанного времени</label>
         </div>
       </div>
 
       <div class="field">
         <div class="checkbox-group">
           <input type="hidden" name="download_long_video" value="false">
-          <input type="checkbox" name="download_long_video" value="true" {% if config.download_long_video %}checked{% endif %}>
-          <label style="margin:0;font-weight:600;font-size:0.9rem;">Скачивать длинные видео (download_long_video)</label>
+          <input id="downloadLong" type="checkbox" name="download_long_video" value="true" {% if config.download_long_video %}checked{% endif %}>
+          <label for="downloadLong" style="margin:0;font-weight:600;font-size:0.9rem;">Скачивать видео от указанного времени и длиннее</label>
         </div>
       </div>
 
       <div class="field">
-        <label>Порог длинного видео, сек (long_video_threshold)</label>
-        <input type="number" name="long_video_threshold" value="{{ config.long_video_threshold }}" min="0" step="1">
+        <label for="videoThreshold">Граница короткого видео, в секундах</label>
+        <input id="videoThreshold" type="number" name="long_video_threshold" value="{{ config.long_video_threshold }}" min="0" step="1">
       </div>
 
+      </div>
+      <div class="section"><h2>Повторная обработка файлов</h2><p class="warning">Эти параметры нужны для ручной повторной обработки. Создание файлов заново может удалить ваши правки в сообщениях и заменить вложения. При обычном скачивании по ссылке они не используются.</p>
       <div class="field">
         <div class="checkbox-group">
           <input type="hidden" name="overwrite_existing_md" value="false">
-          <input type="checkbox" name="overwrite_existing_md" value="true" {% if config.overwrite_existing_md %}checked{% endif %}>
-          <label style="margin:0;font-weight:600;font-size:0.9rem;">Перезаписывать MD-файлы (overwrite_existing_md)</label>
+          <input id="overwriteMessages" type="checkbox" name="overwrite_existing_md" value="true" {% if config.overwrite_existing_md %}checked{% endif %}>
+          <label for="overwriteMessages" style="margin:0;font-weight:600;font-size:0.9rem;">Заново создавать файлы сообщений</label>
         </div>
         <div class="hint">Если включено — старые MD-файлы, RawData и LargeRawData удаляются перед повторной конвертацией.</div>
       </div>
@@ -112,21 +139,22 @@
       <div class="field">
         <div class="checkbox-group">
           <input type="hidden" name="overwrite_existing_original_message_json" value="false">
-          <input type="checkbox" name="overwrite_existing_original_message_json" value="true" {% if config.overwrite_existing_original_message_json %}checked{% endif %}>
-          <label style="margin:0;font-weight:600;font-size:0.9rem;">Перезаписывать JSON сообщений (overwrite_existing_original_message_json)</label>
+          <input id="overwriteOriginals" type="checkbox" name="overwrite_existing_original_message_json" value="true" {% if config.overwrite_existing_original_message_json %}checked{% endif %}>
+          <label for="overwriteOriginals" style="margin:0;font-weight:600;font-size:0.9rem;">Заменять исходные файлы сообщений (JSON)</label>
         </div>
         <div class="hint">Если включено — существующие JSON-файлы извлечённых сообщений перезаписываются.</div>
       </div>
-    </div>
-
+      </div>
     <div class="section">
-      <h2>Только чтение</h2>
+      <h2>Сохранённые имена и фильтры</h2>
       <p style="font-size:0.85rem;color:#888;margin:0 0 14px;">Эти настройки изменяются в других разделах приложения.</p>
 
       <div class="field">
-        <label>Кастомные имена папок диалогов (dialog_name_by_peer_id)</label>
-        <div class="readonly-list">
-          {% set dnb = raw.get('dialog_name_by_peer_id', {}) %}
+        <label>Имена папок диалогов</label>
+        {% set dnb = raw.get('dialog_name_by_peer_id', {}) %}
+        <details>
+          <summary style="cursor:pointer;font-size:0.85rem;color:#555;">Показать текущие значения: {{ dnb|length }}</summary>
+          <div class="readonly-list" style="margin-top:6px;">
           {% if dnb %}
             {% for k, v in dnb.items() %}
             <div class="rl-item">{{ k }} → {{ v }}</div>
@@ -134,12 +162,14 @@
           {% else %}
             <div class="rl-empty">нет значений</div>
           {% endif %}
-        </div>
-        <div class="readonly-note"><em>Редактируется через переименование диалога на странице диалога ✏</em></div>
+          </div>
+        </details>
+        <div class="readonly-note">Ваши сохранённые настройки из config.json. Эти значения задаются при переименовании диалогов.</div>
+        <div class="readonly-note"><em>Изменяется через переименование папки в редакторе файлов.</em></div>
       </div>
 
       <div class="field">
-        <label>Фильтр по id сообщения (min_cid_by_peer_id)</label>
+        <label>Фильтр по номеру сообщения</label>
         <div class="readonly-list">
           {% set mcid = raw.get('min_cid_by_peer_id', {}) %}
           {% if mcid %}
@@ -150,12 +180,12 @@
             <div class="rl-empty">нет значений</div>
           {% endif %}
         </div>
-        <div class="readonly-note"><em>Задаётся при экспорте (страница Экспорт → поле min_cid)</em></div>
-        <div class="info-box">Сообщения с <code>conversation_message_id</code> ≤ указанному значению пропускаются (не экспортируются).</div>
+        <div class="readonly-note"><em>Изменяется в разделе «Дополнительно» на странице скачивания диалога.</em></div>
+        <div class="info-box">Сообщения с номером меньше или равным указанному не добавляются в архив.</div>
       </div>
 
       <div class="field">
-        <label>Фильтр по дате сообщения (min_date_by_peer_id)</label>
+        <label>Фильтр по дате сообщения</label>
         <div class="readonly-list">
           {% set mdt = raw.get('min_date_by_peer_id', {}) %}
           {% if mdt %}
@@ -166,20 +196,31 @@
             <div class="rl-empty">нет значений</div>
           {% endif %}
         </div>
-        <div class="readonly-note"><em>Задаётся при экспорте (страница Экспорт → поле min_date)</em></div>
+        <div class="readonly-note"><em>Изменяется в разделе «Дополнительно» на странице скачивания диалога.</em></div>
         <div class="info-box">Сообщения с датой раньше или равной указанной пропускаются. Формат даты: <code>YYYY-MM-DD-HH-MM-SS</code>.</div>
       </div>
     </div>
+  <div class="section" style="margin-top:16px;">
+    <h2>Скачать недостающее аудио из сохранённых диалогов</h2>
+    <p>Используйте эту кнопку, если диалоги уже сохранены, но музыка или голосовые сообщения в них не скачаны — например, раньше их загрузка была выключена.</p>
+    <p>Программа проверит сохранённые диалоги, попробует скачать недостающие аудиофайлы по ссылкам из архива и добавит проигрыватели в сообщения. Уже сохранённое аудио будет пропущено. Текст сообщений и другие вложения сохранятся. Если ВК не передал ссылку или она больше не работает, скачать файл не получится.</p>
+    <p>Сначала включите выше загрузку музыки и/или голосовых сообщений и нажмите «Сохранить настройки». При новой выгрузке включённые виды аудио скачиваются автоматически — отдельно нажимать эту кнопку не нужно.</p>
 
-    <button type="submit" class="btn-save">Сохранить</button>
+      <button type="submit" form="audioBackfillForm" class="btn-save">Скачать недостающее аудио</button>
+
+  </div>
+
+      <div class="config-path">Файл настроек: {{ config_path }}</div>
+    </details>
+    <button type="submit" class="btn-save" id="saveSettings">Сохранить настройки</button>
   </form>
+  <form id="audioBackfillForm" action="/export/audio" method="POST" onsubmit="document.querySelector('button[form=audioBackfillForm]').disabled=true;"></form>
 
-  <div class="config-path">config.json: {{ config_path }}</div>
 </div>
 
 <div id="dirBrowserModal" class="modal-overlay" style="display:none;">
   <div class="modal">
-    <h3>Выберите папку экспорта</h3>
+    <h3>Выберите папку для переписки</h3>
     <div class="modal-path" id="modalCurrentPath"></div>
     <div class="dir-list" id="dirList"></div>
     <div class="modal-actions">
@@ -189,6 +230,7 @@
   </div>
 </div>
 
+<script src="{{ url_for('static', filename='settings-media.js') }}"></script>
 <script>
 let browserPath = '';
 
@@ -238,14 +280,14 @@ function selectDirBrowser() {
 
 document.getElementById('settingsForm').addEventListener('submit', function(e) {
   e.preventDefault();
-  const btn = this.querySelector('.btn-save');
+  const btn = document.getElementById('saveSettings');
   btn.disabled = true;
   btn.textContent = 'Сохранение...';
 
   const formData = new FormData(this);
   const data = {};
   for (const [key, val] of formData.entries()) {
-    if (key === 'download_short_video' || key === 'download_long_video' || key === 'overwrite_existing_md' || key === 'overwrite_existing_original_message_json') {
+    if (key === 'download_short_video' || key === 'download_long_video' || key === 'download_audio' || key === 'download_voice_messages' || key === 'overwrite_existing_md' || key === 'overwrite_existing_original_message_json') {
       data[key] = val === 'true';
     } else if (key === 'long_video_threshold') {
       data[key] = parseInt(val) || 0;
@@ -264,15 +306,15 @@ document.getElementById('settingsForm').addEventListener('submit', function(e) {
       if (result.ok) {
         window.location.href = '/settings?saved=1';
       } else {
-        alert('Ошибка: ' + (result.error || 'неизвестная'));
+        alert('Не удалось сохранить настройки. ' + (result.error || 'Попробуйте ещё раз.'));
         btn.disabled = false;
-        btn.textContent = 'Сохранить';
+        btn.textContent = 'Сохранить настройки';
       }
     })
     .catch(err => {
-      alert('Ошибка: ' + err.message);
+      alert('Не удалось сохранить настройки. Убедитесь, что окно приложения работает, и попробуйте ещё раз.');
       btn.disabled = false;
-      btn.textContent = 'Сохранить';
+      btn.textContent = 'Сохранить настройки';
     });
 });
 </script>

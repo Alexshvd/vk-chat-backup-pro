@@ -1,0 +1,77 @@
+name: Сообщить об ошибке
+description: Что-то не работает? Помогите нам повторить и исправить ошибку.
+title: "[Ошибка]: "
+labels: [bug, "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за сообщение! Сначала проверьте, нет ли такой ошибки в списке Issues.
+        Не прикладывайте весь архив переписки, config.json, cookies, пароли или токены.
+        Скройте имена, текст личных сообщений и адреса медиа с параметрами доступа на скриншотах и в журнале.
+  - type: input
+    id: app_version
+    attributes:
+      label: Версия приложения
+      description: Показана под верхним меню. Если приложение не запускается, укажите версию скачанного релиза.
+      placeholder: 1.0.0-beta.1
+    validations:
+      required: true
+  - type: input
+    id: helper_version
+    attributes:
+      label: Версия помощника браузера
+      description: Можно посмотреть в списке расширений браузера. Если помощник не используется, напишите «не установлен».
+      placeholder: 1.1.1
+  - type: dropdown
+    id: system
+    attributes:
+      label: Какая у вас система?
+      options: [Windows 11, Windows 10, Linux, macOS, Другая]
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер и его версия
+      placeholder: Например, Google Chrome 140
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Где возникла ошибка?
+      options: [Запуск приложения, Подключение браузера, Скачивание диалога, Фото и видео, Музыка и голосовые сообщения, Просмотр переписки, Библиотека вложений, Настройки, Редактор файлов, Другое]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить ошибку?
+      placeholder: "1. Открыл приложение.\n2. Нажал…\n3. Увидел…"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что должно было произойти?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Что произошло на самом деле?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Скриншот или текст ошибки
+      description: Можно перетащить картинку в это поле. Прикладывайте только нужный фрагмент журнала с удалёнными личными данными.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Перед отправкой
+      options:
+        - label: Я проверил сообщение и вложения и убрал личную переписку, пароли, cookies, токены и приватные ссылки.
+          required: true

@@ -7,6 +7,8 @@ class Config:
     export_root: str = ""
     download_short_video: bool = True
     download_long_video: bool = False
+    download_audio: bool = False
+    download_voice_messages: bool = True
     long_video_threshold: int = 180
     overwrite_existing_md: bool = False
     overwrite_existing_original_message_json: bool = False

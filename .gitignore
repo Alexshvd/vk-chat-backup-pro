@@ -21,6 +21,8 @@ env/
 # Project-specific
 .env
 Temp/
+MediaIndex.sqlite3*
+.publication-private.json
 
 # Other
 PromptsBetweenCommit.md

@@ -3,15 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VkChatBackup — Экспорт</title>
+<title>{{ app_name }} — Экспорт</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #222; }
   .container { max-width: 800px; margin: 0 auto; }
   h1 { font-size: 1.5rem; }
-  .nav { margin-bottom: 20px; }
-  .nav a { color: #555; text-decoration: none; font-size: 0.9rem; margin-right: 12px; }
-  .nav a:hover { text-decoration: underline; }
   .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
   .file-list { list-style: none; padding: 0; margin: 0; }
   .file-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
@@ -36,18 +34,68 @@
   .vk-code-toolbar .btn-copy:hover { background: #777; }
   .vk-code-container pre { background: #1e1e1e; color: #d4d4d4; border-radius: 0; padding: 14px; font-size: 0.78rem; line-height: 1.5; overflow: auto; margin: 0; flex: 1; }
   .vk-fields input.invalid { border-color: #e74c3c; background: #fdf2f2; }
+  .quick-import { padding: 22px; }
+  .quick-import h2 { margin: 0 0 10px; font-size: 1.25rem; }
+  .quick-import p { line-height: 1.5; color: #666; font-size: .9rem; }
+  .quick-import input { box-sizing: border-box; width: 100%; font: inherit; padding: 12px; border: 1px solid #bbb; border-radius: 6px; }
+  .quick-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .quick-actions button { font: inherit; padding: 10px 16px; border: 0; border-radius: 6px; cursor: pointer; }
+  .quick-actions .primary { background: #4a90d9; color: white; }
+  .quick-actions button:disabled { opacity: .5; cursor: default; }
+  #vkJobStatus { border-top: 1px solid #eee; padding-top: 16px; margin-top: 18px; }
+  #vkJobMessage { font-weight: 600; white-space: pre-wrap; line-height: 1.5; }
+  #vkJobDownload { color: #666; font-size: .9rem; margin: 10px 0; }
+  #vkJobLog { max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: .8rem; line-height: 1.5; }
+  .quick-steps{padding-left:24px;color:#444;line-height:1.65}.quick-steps li{margin:9px 0}.quick-help{margin:14px 0;color:#555;line-height:1.6}.quick-help summary{cursor:pointer;font-weight:600}.quick-actions #vkConnect:disabled{opacity:1;color:#596b79;background:#edf1f5}
   @media (max-width: 700px) { .vk-instruction { flex-direction: column; } }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-<body>
+<body class="has-app-navigation app-page">
+{% with active_page='export' %}{% include 'navigation.html' %}{% endwith %}
 <div class="container">
-  <div class="nav">
-    <a href="/main">Главная</a>
-    <a href="/dialogs">Диалоги</a>
-    <a href="/export">Экспорт</a>
-    <a href="/settings">Настройки</a>
+  <h1>Скачать переписку из ВК</h1>
+
+  <div class="card quick-import">
+    <h2>Сохранить диалог на компьютер</h2>
+    <ol class="quick-steps">
+      <li><b>Подключите браузер.</b> Откройте приложение в том же браузере, где вы вошли в ВК. Если он ещё не подключён, нажмите «Подключить браузер» ниже и выполните подсказки.</li>
+      <li><b>Скопируйте ссылку на переписку.</b> На сайте ВК откройте нужный диалог, нажмите на адрес страницы вверху браузера и скопируйте его. Вернитесь сюда и вставьте ссылку в поле ниже.</li>
+      <li><b>Нажмите «Скачать диалог».</b> Дождитесь надписи «Диалог сохранён», затем нажмите «Открыть переписку».</li>
+    </ol>
+    <details class="quick-help disclosure"><summary>Как скопировать и вставить ссылку?</summary><p>В нужном диалоге ВК нажмите <b>Ctrl+L</b>, затем <b>Ctrl+C</b>. Вернитесь в приложение, нажмите на поле «Ссылка на диалог» и нажмите <b>Ctrl+V</b>.</p></details>
+    <form id="vkQuickForm">
+      <label for="vkDialogLink" style="display:block;margin-bottom:8px;font-size:.9rem">Ссылка на диалог</label>
+      <input type="text" id="vkDialogLink" placeholder="Вставьте ссылку на нужный диалог ВК (пример: https://vk.ru/im/convo/12345678)" required autocomplete="off">
+      <div class="quick-actions">
+        <button type="submit" id="vkQuickStart" class="primary" disabled>Скачать диалог</button>
+        <button type="button" id="vkConnect" disabled>Проверяю подключение…</button>
+        <button type="button" id="vkJobCancel" hidden>Остановить</button>
+      </div>
+    </form>
+    <p id="vkBrowserStatus" aria-live="polite">Проверяю подключение браузера…</p>
+    <p style="font-size:.9rem;margin-bottom:0">Пока идёт скачивание, оставьте компьютер, окно приложения и браузер с ВК включёнными. Повторное скачивание сохранит уже полученные сообщения.</p>
+    <details class="quick-help disclosure"><summary>Что будет сохранено?</summary><p>Сообщения и доступные вложения: фото, видео, документы, музыка и голосовые сообщения. Какие видео и аудио скачивать, можно выбрать в <a href="/settings">настройках</a>.</p><p>Если файл недоступен, приложение покажет предупреждение. Ссылки на YouTube сохраняются в сообщениях; сами видео с YouTube не скачиваются.</p></details>
+    <div id="vkJobStatus" hidden aria-live="polite">
+      <div id="vkJobMessage"></div>
+      <div id="vkJobDownload"></div>
+      <a id="vkOpenChat" hidden style="display:inline-block;margin:10px 0">Открыть переписку →</a>
+      <details id="vkJobWarnings" hidden open style="margin:10px 0;padding:12px;background:#fff6df;border-radius:8px">
+        <summary id="vkJobWarningsTitle" style="cursor:pointer">Предупреждения</summary>
+        <p id="vkWarningDetailsNote" hidden style="font-size:.85rem;line-height:1.5">В старом журнале адреса были скрыты. Ниже — подробности вложений, отмеченных ошибкой в сохранённом архиве. Повторные попытки могут создавать несколько предупреждений для одного вложения.</p>
+        <div id="vkWarningAttachments" style="overflow-wrap:anywhere"></div>
+        <details id="vkWarningHistory" open><summary style="cursor:pointer;font-size:.85rem">Журнал предупреждений</summary>
+          <pre id="vkJobWarningsLog" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:400px;overflow:auto;font-size:.8rem"></pre>
+        </details>
+      </details>
+      <details class="disclosure"><summary>Дополнительно: подробный журнал</summary><pre id="vkJobLog"></pre></details>
+    </div>
   </div>
-  <h1>Экспорт сообщений</h1>
+
+  <details id="manualExport" class="disclosure">
+  <summary>Дополнительно: ручная выгрузка и работа с файлами</summary>
+  <p style="line-height:1.6;color:#666">Этот способ нужен, если вы хотите загрузить готовый файл сообщений или скачать переписку без помощника браузера. Для обычного скачивания по ссылке используйте форму выше.</p>
 
   <div class="card">
     <h3>1. Как получить messages.json</h3>
@@ -62,15 +110,15 @@
           <li>Откройте консоль браузера (<abbr title="правая кнопка мыши">ПКМ</abbr> → Исследовать элемент → Console, <kbd>F12</kbd> → Console или <kbd>Ctrl+Shift+J</kbd>)</li>
           <li>Настройте параметры ниже.<br>Peer ID обязателен — скопируйте его из адресной строки, открыв нужный диалог (например <code>https://vk.ru/im/convo/123456789</code>, число в конце адресной строки)
             <div class="vk-fields" style="margin-top: 10px;">
-              <label>Peer ID <span style="color:#999;">(обязательный)</span><br>
-                <input type="number" id="vkPeerId" value="123456789" oninput="updateVkScript()">
+              <label>Номер диалога <span style="color:#999;">(Peer ID, обязательный)</span><br>
+                <input type="number" id="vkPeerId" placeholder="Число в конце ссылки на диалог" oninput="updateVkScript()">
                 <span style="font-size: 0.78rem; color: #999;">Адрес страницы диалога: https://vk.ru/im/convo/<b>ваш_peer_id</b></span>
               </label>
-              <label>From Date <span style="color:#999;">(необязательно)</span>
+              <label>Сообщения начиная с даты <span style="color:#999;">(необязательно)</span>
                 <input type="text" id="vkFromDate" placeholder="yyyy-mm-dd" oninput="updateVkScript()">
                 <span class="vk-date-error" style="font-size: 0.78rem; color: #e74c3c; display: none;"></span>
               </label>
-              <label>From Message ID <span style="color:#999;">(необязательно)</span>
+              <label>Сообщения после номера <span style="color:#999;">(необязательно)</span>
                 <input type="number" id="vkFromMessageId" placeholder="необязательно" oninput="updateVkScript()">
               </label>
             </div>
@@ -100,7 +148,7 @@
   </div>
 
   <div class="card">
-    <h3>2. Подключение messages.json</h3>
+    <h3>2. Добавьте файл сообщений</h3>
     <p style="font-size:0.85rem; color:#555; margin: 0 0 12px;">
       Переместите скачанный JSON-файл в папку Sources — директорию для хранения сообщений, путь к которой указан в конфиге.
       Переместить файл можно вручную или с помощью кнопки ниже.
@@ -121,18 +169,18 @@
     <p style="color: #d4a017; font-size: 0.85rem; margin: 0 0 8px;">Требуется создать директорию</p>
     {% endif %}
     <form action="/export/create-sources" method="POST" style="margin: 0 0 12px;">
-      <button type="submit" style="padding: 6px 14px; font-size: 0.85rem; color: #fff; border: none; border-radius: 4px; {% if sources_dir_exists %}background: #ccc; cursor: default;{% else %}background: #6c757d; cursor: pointer;{% endif %}" {% if sources_dir_exists %}disabled{% endif %}>Создать директорию</button>
+      <button type="submit" {% if sources_dir_exists %}disabled{% endif %}>Создать директорию</button>
     </form>
     {% if sources_dir_exists %}
     <form action="/export/upload" method="POST" enctype="multipart/form-data" id="uploadForm" style="margin: 0 0 12px;">
-      <label for="fileInput" style="padding: 6px 14px; font-size: 0.85rem; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">Переместить файл в Sources</label>
+      <label for="fileInput" class="file-upload-button">Выбрать файл сообщений</label>
       <input type="file" name="file" id="fileInput" accept=".json" style="display: none;" onchange="document.getElementById('uploadForm').submit();">
     </form>
     {% endif %}
   </div>
 
   <div class="card">
-    <h3>3. Экспорт в MD</h3>
+    <h3>3. Подготовьте сообщения для просмотра</h3>
     <p style="font-size:0.85rem; color:#555; margin: 0 0 12px;">
       Конвертирует сообщения из JSON в Markdown с сохранением текстов, изображений, видео и вложений.
       Можно отфильтровать сообщения по
@@ -181,7 +229,7 @@
       <div class="peer-group">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
           <input type="checkbox" name="peer_ids" value="{{ peer_id }}" checked style="cursor: pointer;">
-          <h4 style="margin: 0; font-size: 0.95rem; color: #444;">peer_id: {{ peer_id }}</h4>
+          <h4 style="margin: 0; font-size: 0.95rem; color: #444;">{{ dialog_names.get(peer_id) or ('Диалог №' ~ peer_id) }}</h4>
         </div>
         <ul class="file-list">
           {% for f in file_list %}
@@ -204,17 +252,17 @@
           {% endif %}
         </div>
         <div style="margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-          <label style="font-size: 0.85rem; color: #666;">Min CID:
-            <input type="number" data-peer="{{ peer_id }}" data-field="min_cid" value="{{ filters[peer_id].min_cid }}" style="width: 100px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px;">
+          <label style="font-size: 0.85rem; color: #666;">После номера сообщения:
+            <input type="number" data-peer="{{ peer_id }}" data-field="min_cid" value="{{ filters[peer_id].min_cid }}" style="width: 100px; ">
           </label>
-          <label style="font-size: 0.85rem; color: #666;">Min Date:
-            <input type="text" data-peer="{{ peer_id }}" data-field="min_date" value="{{ filters[peer_id].min_date }}" placeholder="yyyy-mm-dd-hh-mm-ss" style="width: 180px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px;">
+          <label style="font-size: 0.85rem; color: #666;">После даты:
+            <input type="text" data-peer="{{ peer_id }}" data-field="min_date" value="{{ filters[peer_id].min_date }}" placeholder="yyyy-mm-dd-hh-mm-ss" style="width: 180px; ">
           </label>
-          <button type="button" onclick="saveFilters(this)" style="padding: 4px 10px; font-size: 0.8rem; background: #6c757d; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Сохранить фильтры</button>
+          <button type="button" onclick="saveFilters(this)">Сохранить фильтры</button>
         </div>
         <div style="margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <label style="font-size: 0.85rem; color: #666;">Название папки:
-            <input type="text" data-peer="{{ peer_id }}" data-field="dialog_name" value="{{ dialog_names.get(peer_id, '') }}" placeholder="dialog_{{ peer_id }}" {% if folder_exists_by_peer_id.get(peer_id, False) %}disabled title="Папка уже существует. Переименование доступно на странице диалога"{% endif %} style="width: 220px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; {% if folder_exists_by_peer_id.get(peer_id, False) %}background: #f0f0f0; color: #999;{% endif %}">
+            <input type="text" data-peer="{{ peer_id }}" data-field="dialog_name" value="{{ dialog_names.get(peer_id, '') }}" placeholder="dialog_{{ peer_id }}" {% if folder_exists_by_peer_id.get(peer_id, False) %}disabled title="Папка уже существует. Переименование доступно на странице диалога"{% endif %} style="width: 220px;  {% if folder_exists_by_peer_id.get(peer_id, False) %}background: #f0f0f0; color: #999;{% endif %}">
           </label>
           <span class="dlg-name-error" style="display:none;font-size:0.75rem;color:#e74c3c;"></span>
           {% if folder_exists_by_peer_id.get(peer_id, False) %}
@@ -235,13 +283,193 @@
         Перезаписать существующие JSON-файлы сообщений
       </label>
       <button type="submit" class="btn-generate" id="btnGenerate" {% if not files_by_peer_id %}disabled{% endif %}>
-        Сформировать MD
+        Подготовить сообщения
       </button>
     </form>
   </div>
+  </details>
 </div>
 
+<script src="{{ url_for('static', filename='browser-detect.js') }}"></script>
 <script>
+var vkDetectedBrowser = VkBrowser.detect(navigator);
+try { document.getElementById('vkDialogLink').value = sessionStorage.getItem('vkDialogDraft') || ''; } catch (_) {}
+var vkActiveJob = null;
+var vkPollTimer = null;
+var vkStopRequested = false;
+var vkTerminalStates = ['complete', 'failed', 'cancelled', 'interrupted'];
+var vkBrowserConnected = null;
+var vkImportRunning = false;
+var vkConnecting = false;
+
+function updateVkConnectButton() {
+  var button = document.getElementById('vkConnect');
+  document.getElementById('vkQuickStart').disabled = vkBrowserConnected !== true || vkImportRunning;
+  button.disabled = vkBrowserConnected !== false || vkImportRunning || vkConnecting;
+  button.textContent = vkBrowserConnected === true ? 'Браузер подключён'
+    : vkConnecting ? 'Подключаю браузер…'
+    : vkBrowserConnected === null ? 'Проверяю подключение…' : 'Подключить браузер';
+}
+
+function renderVkJob(job) {
+  document.getElementById('vkJobStatus').hidden = false;
+  var running = !vkTerminalStates.includes(job.state);
+  document.getElementById('vkQuickStart').disabled = running;
+  vkImportRunning = running;
+  updateVkConnectButton();
+  document.getElementById('vkJobCancel').hidden = !running;
+  document.getElementById('vkJobCancel').disabled = vkStopRequested;
+  var message = job.state === 'complete' && job.warnings
+    ? 'Диалог сохранён. Предупреждений: ' + job.warnings + ' — см. блок «Предупреждения».'
+    : (job.message || 'Запускаю загрузку…');
+  document.getElementById('vkJobMessage').textContent = vkStopRequested && running
+    ? 'Останавливаю загрузку после текущего файла…' : message;
+  document.getElementById('vkJobMessage').style.color = job.state === 'failed' ? '#b33939' : '#222';
+  document.getElementById('vkJobLog').textContent = (job.lines || []).join('\n');
+  document.getElementById('vkJobWarnings').hidden = !job.warnings;
+  document.getElementById('vkJobWarningsTitle').textContent = 'Предупреждения: ' + (job.warnings || 0);
+  document.getElementById('vkJobWarningsLog').textContent = (job.warning_messages || []).length
+    ? job.warning_messages.join('\n\n')
+    : 'Этот экспорт выполнен старой версией приложения. Подробности ранних предупреждений не сохранены. В новых выгрузках предупреждения остаются в этом блоке до конца загрузки.';
+  document.getElementById('vkWarningDetailsNote').hidden = !job.warning_details_legacy;
+  document.getElementById('vkWarningHistory').open = !job.warning_details_legacy;
+  var attachments = document.getElementById('vkWarningAttachments');
+  attachments.replaceChildren();
+  for (var issue of (job.warning_attachments || [])) {
+    var card = document.createElement('div');
+    card.style.cssText = 'border-top:1px solid #e5d5a5;padding:12px 0;font-size:.85rem;line-height:1.5';
+    var heading = document.createElement('strong');
+    heading.textContent = 'Сообщение №' + issue.cid + ' · ' + issue.title;
+    card.append(heading);
+    var file = document.createElement('div');
+    file.textContent = 'Файл сообщения: ' + issue.filename;
+    card.append(file);
+    var url = document.createElement('a');
+    url.textContent = issue.url;
+    if (/^https?:\/\//i.test(issue.url)) url.href = issue.url;
+    url.target = '_blank'; url.rel = 'noopener noreferrer';
+    card.append(url, document.createElement('br'));
+    var messageLink = document.createElement('a');
+    messageLink.textContent = 'Открыть сообщение →';
+    if (/^\/chat\/\d+\?message=\d+$/.test(issue.message_url)) messageLink.href = issue.message_url;
+    card.append(messageLink);
+    attachments.append(card);
+  }
+  var download = job.download;
+  var detail = '';
+  if (download && download.state === 'downloading') {
+    var received = download.received_bytes || 0;
+    var total = download.total_bytes || 0;
+    detail = (received / 1048576).toFixed(1) + (total ? ' / ' + (total / 1048576).toFixed(1) : '') + ' МБ';
+    if (total) detail += ' · ' + Math.min(100, received * 100 / total).toFixed(0) + '%';
+    if (download.bytes_per_second) detail += ' · ' + (download.bytes_per_second / 1048576).toFixed(1) + ' МБ/с';
+  }
+  document.getElementById('vkJobDownload').textContent = detail;
+  var openChat = document.getElementById('vkOpenChat');
+  openChat.hidden = !job.chat_url;
+  if (job.chat_url) openChat.href = job.chat_url;
+  if (running) vkPollTimer = setTimeout(pollVkJob, 1000);
+}
+
+async function pollVkJob() {
+  if (!vkActiveJob) return;
+  try {
+    var response = await fetch('/api/vk/import/' + vkActiveJob, {cache: 'no-store'});
+    if (!response.ok) throw new Error('Не удалось получить состояние загрузки.');
+    renderVkJob(await response.json());
+  } catch (error) {
+    document.getElementById('vkJobStatus').hidden = false;
+    document.getElementById('vkJobMessage').textContent = 'Нет связи с приложением. Проверяю повторно…';
+    vkPollTimer = setTimeout(pollVkJob, 3000);
+  }
+}
+
+async function startVkJob() {
+  if (vkBrowserConnected !== true || vkImportRunning) return;
+  clearTimeout(vkPollTimer);
+  vkStopRequested = false;
+  var start = document.getElementById('vkQuickStart');
+  start.disabled = true;
+  vkImportRunning = true;
+  updateVkConnectButton();
+  document.getElementById('vkJobStatus').hidden = false;
+  document.getElementById('vkJobMessage').textContent = 'Подключаюсь к ВК в вашем браузере…';
+  document.getElementById('vkJobDownload').textContent = '';
+  document.getElementById('vkOpenChat').hidden = true;
+  try {
+    var response = await fetch('/api/vk/import', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({link: document.getElementById('vkDialogLink').value})});
+    var data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось запустить загрузку.');
+    vkActiveJob = data.id;
+    window.dispatchEvent(new Event('vk-backup-wake'));
+    pollVkJob();
+  } catch (error) {
+    document.getElementById('vkJobMessage').textContent = error.message;
+    start.disabled = false;
+    vkImportRunning = false;
+    updateVkConnectButton();
+  }
+}
+
+document.getElementById('vkQuickForm').addEventListener('submit', function(event) {
+  event.preventDefault(); startVkJob();
+});
+document.getElementById('vkConnect').addEventListener('click', async function() {
+  var button = document.getElementById('vkConnect');
+  if (button.disabled) return;
+  vkConnecting = true;
+  updateVkConnectButton();
+  try {
+    var detected = await vkDetectedBrowser;
+    var response = await fetch('/api/vk/browser/connect', {method: 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({browser:detected.id})});
+    if (!response.ok) throw new Error('Не удалось подготовить подключение браузера.');
+    var data = await response.json();
+    try { sessionStorage.setItem('vkDialogDraft', document.getElementById('vkDialogLink').value); } catch (_) {}
+    location.assign(data.url);
+  } catch (error) { document.getElementById('vkBrowserStatus').textContent = error.message; }
+  finally { vkConnecting = false; updateVkConnectButton(); }
+});
+async function checkVkBrowser() {
+  try {
+    var response = await fetch('/api/vk/browser/status', {cache: 'no-store'});
+    if (!response.ok) throw new Error();
+    var status = await response.json();
+    vkBrowserConnected = status.connected === true;
+    updateVkConnectButton();
+    document.getElementById('vkBrowserStatus').textContent = status.connected
+      ? status.browser + ' подключён · используется ваш текущий вход в ВК'
+      : 'Браузер пока не подключён · нажмите «Подключить браузер»';
+    if (!status.connected) {
+      var detected = await vkDetectedBrowser;
+      document.getElementById('vkBrowserStatus').textContent = detected.family === 'other'
+        ? detected.name + ' · доступна ручная выгрузка JSON ниже'
+        : detected.name + ' определён автоматически · нажмите «Подключить браузер»';
+    }
+  } catch (error) {
+    vkBrowserConnected = null;
+    updateVkConnectButton();
+    document.getElementById('vkBrowserStatus').textContent = 'Нет связи с приложением.';
+  }
+  setTimeout(checkVkBrowser, 10000);
+}
+checkVkBrowser();
+if(location.hash==='#manualExport') document.getElementById('manualExport').open=true;
+document.getElementById('vkJobCancel').addEventListener('click', async function() {
+  if (!vkActiveJob) return;
+  try {
+    var response = await fetch('/api/vk/import/' + vkActiveJob + '/cancel', {method: 'POST', headers: {'Content-Type': 'application/json'}});
+    if (!response.ok) throw new Error();
+    vkStopRequested = true;
+    document.getElementById('vkJobCancel').disabled = true;
+    document.getElementById('vkJobMessage').textContent = 'Останавливаю загрузку после текущего файла…';
+  } catch (error) { document.getElementById('vkJobMessage').textContent = 'Не удалось остановить загрузку. Попробуйте ещё раз.'; }
+});
+fetch('/api/vk/import/latest', {cache: 'no-store'}).then(function(response) { return response.json(); }).then(function(job) {
+  if (!job || vkActiveJob) return;
+  vkActiveJob = job.id; renderVkJob(job);
+}).catch(function() {});
+
 function toggleAll(master) {
   document.querySelectorAll('input[name="peer_ids"]').forEach(function(cb) {
     cb.checked = master.checked;
@@ -328,13 +556,13 @@ function saveFilters(btn) {
     if (!res.ok) {
       showSaveFiltersError(res.j.errors);
       btn.textContent = 'Ошибка сохранения';
-      btn.style.background = '#e74c3c';
-      setTimeout(function() { btn.textContent = 'Сохранить фильтры'; btn.style.background = '#6c757d'; btn.disabled = false; }, 2500);
+      btn.dataset.state = 'error';
+      setTimeout(function() { btn.textContent = 'Сохранить фильтры'; delete btn.dataset.state; btn.disabled = false; }, 2500);
       return;
     }
     btn.textContent = 'Сохранено';
-    btn.style.background = '#28a745';
-    setTimeout(function() { btn.textContent = 'Сохранить фильтры'; btn.style.background = '#6c757d'; btn.disabled = false; }, 1500);
+    btn.dataset.state = 'success';
+    setTimeout(function() { btn.textContent = 'Сохранить фильтры'; delete btn.dataset.state; btn.disabled = false; }, 1500);
   });
 }
 
@@ -415,7 +643,7 @@ function updateVkScript() {
     : 'let fromMessageId = null;';
 
   var script = 'async function getHistory(peerId, fromDate, fromMessageId) {\n'
-    + '  debugLog("getting history started...")\n'
+    + '  console.log("getting history started...");\n'
     + '  const limit = 200;\n'
     + '  \n'
     + '  let items = [];\n'
@@ -485,10 +713,10 @@ function copyVkScript() {
   navigator.clipboard.writeText(text).then(function() {
     var btn = document.querySelector('.vk-code-container .btn-copy');
     btn.textContent = 'Скопировано';
-    btn.style.background = '#28a745';
+    btn.dataset.state = 'success';
     setTimeout(function() {
       btn.textContent = 'Скопировать';
-      btn.style.background = '#555';
+      delete btn.dataset.state;
     }, 1500);
   });
 }

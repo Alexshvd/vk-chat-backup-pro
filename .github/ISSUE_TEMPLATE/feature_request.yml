@@ -1,0 +1,31 @@
+name: Предложить улучшение
+description: Расскажите, чего не хватает и как это поможет пользоваться приложением.
+title: "[Идея]: "
+labels: [enhancement, "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Проверьте, нет ли похожей идеи в Issues. Не прикладывайте личную переписку и данные для входа.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу вы хотите решить?
+      placeholder: Сейчас мне неудобно…
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Как это должно работать?
+      placeholder: Было бы удобно, если…
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Как вы решаете эту задачу сейчас?
+  - type: textarea
+    id: examples
+    attributes:
+      label: Примеры или картинки
+      description: Если прикладываете скриншот, скройте личные сообщения и имена.

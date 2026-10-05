@@ -3,14 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VkChatBackup — Главная</title>
+<title>{{ app_name }} — Главная</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #222; }
   .container { max-width: 800px; margin: 0 auto; }
-  .nav { margin-bottom: 20px; display: flex; gap: 16px; font-size: 0.9rem; }
-  .nav a { color: #555; text-decoration: none; }
-  .nav a:hover { text-decoration: underline; }
   .hero { text-align: center; padding: 40px 0 20px; }
   .hero h1 { font-size: 1.8rem; margin: 0 0 12px; color: #222; }
   .hero p { font-size: 1rem; color: #666; line-height: 1.6; max-width: 600px; margin: 0 auto; }
@@ -28,52 +25,54 @@
   .card-btn.dialogs { background: #27ae60; }
   .card-btn.dialogs:hover { background: #219a52; }
   .privacy { text-align: center; margin-top: 28px; font-size: 0.85rem; color: #888; line-height: 1.5; }
+  .help { background:white;border-radius:10px;padding:18px 24px;margin-top:20px;line-height:1.6; }
+  .help summary { cursor:pointer;font-weight:600; }
+  @media(max-width:600px){.card{flex-wrap:wrap;gap:12px}.card-btn{margin-left:60px}.hero{padding-top:15px}}
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='navigation.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
-<body>
+<body class="has-app-navigation app-page">
+{% with active_page='main' %}{% include 'navigation.html' %}{% endwith %}
 <div class="container">
-  <div class="nav">
-    <a href="/main">Главная</a>
-    <a href="/dialogs">Диалоги</a>
-    <a href="/export">Экспорт</a>
-    <a href="/settings">Настройки</a>
-  </div>
 
   <div class="hero">
-    <h1>VkChatBackup</h1>
-    <p>Веб-редактор экспортированных диалогов VK. Позволяет выгрузить сообщения, конвертировать их в Markdown, редактировать файлы, перемещать по папкам и управлять вложениями — всё через браузер.</p>
+    <h1>{{ app_name }}</h1>
+    <p>Сохраните переписку ВК на своём компьютере. Потом сможете читать сообщения, смотреть фото и слушать сохранённое аудио даже без интернета.</p>
   </div>
 
   <div class="steps">
     <div class="card">
       <div class="card-num">1</div>
       <div class="card-body">
-        <h3>Настройка</h3>
-        <p>Выберите путь для сохранения файлов, настройте скачивание видео, перезапись данных и другие параметры.</p>
+        <h3>Подключите браузер</h3>
+        <p>Откройте приложение в браузере, где вы вошли в ВК. Нажмите «Подключить браузер» и выполните подсказки. Если браузер уже подключён, переходите к следующему шагу.</p>
       </div>
-      <a href="/settings" class="card-btn settings">Настройки</a>
+      <a href="/export" class="card-btn">Начать</a>
     </div>
 
     <div class="card">
       <div class="card-num">2</div>
       <div class="card-body">
-        <h3>Экспорт сообщений из VK</h3>
-        <p>Выгрузите сообщения через консоль браузера (встроенная инструкция) и сконвертируйте их в MD-файлы.</p>
+        <h3>Скачайте нужный диалог</h3>
+        <p>Откройте переписку на сайте ВК, скопируйте адрес страницы и вставьте его в приложение. Нажмите «Скачать диалог» и дождитесь завершения.</p>
       </div>
-      <a href="/export" class="card-btn">Экспорт</a>
+      <a href="/export" class="card-btn">Скачать диалог</a>
     </div>
 
     <div class="card">
       <div class="card-num">3</div>
       <div class="card-body">
-        <h3>Редактор диалогов</h3>
-        <p>Просмотр результатов, переименование диалогов и файлов, перемещение MD по папкам, управление вложениями, удаление лишнего.</p>
+        <h3>Читайте сохранённую переписку</h3>
+        <p>Выберите диалог в списке. Нажмите фото, чтобы увеличить его, или «Показать вложения», чтобы увидеть все сохранённые файлы этого диалога.</p>
       </div>
-      <a href="/dialogs" class="card-btn dialogs">Диалоги</a>
+      <a href="/dialogs" class="card-btn dialogs">Открыть диалоги</a>
     </div>
   </div>
 
-  <div class="privacy">Все данные остаются на вашем компьютере, ничего не загружается на сторонние сервисы.</div>
+  <details class="help disclosure"><summary>Как открыть приложение в следующий раз?</summary><p>В папке приложения дважды нажмите <b>start-local.cmd</b>. Оставьте открывшееся окно работающим. Если страница не открылась сама, перейдите на <a href="http://127.0.0.1:5000">http://127.0.0.1:5000</a>.</p><p>Для остановки запустите <b>stop-local.cmd</b> или нажмите Ctrl+C в окне приложения.</p></details>
+  <details class="help disclosure"><summary>Дополнительно</summary><p>В <a href="/settings">настройках</a> можно выбрать, какие видео и аудио скачивать. Там же находятся расширенные настройки хранения и восстановления файлов.</p><p>Редактор файлов доступен в разделе «Дополнительно» внутри диалога.</p></details>
+  <div class="privacy">Скачанная переписка хранится на вашем компьютере. Интернет нужен для получения сообщений и вложений из ВК.</div>
 
 </div>
 </body>
